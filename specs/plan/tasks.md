@@ -178,7 +178,8 @@ S11-12：T-F08 → T-F09 → 效能複測（NFR-01~03）→ 上架
 | Helper | T-H7 Gherkin runner（BE）＋T-H8 FE 掛鉤（驗證延至 M1 FE 首跑）＋T-H9 truth 對齊測試 | ✅（f803eb2） |
 | Migration | T-S1 schema v1（建表＋建表回歸＋truth 對齊基線，隨 T-H1 完成） | ✅ |
 | Migration | T-S2~T-S5（v2~v5，M2~M6 隨各 feature） | ☐×4 |
-| Feature | T-F01~F10（BE+FE 共 51 情境） | ☐ |
+| Feature | T-F01-BE（8 情境：智慧預設×4／儲存事務／Undo／離線／效能——🔴→🟢 完成，每情境一 commit） | 🔵（BE 綠、FE 待） |
+| Feature | T-F01-FE（7 情境）＋ T-F02~F10（BE+FE） | ☐ |
 | 對齊 | §5 清單自動化（pubspec/schema ✓ 已上 CI）；PR review 項人工 | 🟢 |
 | 發佈 | v0.1.0（骨架+Demo+T-H1/2）、v0.2.0（S0 完成）自動標籤＋Release | ✅ |
 

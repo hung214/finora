@@ -21,21 +21,21 @@
 | 欄位 | 內容 |
 |---|---|
 | 更新時間 | 2026-10-18 |
-| 階段 | **遷移完成 ✅：DBG-002-① 根治驗證通過**（新路徑 `E:\opencode\finora` 直接 `dart analyze`／56 測試綠／Windows Release 建置 81.9s 全數成功，不需 clone 副本）。S0 ✅、M0 ✅；下一步 **M1-F01** |
-| 當前分支 | main（將 commit 遷移驗證回寫）；tag：v0.1.0、v0.2.0（release 工作流） |
-| 當前任務 | 完成：遷移後驗證——還原誤刪的 `opencode.json`（/system-analysis 指令）、刪除舊 junction、`flutter clean` 清含舊路徑絕對路徑的 CMakeCache 後直接建置成功；README §3.2／debug.md DBG-002 已回寫「已遷移／根治」 |
-| 紅綠燈狀態 | `dart analyze` = No issues found!（新路徑直接執行）；`flutter test` = **56 全綠**；`flutter build windows --release` 直接成功（81.9s） |
-| 工作區 | 文件回寫待 commit（本列更新後） |
-| truth 對齊 | techstack **v0.3.3**（TR-8：secure_storage/local_auth 移至 M2 回歸）；T-H9 對齊測試持續把關 |
-| 環境筆記 | ✅ **已遷移**：repo 位於 `E:\opencode\finora`（ASCII），DBG-002-① 根治。注意：**搬移 repo 後首次建置須先 `flutter clean`**（舊 `build/` 的 CMakeCache 含舊絕對路徑會報錯）。舊 Temp junction `ledger_app` 已刪；`...\Temp\opencode\finora-build` clone 留存（可刪，origin 為 GitHub 不受影響） |
-| 阻塞／待決 | ①v0.2.0 GitHub release 四平台結果確認 ②SP-1 SQLCipher EOL（M1 前）③PM 簽核 |
+| 階段 | **M1 進行中：T-F01-BE 完成（8 情境 🔴→🟢，分支 feature/F01-quick-entry，未合併）**。遷移 ✅（DBG-002-① 根治驗證）；opencode.json 指令設定修復（template 必填）；下一步 **T-F01-FE（7 情境）** |
+| 當前分支 | feature/F01-quick-entry（8 commits，未推送）；main = a64ea7f |
+| 當前任務 | 完成：T-F01-BE——QuickEntryPresetService（FR-Q4 優先序全鏈＋固定預設）、SaveTransactionUseCase（UUIDv7/HLC/同事務 oplog 快照）、UndoLastTransaction（oplog 建立序＋softDeleteTransactionWithOplog 原子墓標）；AppDatabase 擴充（lastTransaction/transactionById/transactionsByMerchant/beforeOplog seam/TxRow.deletedAt） |
+| 紅綠燈狀態 | `dart analyze` = No issues；`flutter test` = **57 全綠**（56 既有＋F01 BDD harness 8 情境）；Windows Release 建置 ✅ |
+| 工作區 | 乾淨（C7 後 commit） |
+| truth 對齊 | techstack v0.3.3；data-spec **v0.3.1**（settings 補 F01 key：quick_entry.smart_preset／quick_entry.fixed_preset）；dsl.md 登記 F01 新句型 16 條 |
+| 環境筆記 | ✅ repo 於 `E:\opencode\finora`（ASCII，DBG-002-① 根治）。搬移 repo 後首次建置須 `flutter clean`。**opencode 設定：`command.*` 必填 `template`（非 prompt），錯誤將拒絕啟動（已修，0d98087）** |
+| 阻塞／待決 | ①**SPEC FR-Q4「五段時段」vs acceptance S1.1「四段」矛盾**（BE 依 acceptance 四段實作，待 PM 裁決，若改五段僅調 slotOf）②v0.2.0 GitHub release 四平台結果確認 ③SP-1 SQLCipher EOL ④PM 簽核 |
 
-## 3. 下一步（進 M1-F01：快速記帳；下次開工照此執行）
+## 3. 下一步（T-F01-FE：快記前端 7 情境；下次開工照此執行）
 
-1. **開分支**：`git checkout -b feature/F01-quick-entry`，依 `specs/plan/tasks.md` §4.0 SOP。
-2. **BE 情境先行**（TDD 紅→綠→refactor，每情境一 commit）：T-F01-BE 智慧預設×4 → 儲存事務 → Undo → 離線 → 效能。
-3. 情境來源：`specs/plan/tests/backend/F01_quick-entry.feature`（8 情境）＋ acceptance `F01_quick-entry.md`（AC-01/02）。
-4. 完成後 FE 掛鉤（T-H8 已備）：`integration_test/features/frontend/F01_quick-entry.feature`（7 情境）。
+1. 讀 `specs/plan/tests/frontend/F01_quick-entry.feature`（7 情境）＋ dsl.md §3 前端句型。
+2. FE 紅綠燈（integration_test + flutter_gherkin，T-H8 掛鉤已備）：預填呈現 → 對話框 → Sticky → 完成 → 時間選擇器 → 復原 → 桌面快捷鍵（S1.11 屬 P1/@desktop 可後）。
+3. BE 為掛鉤：FE 不重驗計算，讀 UI 呈現（dsl.md §1-5）。
+4. 每情境 ≥1 commit；完成後 §4.0 步驟 4（truth 對齊＋CI）→ PR `--no-ff` merge 回 main。
 5. 休息前照 §1 檢查清單更新本檔。
 
 ## 4. 恢復工作 SOP（下次開工照此執行）
@@ -50,6 +50,7 @@
 
 | 日期 | 摘要 | 分支 | 狀態 |
 |---|---|---|---|
+| 2026-10-18 | **T-F01-BE 完成（8 情境 🔴→🟢）**：C1 紅（2618b13：dsl 登記＋BDD harness＋stubs；Undo 期望修正 1880 對齊 acceptance S1.8；dbml v0.3.1 settings key）→ C2-C7 綠：S1 時段/上一筆（6ec94af）、S2 商家（58ad00b）、S3 回退（dce4e9a）、S4 固定預設（24255eb）、S5 儲存事務（d045e12；S7 離線/S8 效能同）、S6 Undo 墓標（51a34cd）；57 測試全綠；opencode.json 修復（0d98087） | feature/F01-quick-entry | 🔵（BE 綠、FE 待、未合併） |
 | 2026-10-18 | **遷移完成＋DBG-002-① 根治驗證**：repo 移至 `E:\opencode\finora`；還原誤刪 `opencode.json`；刪舊 junction；`flutter clean` 清舊 CMakeCache（含舊路徑絕對路徑）後 `dart analyze`／56 測試／Windows Release 建置（81.9s）全數直接通過；README §3.2、debug.md 回寫「已遷移／根治」 | main | ✅ |
 | 2026-10-18 | **休息交接**：使用者將遷移資料夾至英文路徑（根治 DBG-002-①）；§3 已寫入遷移後驗證與 M1 接續步驟 | main | 休息前 ✅（工作區乾淨、56 綠燈） |
 | 2026-10-18 | **本地測試部署版**：Windows Release 建置實測 → DBG-002（①路徑非 ASCII 使 MSBuild 失敗 → ASCII clone `finora-build` 建置 ②secure_storage 需 ATL → TR-8 移至 M2）→ 建置成功（17.7s）＋**啟動冒煙通過**（行程存活 8s/127.7MB）→ 打包 `dist/LedgerSync-v0.2.0-windows-x64-local-test.zip`（11.7MB）＋tool/package_windows.ps1；techstack v0.3.3 | fix/TR-8-windows-build → main | ✅（5db6c26 / merge f8db9a5） |
