@@ -6,7 +6,7 @@ Feature: 報表聚合與搜尋（後端自動化）
     Given 已重置記憶體資料庫
     And 已存在 6 月支出: 餐飲 3 筆共 900、交通 2 筆共 400（經 fixture）
     And 已存在 7 月支出: 餐飲 1 筆 500（經 fixture）
-    And 其中 1 筆 6 月餐飲備註含「全家超商」
+    And 其中 1 筆 6 月餐飲備註含「陽光超商」
 
   @P0 @FR-R2
   Scenario: 分類占比聚合
@@ -18,9 +18,9 @@ Feature: 報表聚合與搜尋（後端自動化）
   @P0 @FR-R3
   Scenario: FTS5 中文 bigram 搜尋
     When 搜尋 "超商"
-    Then 搜尋 "超商" 命中 1 筆（命中「全家超商」）
-    When 搜尋 "全家"
-    Then 搜尋 "全家" 命中 1 筆
+    Then 搜尋 "超商" 命中 1 筆（命中「陽光超商」）
+    When 搜尋 "陽光"
+    Then 搜尋 "陽光" 命中 1 筆
 
   @P1 @FR-R3
   Scenario: 複合篩選 AND 語意

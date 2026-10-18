@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'presentation/screens/demo/demo_gallery_page.dart';
+
 /// LedgerSync — 本地優先記帳 App（入口）。
 /// UI 資訊架構依 SDD §8；畫面雛型見 specs/plan/ui/；正式分頁架構於 M1（F01）實作。
 void main() => runApp(const LedgerSyncApp());
@@ -33,14 +35,25 @@ class BootstrapPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('LedgerSync')),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
-            Text('📒 LedgerSync', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-            SizedBox(height: 8),
-            Text('骨架就緒（M0）— 開發計畫見 specs/plan/tasks.md'),
-          ],
+      body: Builder(
+        builder: (context) => Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text('📒 LedgerSync',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              const Text('骨架就緒（M0）— 開發計畫見 specs/plan/tasks.md'),
+              const SizedBox(height: 20),
+              FilledButton.icon(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const DemoGalleryPage()),
+                ),
+                icon: const Icon(Icons.palette_outlined),
+                label: const Text('🎨 開啟 UI Demo（7 畫面 · 深色/淺色切換）'),
+              ),
+            ],
+          ),
         ),
       ),
     );

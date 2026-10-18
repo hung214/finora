@@ -158,7 +158,7 @@ Spike 技術驗證（M0，時限盒） ──失敗──► 回退研究，換�
 - BDD.md §4 之 step definitions 以 flutter_gherkin 掛接；三測試掛鉤（fake clock / in-memory cloud / notification spy）為標配。
 
 ### D13 全文搜尋（中文）— 🔬 併入 SP-1
-- FTS5 預設 tokenizer 不切中文 → 採 **bigram 影子欄位**：寫入時將 merchant/note 切成兩字詞（空格分隔）存入 FTS5 欄位，查詢同樣切分。驗證：查「超商」命中「全家超商」。
+- FTS5 預設 tokenizer 不切中文 → 採 **bigram 影子欄位**：寫入時將 merchant/note 切成兩字詞（空格分隔）存入 FTS5 欄位，查詢同樣切分。驗證：查「超商」命中「陽光超商」。
 
 ### D14 套件治理 — ✅
 - 授權白名單（MIT/BSD/Apache-2.0，排除 copyleft）；pubspec.lock 鎖版；每月人工審查相依更新（不自動升級）；供應鏈風險：關鍵套件（加密/DB）鎖 commit tag。
