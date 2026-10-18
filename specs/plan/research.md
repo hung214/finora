@@ -193,6 +193,7 @@ Spike 技術驗證（M0，時限盒） ──失敗──► 回退研究，換�
 | TR-3 | Google OAuth 審核延誤 | S8 前送審；備選 `drive.file`（R2） |
 | TR-4 | 純 Dart Argon2 過慢 | FFI libargon2（僅影響備份檔加解密，低頻） |
 | TR-5 | 自研同步協議缺陷 | 雙/三裝置整合測試為 S9 出口條件；GC 保守保留 20 個 bundle |
+| TR-6 | sqlcipher_flutter_libs 0.7.0+eol（套件已標記 EOL，S0 pub get 發現） | D2 加密整合 | SP-1 強化評估：改自帶 SQLCipher native（sqlite3 FFI + cipher 編譯）或替代加密層；M1 前定案（techstack §6-7） |
 
 ## 6. 變更控制（research → truth 流程）
 
