@@ -21,14 +21,14 @@
 | 欄位 | 內容 |
 |---|---|
 | 更新時間 | 2026-10-18 |
-| 階段 | M0 骨架完成（四平台可建置、21 測試綠燈）；S0 Helper 尚未開始 |
-| 當前分支 | main（`8430b03`）；最近：`96bca5f` feat(scaffold)、`4a6eebd` docs 規劃文件集 |
-| 當前任務 | 已完成：專案骨架、核心模組（Money/HLC/BalanceCalculator）、BDD feature 同步（10+10）、CI、README、techstack v0.3.1 |
-| 紅綠燈狀態 | `flutter test` = **21 全綠**（Money 7／HLC 8／Balance 6）；`dart analyze` 零問題 |
-| 工作區 | 乾淨（session.md 本次更新後將 commit） |
-| truth 對齊 | techstack v0.3.1（實鎖版本回寫）；api-spec/data-spec 未動；T-H9 自動對齊測試待建 |
-| 環境筆記 | ⚠️ 專案路徑含非 ASCII（記帳）：`flutter analyze` 會崩潰 → **改用 `dart analyze`**，或透過 junction `C:\Users\hung2\AppData\Local\Temp\opencode\ledger_app` 執行 flutter 命令；`flutter test` 不受影響。⚠️ sqlcipher_flutter_libs 0.7.0+eol 已 EOL（research TR-6） |
-| 阻塞／待決 | ①PM 對文件集 v0.3 簽核 ②SP-1 SQLCipher EOL 替代方案定案（M1 前）③Google OAuth 送審材料（M5 前） |
+| 階段 | M0 完成＋**UI Demo 畫廊已上線**（7 畫面、深淺色切換、分類設定頁）；S0 Helper 尚未開始 |
+| 當前分支 | main（`bcd4ee5` merge feature/ui-demo-gallery）；最近：89571c9 feat(demo)、01a295c docs(ui) |
+| 當前任務 | 已完成：專案骨架、核心模組、BDD feature 同步、CI、README、**UI Demo（lib/presentation/screens/demo/）**、品牌虛構化（27 檔版權清理） |
+| 紅綠燈狀態 | `flutter test` = **21 全綠**；`dart analyze` = **No issues found!** |
+| 工作區 | 乾淨（session.md 本次更新後 commit） |
+| truth 對齊 | techstack v0.3.1；api-spec/data-spec 未動；T-H9 自動對齊測試待建 |
+| 環境筆記 | ⚠️ 路徑含非 ASCII（記帳）：`flutter analyze` 崩潰 → 改 `dart analyze`；junction：`C:\Users\hung2\AppData\Local\Temp\opencode\ledger_app`；`flutter test` 不受影響。⚠️ sqlcipher 0.7.0+eol（TR-6）。**看畫面**：`flutter run` → 首頁「🎨 開啟 UI Demo」；HTML 雛型 specs/plan/ui/ |
+| 阻塞／待決 | ①PM 對文件集 v0.3 與 UI Demo 簽核 ②SP-1 SQLCipher EOL 替代方案（M1 前）③Google OAuth 送審材料（M5 前） |
 
 ## 3. 下一步（精確到檔案與動作）
 
@@ -50,5 +50,6 @@
 
 | 日期 | 摘要 | 分支 | 狀態 |
 |---|---|---|---|
+| 2026-10-18 | **UI Demo 畫廊**：7 畫面（總覽/明細/快記＋每筆確認/預算/信用卡/分類設定/設定同步）＋深淺色切換（DemoThemeScope）；新增 09 分類設定 HTML 雛型；品牌名虛構化 27 檔（全家→陽光、富邦卡→示例卡、悠遊卡→票證卡等，版權考量）；README 授權聲明；analyze 零問題、21 測試綠 | feature/ui-demo-gallery → main | ✅（89571c9 / 01a295c / merge bcd4ee5） |
 | 2026-10-18 | S0 骨架：flutter create 四平台（116 檔）、pubspec 對齊 techstack、Money/HLC/Balance + 21 測試全綠、dart analyze 零問題、BDD feature 同步（tool/sync_features.ps1）、CI workflow、README；truth v0.3.1 實鎖版本回寫（SQLCipher EOL → TR-6） | main | 骨架 ✅（commit 96bca5f / 8430b03） |
 | 2026-10-18 | 規劃文件集 v0.3 完成：SPEC/SDD/BDD、acceptance×11、research、ui×9、tests（FE48/BE62+dsl）、truth×3、tasks、`/system-analysis` 指令 | main | 規劃 ✅（commit 4a6eebd） |
