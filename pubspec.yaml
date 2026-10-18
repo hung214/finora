@@ -16,8 +16,6 @@ dependencies:
   sqlite3_flutter_libs: ^0.5.42   # 四平台 SQLite 原生庫
   sqlcipher_flutter_libs: ">=0.6.0 <1.0.0" # DB 加密（FR-X2；SP-1 驗證四平台）
   cryptography: ^2.9.0            # AES-256-GCM（D8；Argon2id 備份檔密碼用）
-  flutter_secure_storage: ^9.2.4  # DB 金鑰 / OAuth token（Keychain/Keystore/DPAPI）
-  local_auth: ^2.3.0              # 生物辨識 App 鎖（FR-X1）
   intl: ">=0.19.0 <0.22.0"        # 多語系/幣別格式
   uuid: ^4.6.0                    # UUIDv7（實體 ID）
   cupertino_icons: ^1.0.8
