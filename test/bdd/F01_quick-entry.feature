@@ -6,23 +6,23 @@ Feature: 快速記帳領域邏輯（後端自動化）
   Background:
     Given 已重置記憶體資料庫
     And 已建立帳戶「現金」類型 cash 期初 2000
-    And 已建立帳戶「富邦卡」類型 credit 期初 0
+    And 已建立帳戶「示例卡」類型 credit 期初 0
     And 已建立分類「餐飲」「交通」「購物」「其他」
     And 模擬系統時間為 2026/10/18 08:00
 
   @P0 @AC-01 @FR-Q4
   Scenario: 智慧預設_時段推薦分類與上一筆帳戶
-    Given 歷史: 昨日 20:00 富邦卡/餐飲 120；本週上午現金/交通 5 筆
+    Given 歷史: 昨日 20:00 示例卡/餐飲 120；本週上午現金/交通 5 筆
     When 呼叫 QuickEntryPresetService 計算預設
-    Then 預設帳戶 = 「富邦卡」
+    Then 預設帳戶 = 「示例卡」
     And 預設分類 = 「交通」
     And 預設時間 = 2026/10/18 08:00
 
   @P0 @FR-Q4
   Scenario: 智慧預設_同商家歷史分類優先
-    Given 商家「全家」過去 5 筆分類皆為「購物」
+    Given 商家「陽光」過去 5 筆分類皆為「購物」
     And 目前時段最常用分類為「餐飲」
-    When 呼叫 QuickEntryPresetService 計算預設（商家=全家）
+    When 呼叫 QuickEntryPresetService 計算預設（商家=陽光）
     Then 預設分類 = 「購物」
 
   @P0 @FR-Q4
@@ -36,7 +36,7 @@ Feature: 快速記帳領域邏輯（後端自動化）
   Scenario: 關閉智慧預設_固定預設生效
     Given 設定 quick_entry.smart_preset = off
     And 固定預設 = 現金/交通
-    When 呼叫 QuickEntryPresetService 計算預設（商家=全家）
+    When 呼叫 QuickEntryPresetService 計算預設（商家=陽光）
     Then 預設帳戶 = 「現金」
     And 預設分類 = 「交通」
 

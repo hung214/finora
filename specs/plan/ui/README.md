@@ -20,16 +20,18 @@
 | `04-budget.html` | 預算與收入目標（行動） | FR-B2~B7 | AC-05、AC-13 |
 | `05-scan-review.html` | 掃描＋確認清單（行動） | FR-S1~S7、SDD §5.4 | AC-03 |
 | `06-credit-card.html` | 信用卡與帳單（行動） | FR-C1~C6、SDD §5.2 | AC-04、AC-11 |
-| `07-settings-sync.html` | 設定：雲端同步/安全/通知（行動） | FR-Y7/Y11、FR-X1、FR-O2 | AC-08、S7.10~S7.13 |
+| `07-settings-sync.html` | 設定：雲端同步/安全/通知（行動） | FR-Y7/Y11、FR-X1、FR-O1/O2 | AC-08、S7.10~S7.13 |
 | `08-desktop-shell.html` | 桌面版三欄殼（Windows/macOS） | SDD §8、FR-Q7 | F01-S1.11、F03-S3.9 |
+| `09-category-settings.html` | 分類設定（行動） | FR-B1、FR-Q1 | F01-S1.1 |
 
 ## 2. 雛型原則
 
 1. **靜態、自足**：每個 HTML 內嵌 CSS，無外部依賴，雙擊即開；僅呈現單一關鍵狀態（非完整互動）。
 2. **規格標註**：畫面旁黃色便利貼 = 規格/驗收連結（FR/AC/情境編號），PM 與 QA 對照用。
 3. **資料為劇例**：使用 acceptance 檔之相同測試資料（如 餐飲 87.5%、帳單 5,000、發票 195 元），方便跨文件對照。
-4. **此為初步版（low-fi → mid-fi）**：色彩/間距為方向性示意；最終視覺由 M1 Sprint 以 Material 3 token 定稿。
+4. **此為初步版（low-fi → mid-fi）**：色彩/間距為方向性示意；最終視覺由 M1 Sprint 以 Material 3 token 定稿。App 內建「UI Demo 畫廊」（`flutter run` → 首頁按鈕）為本清單之 Flutter 呈現，支援深色/淺色切換（FR-O1）。
 5. 每個雛型定案（PM 簽核）後，作為 F01~F10 驗收之 UI 基準；修改需記錄於本 README §4。
+6. **版權聲明**：所有商家／卡片／帳戶名稱皆為虛構（陽光超商、晨光早餐店、示例卡、票證卡等），與任何真實品牌無關；圖示使用 Flutter Material Icons（Apache-2.0）與 Unicode 表情符號，未使用需授權素材。
 
 ## 3. 未列入本輪的畫面（後續補）
 

@@ -24,7 +24,7 @@ Enum account_type {
   cash [note: "現金"]
   bank [note: "銀行/金融卡"]
   credit [note: "信用卡"]
-  ewallet [note: "電子支付/票證（悠遊卡等）"]
+  ewallet [note: "電子支付/票證（票證卡等）"]
   other [note: "其他虛擬帳戶"]
 }
 
