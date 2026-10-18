@@ -166,9 +166,15 @@ class AppDatabase {
       .map(TxRow.fromRow)
       .toList();
 
-  /// 軟刪除墓標（SDD 原則 5）：deleted_at 非 null + oplog 墓標（payload=NULL）。
+  /// 軟刪除墓標（SDD 原則 5）：UPDATE deleted_at + oplog 墓標（payload=NULL）
+  /// 於**同一 transaction**（鏡像 [saveTransactionWithOplog] 契約）。
   /// 已刪除者拋 StateError（防重複墓標——同步後多刪，acceptance F01 S1.8）。
-  void softDeleteTransaction(String id, {required int deletedAt, required String hlc}) {
+  void softDeleteTransactionWithOplog(
+    String id,
+    OplogRow o, {
+    required int deletedAt,
+    required String hlc,
+  }) {
     final tx = transactionById(id);
     if (tx == null) {
       throw StateError('軟刪除失敗：交易不存在 $id');
@@ -176,10 +182,18 @@ class AppDatabase {
     if (tx.deletedAt != null) {
       throw StateError('軟刪除失敗：交易已為墓標 $id');
     }
-    _db.execute(
-      'UPDATE transactions SET deleted_at = ?, updated_at = ?, hlc = ? WHERE id = ?',
-      [deletedAt, deletedAt, hlc, id],
-    );
+    _db.execute('BEGIN');
+    try {
+      _db.execute(
+        'UPDATE transactions SET deleted_at = ?, updated_at = ?, hlc = ? WHERE id = ?',
+        [deletedAt, deletedAt, hlc, id],
+      );
+      appendOp(o);
+      _db.execute('COMMIT');
+    } catch (_) {
+      _db.execute('ROLLBACK');
+      rethrow;
+    }
   }
 
   // ── 設定（key-value；device.* 為 per-device 不入 oplog） ──
