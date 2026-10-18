@@ -170,6 +170,8 @@ S11-12：T-F08 → T-F09 → 效能複測（NFR-01~03）→ 上架
 
 | 區塊 | 任務 | 狀態 |
 |---|---|---|
+| 前置 | 專案骨架（flutter create 四平台＋Money/HLC/Balance＋21 測試＋CI＋README＋BDD feature 同步） | ✅（96bca5f；dart analyze 零問題） |
+| 前置 | UI Demo 畫廊（7 畫面＋深淺色切換＋分類設定頁＋品牌虛構化 27 檔） | ✅（89571c9/01a295c；PR gate：analyze 零問題＋21 測試綠） |
 | Helper | T-H1~T-H9 | ☐×9 |
 | Migration | T-S1~T-S5 | ☐×5 |
 | Feature | T-F01~F10（BE+FE 共 51 情境） | ☐ |
