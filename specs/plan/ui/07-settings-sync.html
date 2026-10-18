@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>07 設定：雲端同步／安全／通知 — LedgerSync UI 雛型</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI","Noto Sans TC",system-ui,sans-serif}
+body{background:#e8ecef;display:flex;gap:300px;padding:40px;align-items:flex-start}
+.frame{position:relative;flex:none}
+.phone{width:390px;height:844px;background:#F5F7F8;border-radius:40px;border:10px solid #1c1f22;position:relative;overflow:hidden}
+.notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:120px;height:24px;background:#1c1f22;border-radius:0 0 16px 16px;z-index:9}
+.screen{position:absolute;inset:0;padding:48px 16px 88px;overflow-y:auto}
+.note{position:absolute;left:410px;width:250px;background:#FFF7C2;border-left:4px solid #E6B800;padding:10px 12px;font-size:12px;border-radius:6px;box-shadow:2px 2px 6px rgba(0,0,0,.15);line-height:1.5}
+.note b{display:block;margin-bottom:4px;color:#8a6d00}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.header h1{font-size:22px;color:#1c2b2a}
+.card{background:#fff;border-radius:16px;padding:6px 14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.card h3{font-size:13px;color:#7d8b8a;padding:10px 0 4px}
+.item{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid #F0F3F4;font-size:14px;color:#1c2b2a}
+.item:last-child{border:none}
+.item small{display:block;font-size:11px;color:#98a5a4;margin-top:2px}
+.right{font-size:13px;color:#98a5a4;text-align:right}
+.sw{width:42px;height:24px;border-radius:12px;background:#0B7A75;position:relative}
+.sw i{position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:50%;background:#fff}
+.sw.off{background:#CBD5D4}
+.sw.off i{right:auto;left:2px}
+.radio{display:flex;align-items:center;gap:8px;padding:9px 0;font-size:13px;color:#1c2b2a}
+.dot{width:16px;height:16px;border-radius:50%;border:2px solid #c9d2d4}
+.dot.on{border:5px solid #0B7A75}
+.btn{background:#0B7A75;color:#fff;border-radius:12px;padding:11px;text-align:center;font-weight:700;font-size:14px;margin:8px 0}
+.warn{background:#FFF1D6;color:#B45309;font-size:11px;border-radius:8px;padding:8px 10px;margin:8px 0;line-height:1.5}
+.ok{color:#0B7A75;font-weight:700}
+.red{color:#D64545}
+.nav{position:absolute;bottom:0;left:0;right:0;height:76px;background:#fff;border-top:1px solid #e3e7ea;display:flex;align-items:center;justify-content:space-around;padding:0 8px}
+.nav .it{font-size:11px;color:#98a5a4;text-align:center}
+.nav .it.on{color:#0B7A75;font-weight:700}
+.nav .ic{font-size:20px;display:block;text-align:center;margin-bottom:2px}
+.fab{width:56px;height:56px;border-radius:50%;background:#0B7A75;color:#fff;display:flex;align-items:center;justify-content:center;font-size:26px;margin-top:-30px;box-shadow:0 4px 14px rgba(11,122,117,.45)}
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="screen">
+      <div class="header"><h1>設定</h1></div>
+
+      <div class="card">
+        <h3>雲端與同步（FR-Y）</h3>
+        <div class="item"><span>Google 帳號<br><small>ming@example.com（已連結 · Drive appDataFolder）</small></span><span class="right ok">✓ 連結中</span></div>
+        <div class="item"><span>上次同步</span><span class="right">09:00 · 待同步 3 筆</span></div>
+        <div class="btn">⟳ 立即同步</div>
+        <div class="item"><span>同步模式（三選一）</span></div>
+        <div class="radio" style="padding-left:6px"><span class="dot"></span>每筆自動同步（記一筆傳一筆）</div>
+        <div class="radio" style="padding-left:6px"><span class="dot on"></span>節能批次（預設：記帳後 30 秒＋閒置 15 分）</div>
+        <div class="radio" style="padding-left:6px"><span class="dot"></span>僅手動（啟動同步＋按鈕）</div>
+        <div class="item"><span>啟動同步（必做）<br><small>開啟 App／回前台時自動執行一次</small></span><span class="right ok">固定開啟</span></div>
+        <div class="item"><span>附件僅 Wi-Fi 同步</span><span class="sw"></span></div>
+        <div class="warn">🔐 建議為此帳號開啟兩步驟驗證（FR-Y7：同步以帳號授權，無同步密碼）</div>
+      </div>
+
+      <div class="card">
+        <h3>安全（FR-X）</h3>
+        <div class="item"><span>App 鎖</span><span class="right ok">Face ID ＋ PIN ✓</span></div>
+        <div class="item"><span>背景鎖定門檻</span><span class="right">30 秒 ▾</span></div>
+        <div class="item"><span>隱私遮蔽</span><span class="sw off"></span></div>
+      </div>
+
+      <div class="card">
+        <h3>通知（§8 通知總表，逐類開關）</h3>
+        <div class="item"><span>預算警示（80%/100%/超支）</span><span class="sw"></span></div>
+        <div class="item"><span>繳款提醒（前 3 天＋當天）</span><span class="sw"></span></div>
+        <div class="item"><span>定期交易到期</span><span class="sw"></span></div>
+        <div class="item"><span>同步衝突／備份失敗</span><span class="sw"></span></div>
+        <div class="item"><span>收入目標達成</span><span class="sw off"></span></div>
+      </div>
+
+      <div class="card">
+        <h3>資料（FR-O3）</h3>
+        <div class="item"><span>最近刪除（30 天內可還原）</span><span class="right">2 筆 ›</span></div>
+        <div class="item"><span>匯出／匯入備份檔<br><small>可選檔案密碼；跨平台遷移</small></span><span class="right">›</span></div>
+        <div class="item"><span class="red">清空資料</span><span class="right red">›</span></div>
+      </div>
+    </div>
+
+    <div class="nav">
+      <div class="it"><span class="ic">🏠</span>總覽</div>
+      <div class="it"><span class="ic">📋</span>明細</div>
+      <div class="fab">＋</div>
+      <div class="it"><span class="ic">🎯</span>預算</div>
+      <div class="it on"><span class="ic">⚙️</span>設定</div>
+    </div>
+  </div>
+
+  <div class="note" style="top:60px"><b>FR-Y7 · S7.1</b>帳號授權式同步：登入即連結、無同步密碼；連結時顯示兩步驟驗證建議。</div>
+  <div class="note" style="top:210px"><b>FR-Y11 · S7.10~S7.13</b>啟動同步固定開啟；模式三選一（每筆/節能批次預設/僅手動）；「立即同步」按鈕＋結果回饋。</div>
+  <div class="note" style="top:430px"><b>FR-Y11</b>附件僅 Wi-Fi 開關（行動網路下附件暫緩）。</div>
+  <div class="note" style="top:560px"><b>FR-X1/X5 · S8</b>App 鎖＋門檻設定；PIN 遺忘→重新登入雲端帳號重設。</div>
+  <div class="note" style="top:660px"><b>FR-O3 · S9</b>清空資料：PIN＋確認文字＋（連雲端時）重新登入帳號，雲端一併刪除。</div>
+</div>
+</body>
+</html>

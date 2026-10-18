@@ -1,0 +1,357 @@
+// ============================================================
+// LedgerSync Data Spec — SQLite（本地，SQLCipher）— 單一事實來源
+// ============================================================
+// 版本：v0.3（初版）｜由 /system-analysis 產出
+// 來源：SDD §4.2（核心摘要）＋ FR-T5/FR-Q9/FR-Y5 所需之完整表
+// 規則：
+//   1. 金額一律 INTEGER minor units（TWD 無小數＝元），禁用浮點
+//   2. 業務表通用欄位：created_at / updated_at / hlc / deleted_at（墓標軟刪除）
+//   3. 寫入業務表必在同一 DB transaction 追加 oplog（SDD §5.1）
+//   4. drift schema 對齊本檔；不一致時以本檔為準並回修 SDD
+//   5. 變更須經 PR＋檔尾變更記錄（research.md §6 流程）
+//   6. 金額/加密/同步相關欄位變更：標註「待雙重 review」
+// 預覽：DBDiagram.io、VS Code「DBML Compiler」插件等
+// ============================================================
+
+Project ledger_sync {
+  database_type: "SQLite"
+  Note: "LedgerSync v0.3 — 本地優先記帳 App。hlc = Hybrid Logical Clock（同步版本戳，SDD §5.5.4）"
+}
+
+// ── 列舉 ──────────────────────────────────────────
+
+Enum account_type {
+  cash [note: "現金"]
+  bank [note: "銀行/金融卡"]
+  credit [note: "信用卡"]
+  ewallet [note: "電子支付/票證（悠遊卡等）"]
+  other [note: "其他虛擬帳戶"]
+}
+
+Enum tx_kind {
+  expense
+  income
+  transfer
+  repayment [note: "信用卡還款（帳戶間轉帳語意）"]
+  refund [note: "退款衝銷，關聯 refund_links"]
+}
+
+Enum tx_source {
+  manual
+  scan [note: "發票掃描入帳（FR-S）"]
+  template [note: "樣板套用（FR-Q9）"]
+  recurring [note: "定期交易確認入帳（FR-T5）"]
+  import
+}
+
+Enum settlement_status {
+  none [note: "非信用卡交易"]
+  pending [note: "預扣：未結帳，不影響連結銀行帳戶餘額（FR-C1）"]
+  billed [note: "已結入帳單（FR-C3）"]
+  settled [note: "帳單已繳"]
+}
+
+Enum statement_status {
+  issued [note: "已出帳未繳"]
+  partial [note: "部分繳款"]
+  paid
+}
+
+Enum recurring_frequency {
+  daily
+  weekly
+  monthly
+  yearly
+  custom [note: "自訂間隔（interval_days）"]
+}
+
+Enum boundary_rule {
+  include [note: "結帳日當天消費算本期（預設，FR-C2）"]
+  exclude [note: "結帳日當天消費算下期"]
+}
+
+Enum sync_entity {
+  accounts
+  categories
+  transactions
+  statements
+  statement_items
+  refund_links
+  installment_plans
+  budgets
+  recurring_transactions
+  templates
+  attachments
+}
+
+// ── 帳戶 ──────────────────────────────────────────
+
+Table accounts {
+  id varchar [pk, note: "UUIDv7"]
+  type account_type [not null]
+  name varchar [not null]
+  currency varchar [not null, default: "TWD"]
+  opening_amount_minor integer [not null, default: 0]
+  color varchar
+  icon varchar
+  sort_order integer
+  archived boolean [not null, default: false]
+  created_at integer [not null, note: "ms, UTC"]
+  updated_at integer [not null]
+  hlc varchar [not null, note: "同步版本戳"]
+  deleted_at integer [note: "墓標；刪除需無未結算交易（FR-A2）"]
+
+  Note: "餘額永不儲存，一律由交易重算（SDD 原則 2）"
+}
+
+Table credit_card_details {
+  account_id varchar [pk]
+  last4 varchar
+  statement_day integer [not null, note: "1..28；29-31 遇小月 clamp 月底"]
+  due_offset_days integer [not null, note: "繳款日 = 結帳日 + N（FR-A3）"]
+  linked_account_id varchar [note: "扣款帳戶；null = 手動標記（FR-C4）"]
+  boundary_rule boundary_rule [not null, default: "include"]
+  credit_limit_minor integer
+  effective_from integer [note: "結帳日修改自下期生效（FR-A3/S4.11）"]
+
+  Note: "信用卡專屬設定"
+}
+
+// ── 分類／預算 ────────────────────────────────────
+
+Table categories {
+  id varchar [pk]
+  kind varchar [not null, note: "expense | income"]
+  parent_id varchar [note: "一層子分類（FR-B1）"]
+  name varchar [not null]
+  icon varchar
+  color varchar
+  sort_order integer
+  is_system boolean [not null, default: false]
+  created_at integer [not null]
+  updated_at integer [not null]
+  hlc varchar [not null]
+  deleted_at integer
+}
+
+Table budgets {
+  id varchar [pk]
+  category_id varchar [note: "null = 總預算（FR-B2）"]
+  amount_minor integer [not null]
+  period_start_day integer [not null, default: 1, note: "1..28 週期起始日（FR-B2）"]
+  rollover boolean [not null, default: false, note: "P2 結轉（FR-B8）"]
+  created_at integer [not null]
+  updated_at integer [not null]
+  hlc varchar [not null]
+  deleted_at integer
+
+  Note: "收入目標（FR-B6）以 kind 語意儲存：建議新增 row 於 settings 或獨立表 income_goals — v0.3 決策：income_goals 獨立表（見下）"
+}
+
+Table income_goals {
+  id varchar [pk]
+  amount_minor integer [not null, note: "月收入目標（FR-B6）"]
+  period_start_day integer [not null, default: 1]
+  created_at integer [not null]
+  updated_at integer [not null]
+  hlc varchar [not null]
+  deleted_at integer
+
+  Note: "單一目標模型；多目標/多期間為 P2"
+}
+
+// ── 交易（核心） ──────────────────────────────────
+
+Table transactions {
+  id varchar [pk, note: "UUIDv7（時間序）"]
+  kind tx_kind [not null]
+  amount_minor integer [not null, note: "正數；方向由 kind+帳戶語意決定（待雙重 review）"]
+  currency varchar [not null]
+  fx_rate real [note: "非本位幣時記錄用（FR-T4）"]
+  account_id varchar [not null]
+  to_account_id varchar [note: "transfer / repayment 用"]
+  category_id varchar
+  merchant varchar
+  note varchar
+  tags varchar [note: "JSON array"]
+  occurred_at integer [not null, note: "消費/發生時間 ms；歸期歸屬依此（FR-C2）"]
+  source tx_source [not null, default: "manual"]
+  split_group_id varchar [note: "拆分交易群組（FR-T6）"]
+  settlement_status settlement_status [not null, default: "none"]
+  installment_plan_id varchar
+  installment_seq integer
+  created_at integer [not null]
+  updated_at integer [not null]
+  hlc varchar [not null]
+  deleted_at integer
+
+  index idx_tx_time { occurred_at }
+  index idx_tx_account { account_id, occurred_at }
+  index idx_tx_category { category_id, occurred_at }
+
+  Note: "核心表。寫入時同一 transaction 追加 oplog（SDD §5.1）"
+}
+
+Table refund_links {
+  refund_tx_id varchar [pk]
+  original_tx_id varchar [not null, note: "原交易；已 billed 時退款為當期負項（FR-C8）"]
+}
+
+// ── 信用卡帳單／分期 ──────────────────────────────
+
+Table statements {
+  id varchar [pk]
+  account_id varchar [not null]
+  period_start integer [not null, note: "含/不含端點依卡 boundary_rule（FR-C2）"]
+  period_end integer [not null]
+  statement_date integer [not null]
+  due_date integer [not null, note: "= statement_date + due_offset_days"]
+  total_minor integer [not null, note: "應繳（含退款負項，待雙重 review）"]
+  paid_minor integer [not null, default: 0]
+  status statement_status [not null]
+  paid_at integer
+  overdue_notified boolean [not null, default: false, note: "N-6 僅發一次（FR-C6）"]
+  created_at integer [not null]
+  updated_at integer [not null]
+  hlc varchar [not null]
+  deleted_at integer
+}
+
+Table statement_items {
+  statement_id varchar [not null]
+  transaction_id varchar [not null]
+
+  indexes { (statement_id, transaction_id) [pk] }
+}
+
+Table installment_plans {
+  id varchar [pk]
+  account_id varchar [not null]
+  total_minor integer [not null]
+  installments integer [not null]
+  first_date integer [not null]
+  note varchar
+  created_at integer [not null]
+  updated_at integer [not null]
+  hlc varchar [not null]
+  deleted_at integer
+
+  Note: "建立時一次產生 N 筆未來 pending 交易；刪除 plan 連動刪除未到期分期（FR-C7）"
+}
+
+// ── 定期交易（提醒確認制，FR-T5） ─────────────────
+
+Table recurring_transactions {
+  id varchar [pk]
+  name varchar [not null]
+  kind varchar [not null, note: "expense | income"]
+  amount_minor integer [not null, note: "模板金額；確認時可改且不回寫（S6.2）"]
+  account_id varchar [not null]
+  category_id varchar [not null]
+  frequency recurring_frequency [not null]
+  interval_days integer [note: "frequency=custom 時使用"]
+  anchor_date integer [not null, note: "首次到期日"]
+  end_type varchar [not null, note: "never | count | date"]
+  end_count integer
+  end_date integer
+  next_due_date integer [not null]
+  reminder_count integer [not null, default: 0, note: "同期已提醒次數；≥3 停止推播（FR-T5）"]
+  paused boolean [not null, default: false, note: "逾期 3 次未處理→true（S6.5）"]
+  created_at integer [not null]
+  updated_at integer [not null]
+  hlc varchar [not null]
+  deleted_at integer
+}
+
+// ── 樣板（FR-Q9）／設定 ──────────────────────────
+
+Table templates {
+  id varchar [pk]
+  name varchar [not null]
+  payload varchar [not null, note: "JSON：金額/分類/帳戶/商家預填"]
+  use_count integer [not null, default: 0]
+  last_used_at integer
+  created_at integer [not null]
+  updated_at integer [not null]
+  hlc varchar [not null]
+  deleted_at integer
+}
+
+Table settings {
+  key varchar [pk, note: "如 quick_entry.smart_preset / sync.mode / lock.timeout_sec / budget.notif_state"]
+  value varchar [not null, note: "JSON"]
+  updated_at integer [not null]
+
+  Note: "部分為 per-device（如 sync.mode、鎖定門檻），部分隨同步（通知開關）— 以 key 前綴約定：device.* 不入 oplog"
+}
+
+// ── 附件 ──────────────────────────────────────────
+
+Table attachments {
+  id varchar [pk]
+  transaction_id varchar [not null]
+  sha256 varchar [not null, note: "內容定址；同步去重（SDD §5.5.6）"]
+  mime varchar
+  byte_size integer
+  created_at integer [not null]
+  hlc varchar [not null]
+  deleted_at integer
+}
+
+// ── 同步 ──────────────────────────────────────────
+
+Table oplog {
+  seq integer [pk, note: "AUTOINCREMENT"]
+  entity sync_entity [not null]
+  entity_id varchar [not null]
+  hlc varchar [not null]
+  payload varchar [note: "JSON 整列快照；NULL=墓標刪除"]
+  packed_seq integer [note: "已打包進哪個 bundle；未打包=NULL"]
+
+  Note: "寫入與業務表同一 transaction；SyncCoordinator 打包為 bundle 上傳（SDD §5.5）"
+}
+
+Table sync_events {
+  id varchar [pk]
+  entity sync_entity [not null]
+  entity_id varchar [not null]
+  incoming_hlc varchar [not null, note: "勝出的遠端版本"]
+  overwritten_row varchar [note: "被覆蓋內容唯讀快照（FR-Y5 衝突檢視）"]
+  created_at integer [not null]
+  read_at integer [note: "已讀標記（N-8）"]
+
+  Note: "LWW 落敗事件；同步狀態頁檢視（AC-07）"
+}
+
+// ── FTS5 全文搜尋（FR-R3，中文 bigram，SP-1） ─────
+
+Table transactions_fts {
+  fts_rowid integer [pk]
+  merchant_bigram varchar [note: "商家兩字切分（空格分隔），查詢同樣切分"]
+  note_bigram varchar [note: "備註兩字切分"]
+  rowid_ref integer [note: "→ transactions.rowid"]
+
+  Note: "VIRTUAL TABLE USING fts5（SQLite 虛擬表，非一般表）；unicode61 不切中文故採 bigram 影子欄位（research D13/SP-1）"
+}
+
+// ── 關聯 ──────────────────────────────────────────
+
+Ref: credit_card_details.account_id > accounts.id [delete: restrict]
+Ref: credit_card_details.linked_account_id > accounts.id [delete: set null]
+Ref: categories.parent_id > categories.id [delete: restrict]
+Ref: budgets.category_id > categories.id [delete: cascade]
+Ref: transactions.account_id > accounts.id [delete: restrict]
+Ref: transactions.to_account_id > accounts.id [delete: restrict]
+Ref: transactions.category_id > categories.id [delete: set null]
+Ref: transactions.installment_plan_id > installment_plans.id [delete: set null]
+Ref: refund_links.refund_tx_id > transactions.id [delete: cascade]
+Ref: refund_links.original_tx_id > transactions.id [delete: restrict]
+Ref: statements.account_id > accounts.id [delete: restrict]
+Ref: statement_items.statement_id > statements.id [delete: cascade]
+Ref: statement_items.transaction_id > transactions.id [delete: cascade]
+Ref: recurring_transactions.account_id > accounts.id [delete: restrict]
+Ref: recurring_transactions.category_id > categories.id [delete: restrict]
+Ref: attachments.transaction_id > transactions.id [delete: cascade]
+
+// ── 變更記錄 ──────────────────────────────────────
+// 2026-10-18 | v0.3 | 初版：SDD §4.2 全表補完（+recurring_transactions/templates/settings/sync_events/income_goals/FTS5 影子表） | PR: —

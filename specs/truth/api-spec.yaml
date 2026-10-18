@@ -1,0 +1,302 @@
+openapi: 3.1.0
+info:
+  title: LedgerSync Backend API（P2 預留草案）
+  version: 0.1.0-draft
+  summary: 把 v1 檔案式 OpLog 同步協議（SDD §5.5）服務化為 REST，供 P2（即時同步／家庭共享）使用
+  description: |
+    ⚠️ **v1 沒有自建後端**：v1 為本地優先架構，同步走 Google Drive / iCloud 檔案（SPEC FR-Y 決策）。
+    本檔是 **P2 後端草案**（研究依據：specs/plan/research.md D6、SDD §12.1）——把檔案式協議的
+    vault / devices manifest / opbundle / blobs / backups 對映為 REST 資源，並增加家庭共享所需的多寫入者合併。
+
+    - 可用 Swagger UI（或 VS Code「OpenAPI (Swagger) Editor」插件）直接視覺化瀏覽。
+    - 認證沿用 v1 決策：Google 帳號 / Apple ID OAuth（無自訂同步密碼，FR-Y7）。
+    - 衝突語意不變：HLC Last-Writer-Wins + 衝突事件通知（FR-Y5）；餘額一律由交易重算。
+    - 變更記錄見檔尾；變更須經 research.md §6 流程（research → SDD → truth）。
+  contact:
+    name: LedgerSync Team
+tags:
+  - name: identity
+    description: 帳號與裝置
+  - name: ledger-sync
+    description: OpLog 同步（manifest / bundles / snapshots）
+  - name: attachments
+    description: 附件（內容定址，sha256 去重）
+  - name: family
+    description: P2 家庭共享帳本
+servers:
+  - url: https://api.ledgersync.example/v2
+    description: P2 預留端點（未實作）
+security:
+  - oauth2: [ledger.read, ledger.write]
+paths:
+  /me:
+    get:
+      tags: [identity]
+      summary: 取得目前使用者與雲端帳號綁定狀態（FR-Y7）
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Me" }
+              example:
+                userId: usr_01J9X7
+                provider: google
+                email: ming@example.com
+                twoStepAdvised: true
+  /devices:
+    get:
+      tags: [identity]
+      summary: 列出已註冊裝置（對應 devices/*.json manifest）
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Device" }
+    post:
+      tags: [identity]
+      summary: 註冊新裝置（新裝置 bootstrap，SDD §5.5.5）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Device" }
+      responses:
+        "201": { description: 已註冊 }
+  /devices/{deviceId}:
+    delete:
+      tags: [identity]
+      summary: 撤銷裝置（解除同步）
+      parameters:
+        - { name: deviceId, in: path, required: true, schema: { type: string } }
+      responses:
+        "204": { description: 已移除 }
+  /ledger/manifests/{deviceId}:
+    parameters:
+      - { name: deviceId, in: path, required: true, schema: { type: string } }
+    get:
+      tags: [ledger-sync]
+      summary: 讀取裝置 manifest（last_seq / ack_seq / schema_ver）
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeviceManifest" }
+    put:
+      tags: [ledger-sync]
+      summary: 更新自己裝置的 manifest（每裝置僅寫自己的 → 零寫入衝突）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DeviceManifest" }
+      responses:
+        "204": { description: 已更新 }
+  /ledger/bundles:
+    get:
+      tags: [ledger-sync]
+      summary: 拉取指定裝置的 OpBundle（依 seq 排序，冪等）
+      parameters:
+        - { name: deviceId, in: query, required: true, schema: { type: string } }
+        - { name: fromSeq, in: query, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: toSeq, in: query, schema: { type: integer } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/OpBundle" }
+    post:
+      tags: [ledger-sync]
+      summary: 推送上傳 OpBundle（seq 必須 = last_seq + 1；同 seq 重傳視為冪等覆蓋）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OpBundle" }
+      responses:
+        "201": { description: 已接收 }
+        "409":
+          description: seq 衝突（落後於 last_seq）
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+  /ledger/snapshots:
+    post:
+      tags: [ledger-sync]
+      summary: 上傳全量快照（每日備份，FR-Y3；保留份數由伺服器策略管理）
+      responses:
+        "201": { description: 已建立 }
+    get:
+      tags: [ledger-sync]
+      summary: 下載最新快照（新裝置還原加速，SDD §5.5.5）
+      responses:
+        "200":
+          description: OK
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+  /ledger/events:
+    get:
+      tags: [ledger-sync]
+      summary: 即時變更事件（SSE；P2 即時同步的核心，v1 以觸發時機輪詢取代）
+      description: |
+        事件：bundle.appended（某裝置新增 bundle）、conflict.detected（FR-Y5 衝突事件）。
+        v1 無此端點；客戶端依 FR-Y11 觸發時機（啟動/每筆/節能批次/手動）執行 pull。
+      responses:
+        "200":
+          description: text/event-stream
+          content:
+            text/event-stream:
+              schema: { type: string }
+  /attachments/{sha256}:
+    parameters:
+      - { name: sha256, in: path, required: true, schema: { type: string } }
+    get:
+      tags: [attachments]
+      summary: 下載附件（內容定址；不存在回 404，客戶端懶下載）
+      responses:
+        "200":
+          description: OK
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        "404": { description: 不存在 }
+    put:
+      tags: [attachments]
+      summary: 上傳附件（同 sha256 冪等，天然去重，SDD §5.5.6）
+      requestBody:
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        "201": { description: 已上傳 }
+        "200": { description: 已存在（冪等） }
+  /family/members:
+    get:
+      tags: [family]
+      summary: 列出家庭帳本成員（P2）
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/FamilyMember" }
+  /family/invites:
+    post:
+      tags: [family]
+      summary: 邀請成員（產生一次性邀請碼）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role: { type: string, enum: [editor, viewer] }
+      responses:
+        "201":
+          description: 已產生邀請
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  inviteCode: { type: string }
+                  expiresAt: { type: string, format: date-time }
+  /family/members/{memberId}:
+    delete:
+      tags: [family]
+      summary: 移除成員（其裝置同步權限一併撤銷）
+      parameters:
+        - { name: memberId, in: path, required: true, schema: { type: string } }
+      responses:
+        "204": { description: 已移除 }
+components:
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      description: Google 帳號 / Apple ID 登入（無自訂同步密碼，FR-Y7）
+      flows:
+        authorizationCode:
+          authorizationUrl: https://accounts.google.com/o/oauth2/v2/auth
+          tokenUrl: https://oauth2.googleapis.com/token
+          scopes:
+            ledger.read: 讀取同步資料
+            ledger.write: 寫入同步資料
+            family.manage: 管理家庭成員（P2）
+  schemas:
+    Error:
+      type: object
+      properties:
+        code: { type: string }
+        message: { type: string }
+      required: [code, message]
+    Me:
+      type: object
+      properties:
+        userId: { type: string }
+        provider: { type: string, enum: [google, apple] }
+        email: { type: string }
+        twoStepAdvised: { type: boolean }
+    Device:
+      type: object
+      required: [deviceId, platform]
+      properties:
+        deviceId: { type: string, example: d-A1B2C3 }
+        platform: { type: string, enum: [ios, android, macos, windows] }
+        appVersion: { type: string }
+        registeredAt: { type: string, format: date-time }
+    DeviceManifest:
+      type: object
+      description: 對應 SDD §5.5.1 devices/{device_id}.json
+      properties:
+        deviceId: { type: string }
+        appVersion: { type: string }
+        schemaVer: { type: integer, example: 3 }
+        lastSeq: { type: integer, example: 42 }
+        ackSeq: { type: integer, example: 42 }
+      required: [deviceId, lastSeq, schemaVer]
+    Op:
+      type: object
+      description: 整列快照或墓標（row=null = 刪除）
+      properties:
+        e:
+          type: string
+          enum: [accounts, categories, transactions, statements, statement_items, refund_links, installment_plans, budgets, recurring_transactions, templates, attachments]
+        id: { type: string }
+        hlc:
+          type: string
+          description: "{毫秒:015d}.{計數器:05d}.{device_id}（SDD §5.5.4）"
+          example: "0001760760000123.00005.d-A1B2"
+        row: { type: object, nullable: true }
+      required: [e, id, hlc, row]
+    OpBundle:
+      type: object
+      description: 對應 SDD §5.5.2；接收端按 (device, seq) 嚴格排序套用
+      properties:
+        deviceId: { type: string }
+        seq: { type: integer, example: 42 }
+        schemaVer: { type: integer }
+        ops:
+          type: array
+          items: { $ref: "#/components/schemas/Op" }
+      required: [deviceId, seq, schemaVer, ops]
+    FamilyMember:
+      type: object
+      properties:
+        memberId: { type: string }
+        email: { type: string }
+        role: { type: string, enum: [owner, editor, viewer] }
+        joinedAt: { type: string, format: date-time }
+# ── 變更記錄 ─────────────────────────────────────────────
+# 2026-10-18 | 0.1.0-draft | 初版：由 /system-analysis 產出（P2 服務化草案，對映 SDD §5.5 協議） | PR: —

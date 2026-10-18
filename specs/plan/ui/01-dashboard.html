@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>01 總覽 — LedgerSync UI 雛型</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI","Noto Sans TC",system-ui,sans-serif}
+body{background:#e8ecef;display:flex;gap:300px;padding:40px;align-items:flex-start}
+.frame{position:relative;flex:none}
+.phone{width:390px;height:844px;background:#F5F7F8;border-radius:40px;border:10px solid #1c1f22;position:relative;overflow:hidden}
+.notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:120px;height:24px;background:#1c1f22;border-radius:0 0 16px 16px;z-index:9}
+.screen{position:absolute;inset:0;padding:48px 16px 88px;overflow-y:auto}
+.note{position:absolute;left:410px;width:250px;background:#FFF7C2;border-left:4px solid #E6B800;padding:10px 12px;font-size:12px;border-radius:6px;box-shadow:2px 2px 6px rgba(0,0,0,.15);line-height:1.5}
+.note b{display:block;margin-bottom:4px;color:#8a6d00}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.header h1{font-size:22px;color:#1c2b2a}
+.iconbtn{width:38px;height:38px;border-radius:10px;background:#fff;border:1px solid #e3e7ea;display:flex;align-items:center;justify-content:center;font-size:17px;cursor:pointer}
+.iconbtn.teal{background:#0B7A75;color:#fff;border:none;font-size:14px;font-weight:600}
+.card{background:#fff;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.card h3{font-size:13px;color:#7d8b8a;margin-bottom:10px}
+.row{display:flex;justify-content:space-between;align-items:baseline}
+.big{font-size:26px;font-weight:700;color:#1c2b2a}
+.red{color:#D64545}.green{color:#0B7A75}
+.cols{display:flex;gap:12px;margin-bottom:12px}
+.cols .card{flex:1;margin:0}
+.bar{height:8px;background:#EDF1F2;border-radius:4px;margin-top:8px;overflow:hidden}
+.bar i{display:block;height:100%;background:#0B7A75;border-radius:4px}
+.bar i.warn{background:#F59E0B}
+.badge{font-size:11px;padding:2px 8px;border-radius:10px;background:#E6F4F3;color:#0B7A75;font-weight:600}
+.tx{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #F0F3F4}
+.tx:last-child{border:none}
+.cat{width:36px;height:36px;border-radius:10px;background:#EDF1F2;display:flex;align-items:center;justify-content:center;font-size:17px}
+.tx .m{flex:1}.tx .m b{font-size:14px;color:#1c2b2a}.tx .m span{display:block;font-size:11px;color:#98a5a4}
+.tx .amt{font-weight:700;font-size:14px}
+.nav{position:absolute;bottom:0;left:0;right:0;height:76px;background:#fff;border-top:1px solid #e3e7ea;display:flex;align-items:center;justify-content:space-around;padding:0 8px}
+.nav .it{font-size:11px;color:#98a5a4;text-align:center}
+.nav .it.on{color:#0B7A75;font-weight:700}
+.nav .ic{font-size:20px;display:block;text-align:center;margin-bottom:2px}
+.fab{width:56px;height:56px;border-radius:50%;background:#0B7A75;color:#fff;display:flex;align-items:center;justify-content:center;font-size:26px;margin-top:-30px;box-shadow:0 4px 14px rgba(11,122,117,.45)}
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="screen">
+      <div class="header">
+        <h1>總覽</h1>
+        <div style="display:flex;gap:8px">
+          <div class="iconbtn" title="隱私遮蔽 FR-X3">👁</div>
+          <div class="iconbtn teal" title="掃描 FR-S6（獨立入口）">📷 掃描</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>本月收支（10 月）</h3>
+        <div class="row"><span style="font-size:13px;color:#7d8b8a">支出</span><span class="big red">−12,340</span></div>
+        <div class="row" style="margin-top:6px"><span style="font-size:13px;color:#7d8b8a">收入</span><span class="big green">+62,000</span></div>
+        <div class="row" style="margin-top:6px"><span style="font-size:13px;color:#7d8b8a">結餘</span><span class="big">49,660</span></div>
+      </div>
+
+      <div class="cols">
+        <div class="card"><h3>資產</h3><div class="big" style="font-size:20px">41,000</div></div>
+        <div class="card"><h3>負債（信用卡）</h3><div class="big red" style="font-size:20px">8,000</div></div>
+        <div class="card"><h3>淨值</h3><div class="big" style="font-size:20px">33,000</div></div>
+      </div>
+
+      <div class="card">
+        <h3>本月預計結餘（FR-B7）</h3>
+        <div class="row"><span style="font-size:13px;color:#7d8b8a">收入目標 60,000 − 總預算 30,000</span><span class="big green" style="font-size:20px">30,000</span></div>
+        <div style="font-size:11px;color:#98a5a4;margin-top:6px">實際結餘 49,660（含信用卡預扣）</div>
+      </div>
+
+      <div class="card">
+        <h3>預算摘要</h3>
+        <div class="row"><b style="font-size:14px">餐飲</b><span style="font-size:12px" class="red">7,000 / 8,000（87.5%）</span></div>
+        <div class="bar"><i class="warn" style="width:87.5%"></i></div>
+        <div style="font-size:11px;color:#98a5a4;margin-top:8px">⚠ 已達 80% 警告門檻（N-1 已發送一次）</div>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <h3 style="margin:0">收入目標</h3><span class="badge">已達成 103%</span>
+        </div>
+        <div class="row" style="margin-top:8px"><span class="big green" style="font-size:20px">62,000</span><span style="font-size:12px;color:#7d8b8a">/ 目標 60,000</span></div>
+        <div class="bar"><i style="width:100%"></i></div>
+      </div>
+
+      <div class="card">
+        <h3>最近交易</h3>
+        <div class="tx"><div class="cat">🛒</div><div class="m"><b>全家便利商店</b><span>今天 09:12 · 現金 · 購物</span></div><div class="amt red">−195</div></div>
+        <div class="tx"><div class="cat">🍜</div><div class="m"><b>早安美芝城</b><span>今天 08:15 · 現金 · 餐飲</span></div><div class="amt red">−120</div></div>
+        <div class="tx"><div class="cat">💳</div><div class="m"><b>信用卡繳款</b><span>昨天 · 薪轉 → 富邦卡</span></div><div class="amt">5,000</div></div>
+      </div>
+    </div>
+
+    <div class="nav">
+      <div class="it on"><span class="ic">🏠</span>總覽</div>
+      <div class="it"><span class="ic">📋</span>明細</div>
+      <div class="fab" title="快記 FR-Q1">＋</div>
+      <div class="it"><span class="ic">🎯</span>預算</div>
+      <div class="it"><span class="ic">⚙️</span>設定</div>
+    </div>
+  </div>
+
+  <div class="note" style="top:60px"><b>SDD §8 · FR-R1</b>儀表板：本月收支出淨、資產總覽、預算摘要、收入目標、最近交易。</div>
+  <div class="note" style="top:170px"><b>FR-S6（AC 定案）</b>「掃描」為獨立按鈕（右上），與中央快記大鈕分離；總覽與明細都有。</div>
+  <div class="note" style="top:400px"><b>FR-B4 / AC-05</b>餐飲 87.5%：警示色進度條 + 提醒；N-1 每期僅發一次。</div>
+  <div class="note" style="top:560px"><b>FR-B6 / AC-13</b>收入目標達成標記；本月預計結餘 = 收入目標 − 總預算（FR-B7）。</div>
+  <div class="note" style="top:660px"><b>FR-X3（P1）</b>👁 隱私遮蔽：點擊後所有金額變 ●●●●。</div>
+</div>
+</body>
+</html>

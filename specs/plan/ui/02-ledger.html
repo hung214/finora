@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>02 明細 — LedgerSync UI 雛型</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI","Noto Sans TC",system-ui,sans-serif}
+body{background:#e8ecef;display:flex;gap:300px;padding:40px;align-items:flex-start}
+.frame{position:relative;flex:none}
+.phone{width:390px;height:844px;background:#F5F7F8;border-radius:40px;border:10px solid #1c1f22;position:relative;overflow:hidden}
+.notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:120px;height:24px;background:#1c1f22;border-radius:0 0 16px 16px;z-index:9}
+.screen{position:absolute;inset:0;padding:48px 16px 88px;overflow-y:auto}
+.note{position:absolute;left:410px;width:250px;background:#FFF7C2;border-left:4px solid #E6B800;padding:10px 12px;font-size:12px;border-radius:6px;box-shadow:2px 2px 6px rgba(0,0,0,.15);line-height:1.5}
+.note b{display:block;margin-bottom:4px;color:#8a6d00}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.header h1{font-size:22px;color:#1c2b2a}
+.iconbtn{width:38px;height:38px;border-radius:10px;background:#fff;border:1px solid #e3e7ea;display:flex;align-items:center;justify-content:center;font-size:16px}
+.iconbtn.teal{background:#0B7A75;color:#fff;border:none;font-size:13px;font-weight:600}
+.accts{display:flex;gap:8px;overflow:hidden;margin-bottom:12px}
+.acct{min-width:110px;background:#0B7A75;color:#fff;border-radius:14px;padding:10px 12px}
+.acct.alt{background:#fff;color:#1c2b2a;border:1px solid #e3e7ea}
+.acct small{display:block;font-size:10px;opacity:.8}
+.acct b{font-size:16px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.chip{font-size:11px;padding:5px 10px;border-radius:12px;background:#fff;border:1px solid #e3e7ea;color:#7d8b8a}
+.chip.on{background:#0B7A75;color:#fff;border-color:#0B7A75}
+.pill{background:#FFF1D6;color:#B45309;font-size:11px;font-weight:700;padding:4px 10px;border-radius:12px;display:inline-block;margin-bottom:10px}
+.day{font-size:13px;font-weight:700;color:#1c2b2a;margin:12px 0 6px;display:flex;justify-content:space-between}
+.day span{color:#98a5a4;font-weight:400;font-size:12px}
+.card{background:#fff;border-radius:16px;padding:6px 14px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.tx{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #F0F3F4}
+.tx:last-child{border:none}
+.cat{width:36px;height:36px;border-radius:10px;background:#EDF1F2;display:flex;align-items:center;justify-content:center;font-size:17px;position:relative}
+.cat .att{position:absolute;bottom:-2px;right:-2px;font-size:10px}
+.tx .m{flex:1}.tx .m b{font-size:14px;color:#1c2b2a}.tx .m span{display:block;font-size:11px;color:#98a5a4}
+.amt{font-weight:700;font-size:14px}
+.red{color:#D64545}.green{color:#0B7A75}
+.nav{position:absolute;bottom:0;left:0;right:0;height:76px;background:#fff;border-top:1px solid #e3e7ea;display:flex;align-items:center;justify-content:space-around;padding:0 8px}
+.nav .it{font-size:11px;color:#98a5a4;text-align:center;position:relative}
+.nav .it.on{color:#0B7A75;font-weight:700}
+.nav .ic{font-size:20px;display:block;text-align:center;margin-bottom:2px}
+.fab{width:56px;height:56px;border-radius:50%;background:#0B7A75;color:#fff;display:flex;align-items:center;justify-content:center;font-size:26px;margin-top:-30px;box-shadow:0 4px 14px rgba(11,122,117,.45)}
+.dot{position:absolute;top:-4px;right:-6px;background:#D64545;color:#fff;font-size:9px;border-radius:8px;padding:1px 5px}
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="screen">
+      <div class="header">
+        <h1>明細</h1>
+        <div style="display:flex;gap:8px">
+          <div class="iconbtn" title="篩選 FR-R3"> funnel</div>
+          <div class="iconbtn teal">📷 掃描</div>
+        </div>
+      </div>
+
+      <div class="accts">
+        <div class="acct"><small>現金</small><b>$600</b></div>
+        <div class="acct alt"><small>薪轉</small><b>$45,000</b></div>
+        <div class="acct alt"><small>富邦卡</small><b>應付 8,000</b></div>
+        <div class="acct alt"><small>悠遊卡</small><b>$500</b></div>
+      </div>
+
+      <div class="pill">⏳ 待確認 1 筆（房租 15,000）— 點擊處理</div>
+      <div class="chips">
+        <span class="chip on">全部</span><span class="chip">支出</span><span class="chip">收入</span><span class="chip">轉帳</span><span class="chip">10 月 ▾</span>
+      </div>
+
+      <div class="day">今天 10/18 <span>小計 −315</span></div>
+      <div class="card">
+        <div class="tx"><div class="cat">🛒<span class="att">📷</span></div><div class="m"><b>全家便利商店</b><span>09:12 · 現金 · 購物 · 掃描入帳</span></div><div class="amt red">−195</div></div>
+        <div class="tx"><div class="cat">🍜</div><div class="m"><b>早安美芝城</b><span>08:15 · 現金 · 餐飲</span></div><div class="amt red">−120</div></div>
+      </div>
+
+      <div class="day">昨天 10/17 <span>小計 −1,205</span></div>
+      <div class="card">
+        <div class="tx"><div class="cat">💳</div><div class="m"><b>信用卡繳款</b><span>20:10 · 薪轉 → 富邦卡 · 已繳</span></div><div class="amt">−5,000</div></div>
+        <div class="tx"><div class="cat">🏦</div><div class="m"><b>轉帳 現金→銀行</b><span>12:00 · 轉帳</span></div><div class="amt">400</div></div>
+        <div class="tx"><div class="cat">🚇</div><div class="m"><b>捷運</b><span>08:30 · 悠遊卡 · 交通</span></div><div class="amt red">−35</div></div>
+      </div>
+
+      <div class="day">10/15 <span>小計 −8,000</span></div>
+      <div class="card">
+        <div class="tx"><div class="cat">💻</div><div class="m"><b>筆電（分期 1/6）</b><span>富邦卡 · 購物 · 預扣</span></div><div class="amt red">−5,000</div></div>
+      </div>
+    </div>
+
+    <div class="nav">
+      <div class="it"><span class="ic">🏠</span>總覽</div>
+      <div class="it on"><span class="ic">📋</span>明細<span class="dot">1</span></div>
+      <div class="fab">＋</div>
+      <div class="it"><span class="ic">🎯</span>預算</div>
+      <div class="it"><span class="ic">⚙️</span>設定</div>
+    </div>
+  </div>
+
+  <div class="note" style="top:60px"><b>SDD §8 · FR-S6</b>明細頁含獨立「掃描」按鈕；漏斗為搜尋篩選（FR-R3，P1）。</div>
+  <div class="note" style="top:170px"><b>FR-T5 / F06</b>「待確認」badge（計數）：提醒確認制的定期交易入口（此例：房租 15,000）。</div>
+  <div class="note" style="top:300px"><b>FR-A4 · S2.3</b>帳戶橫滑列：信用卡顯示「應付 8,000」而非餘額；餘額一律由交易重算。</div>
+  <div class="note" style="top:470px"><b>FR-S4 · S3.3</b>掃描入帳之交易：分類圖示帶 📷 附件標記，點開可看原圖。</div>
+  <div class="note" style="top:620px"><b>FR-T2 · FR-C6</b>交易列顯示語意標籤（已繳／預扣）；軟刪除交易不顯示（30 天內可還原）。</div>
+</div>
+</body>
+</html>

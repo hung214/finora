@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>03 快速記帳＋每筆確認 — LedgerSync UI 雛型</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI","Noto Sans TC",system-ui,sans-serif}
+body{background:#e8ecef;display:flex;gap:300px;padding:40px;align-items:flex-start}
+.frame{position:relative;flex:none}
+.phone{width:390px;height:844px;background:#12312F;border-radius:40px;border:10px solid #1c1f22;position:relative;overflow:hidden}
+.notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:120px;height:24px;background:#1c1f22;border-radius:0 0 16px 16px;z-index:9}
+.screen{position:absolute;inset:0;padding:48px 16px 20px;overflow-y:auto;display:flex;flex-direction:column}
+.note{position:absolute;left:410px;width:250px;background:#FFF7C2;border-left:4px solid #E6B800;padding:10px 12px;font-size:12px;border-radius:6px;box-shadow:2px 2px 6px rgba(0,0,0,.15);line-height:1.5}
+.note b{display:block;margin-bottom:4px;color:#8a6d00}
+.top{display:flex;justify-content:space-between;color:#9fd4d0;font-size:13px;margin-bottom:18px}
+.top .t{background:rgba(255,255,255,.12);padding:6px 12px;border-radius:12px}
+.amount{color:#fff;text-align:center;font-size:64px;font-weight:800;letter-spacing:2px;margin:10px 0 4px}
+.amount small{font-size:20px;color:#9fd4d0;display:block;font-weight:400;letter-spacing:0}
+.count{color:#F5C86B;text-align:center;font-size:13px;margin-bottom:16px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.cat{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#d9e8e7;border-radius:14px;padding:12px 4px;text-align:center;font-size:12px}
+.cat.on{background:#F5C86B;color:#12312F;font-weight:700;border-color:#F5C86B}
+.cat .e{font-size:20px;display:block;margin-bottom:4px}
+.field{display:flex;gap:8px;margin-bottom:8px}
+.f{flex:1;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:12px;color:#d9e8e7;font-size:13px;padding:10px 12px}
+.f b{color:#fff}
+.f small{display:block;font-size:10px;color:#9fd4d0;margin-bottom:2px}
+.save{background:#F5C86B;color:#12312F;font-size:18px;font-weight:800;border-radius:16px;padding:16px;text-align:center;margin-top:6px}
+.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.key{background:rgba(255,255,255,.06);color:#e7f2f1;border-radius:14px;text-align:center;padding:14px 0;font-size:20px}
+.key.op{color:#F5C86B}
+.overlay{position:absolute;inset:0;background:rgba(6,24,23,.62);display:flex;align-items:flex-end;z-index:5}
+.dialog{background:#fff;border-radius:24px 24px 0 0;padding:20px 18px 24px;width:100%}
+.dialog h2{font-size:18px;color:#1c2b2a;margin-bottom:4px}
+.dialog .c{font-size:12px;color:#98a5a4;margin-bottom:14px}
+.btn{border-radius:14px;padding:13px;text-align:center;font-size:15px;font-weight:700;margin-bottom:8px}
+.btn.primary{background:#0B7A75;color:#fff}
+.btn.ghost{background:#EDF1F2;color:#1c2b2a}
+.btn.danger{background:#fff;color:#D64545;border:1px solid #F3C9C9}
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="screen">
+      <div class="top">
+        <span>✕ 離開</span>
+        <span class="t">⏱ 10/18 09:12（可點改）</span>
+      </div>
+      <div class="amount">1,240<small>帳戶：現金（Sticky）</small></div>
+      <div class="count">本次已記 3 筆</div>
+
+      <div class="grid">
+        <div class="cat"><span class="e">🍜</span>餐飲</div>
+        <div class="cat on"><span class="e">🛒</span>購物</div>
+        <div class="cat"><span class="e">🚇</span>交通</div>
+        <div class="cat"><span class="e">🏠</span>居住</div>
+        <div class="cat"><span class="e">🎬</span>娛樂</div>
+        <div class="cat"><span class="e">💊</span>醫療</div>
+        <div class="cat"><span class="e">📚</span>教育</div>
+        <div class="cat"><span class="e">⋯</span>其他</div>
+      </div>
+
+      <div class="field">
+        <div class="f"><small>帳戶</small><b>現金</b></div>
+        <div class="f"><small>商家（Sticky）</small><b>全家</b></div>
+      </div>
+      <div class="field">
+        <div class="f"><small>備註／標籤（選填）</small>早餐</div>
+        <div class="f" style="flex:0 0 64px;text-align:center"><small>附件</small>📷</div>
+      </div>
+
+      <div class="save">儲 存</div>
+      <div class="numpad">
+        <div class="key">7</div><div class="key">8</div><div class="key">9</div>
+        <div class="key">4</div><div class="key">5</div><div class="key">6</div>
+        <div class="key">1</div><div class="key">2</div><div class="key">3</div>
+        <div class="key op">.</div><div class="key">0</div><div class="key op">⌫</div>
+      </div>
+    </div>
+
+    <div class="overlay">
+      <div class="dialog">
+        <h2>繼續記下一筆？</h2>
+        <div class="c">本次已記 3 筆 · 交易已入庫（<300ms）</div>
+        <div class="btn primary">繼續（保留帳戶/分類/商家）</div>
+        <div class="btn ghost">↩ 復原上一筆</div>
+        <div class="btn danger">完成（回到明細）</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note" style="top:60px"><b>FR-Q1 · SDD §5.1</b>快記頁：大金額鍵盤＋分類快捷格（常用排序）；從開啟到儲存 ≤3 次點擊。</div>
+  <div class="note" style="top:210px"><b>FR-Q4 · S1.1~S1.4</b>智慧預設：帳戶=上一筆、分類=時段/商家規則；可於設定改固定預設。</div>
+  <div class="note" style="top:360px"><b>FR-Q8 · S1.5</b>時間可點擊修改（不離開頁面）；「繼續」後金額清空、時間重設為現在（FR-Q5 Sticky）。</div>
+  <div class="note" style="top:480px"><b>FR-Q2 · AC-01/02</b>儲存後彈出「繼續記下一筆？」對話框：繼續／復原上一筆（FR-Q3）／完成三動作，顯示連記計數。</div>
+  <div class="note" style="top:640px"><b>FR-T7</b>金額必填>0；分類必選有預設；商家/備註/附件選填。</div>
+</div>
+</body>
+</html>

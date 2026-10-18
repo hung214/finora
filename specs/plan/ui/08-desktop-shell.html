@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>08 桌面版殼 — LedgerSync UI 雛型</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI","Noto Sans TC",system-ui,sans-serif}
+body{background:#e8ecef;display:flex;gap:300px;padding:40px;align-items:flex-start}
+.frame{position:relative;flex:none}
+.win{width:1180px;height:740px;background:#F5F7F8;border-radius:12px;border:8px solid #1c1f22;position:relative;overflow:hidden;display:flex}
+.note{position:absolute;left:20px;bottom:20px;width:250px;background:#FFF7C2;border-left:4px solid #E6B800;padding:10px 12px;font-size:12px;border-radius:6px;box-shadow:2px 2px 6px rgba(0,0,0,.15);line-height:1.5;z-index:9}
+.note b{display:block;margin-bottom:4px;color:#8a6d00}
+.side{width:190px;background:#0B2B29;color:#cfe3e1;display:flex;flex-direction:column;padding:16px 10px}
+.logo{font-size:16px;font-weight:800;color:#fff;margin-bottom:18px;padding:0 8px}
+.nav2 .it{display:flex;gap:10px;align-items:center;padding:9px 12px;border-radius:10px;font-size:13px;margin-bottom:2px}
+.nav2 .it.on{background:#0B7A75;color:#fff;font-weight:700}
+.main{flex:1;display:flex;flex-direction:column}
+.toolbar{height:52px;background:#fff;border-bottom:1px solid #e3e7ea;display:flex;align-items:center;gap:10px;padding:0 16px}
+.search{flex:1;max-width:420px;background:#F0F3F4;border-radius:10px;padding:8px 12px;font-size:12px;color:#98a5a4}
+.tbtn{font-size:12px;border:1px solid #e3e7ea;border-radius:8px;padding:7px 12px;color:#1c2b2a;background:#fff}
+.tbtn.primary{background:#0B7A75;color:#fff;border:none;font-weight:700}
+.kbd{font-size:10px;color:#98a5a4;border:1px solid #d5dcdd;border-radius:4px;padding:1px 5px;margin-left:6px}
+.content{flex:1;overflow:hidden;padding:14px 16px}
+h2{font-size:17px;color:#1c2b2a;margin-bottom:10px}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;font-size:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+th{background:#F0F3F4;text-align:left;padding:9px 12px;color:#5c6b6a;font-weight:600}
+td{padding:9px 12px;border-top:1px solid #F0F3F4;color:#1c2b2a}
+.red{color:#D64545;font-weight:700}.green{color:#0B7A75;font-weight:700}
+.tag{font-size:10px;border-radius:8px;padding:1px 7px;font-weight:700}
+.t-scan{background:#E6F4F3;color:#0B7A75}.t-pending{background:#EDE4FF;color:#6D4FC4}.t-rec{background:#FFF1D6;color:#B45309}
+.quick{width:300px;background:#fff;border-left:1px solid #e3e7ea;padding:14px;display:flex;flex-direction:column}
+.quick h3{font-size:14px;color:#1c2b2a;margin-bottom:2px}
+.quick .sub{font-size:11px;color:#98a5a4;margin-bottom:10px}
+.qamt{font-size:34px;font-weight:800;color:#1c2b2a;text-align:center;background:#F7F9FA;border-radius:12px;padding:12px;margin-bottom:10px}
+.qgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px}
+.qcat{background:#F7F9FA;border:1px solid #e3e7ea;border-radius:10px;text-align:center;font-size:11px;padding:9px 2px;color:#5c6b6a}
+.qcat.on{background:#0B7A75;color:#fff;border-color:#0B7A75}
+.qsave{background:#0B7A75;color:#fff;text-align:center;font-weight:700;border-radius:12px;padding:12px;font-size:14px}
+.qmeta{font-size:11px;color:#98a5a4;margin-top:8px;line-height:1.8}
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="win">
+    <div class="side">
+      <div class="logo">📒 LedgerSync</div>
+      <div class="nav2">
+        <div class="it">🏠 總覽</div>
+        <div class="it on">📋 明細</div>
+        <div class="it">🎯 預算</div>
+        <div class="it">🏦 帳戶</div>
+        <div class="it">📊 報表</div>
+        <div class="it">⚙️ 設定</div>
+      </div>
+      <div style="margin-top:auto;font-size:10px;opacity:.6;padding:0 8px">v1.0 · 本地優先<br>已連結：Google Drive</div>
+    </div>
+    <div class="main">
+      <div class="toolbar">
+        <div class="search">🔍 搜尋交易（關鍵字／金額／分類／期間）— Ctrl+F</div>
+        <div class="tbtn">📷 掃描<span class="kbd">Ctrl+Shift+S</span></div>
+        <div class="tbtn primary">＋ 快速記帳<span class="kbd">Ctrl+N</span></div>
+      </div>
+      <div class="content">
+        <h2>交易明細（10 月）</h2>
+        <table>
+          <tr><th>日期</th><th>類型</th><th>分類</th><th>商家／對象</th><th>帳戶</th><th style="text-align:right">金額</th></tr>
+          <tr><td>10/18 09:12</td><td>支出 <span class="tag t-scan">掃描</span></td><td>購物</td><td>全家便利商店 📷</td><td>現金</td><td style="text-align:right" class="red">−195</td></tr>
+          <tr><td>10/18 08:15</td><td>支出</td><td>餐飲</td><td>早安美芝城</td><td>現金</td><td style="text-align:right" class="red">−120</td></tr>
+          <tr><td>10/17 20:10</td><td>還款</td><td>—</td><td>信用卡繳款</td><td>薪轉 → 富邦卡</td><td style="text-align:right">−5,000</td></tr>
+          <tr><td>10/17 12:00</td><td>轉帳</td><td>—</td><td>現金 → 銀行</td><td>現金 / 薪轉</td><td style="text-align:right">400</td></tr>
+          <tr><td>11/01（未來）</td><td>支出 <span class="tag t-rec">定期·待確認</span></td><td>居住</td><td>房租 15,000</td><td>薪轉</td><td style="text-align:right">—</td></tr>
+          <tr><td>10/15 14:30</td><td>支出 <span class="tag t-pending">預扣</span></td><td>購物</td><td>筆電（分期 1/6）</td><td>富邦卡</td><td style="text-align:right" class="red">−5,000</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="quick">
+      <h3>快速記帳</h3>
+      <div class="sub">Ctrl+N 開啟 · Esc 收合</div>
+      <div class="qamt">1,240</div>
+      <div class="qgrid">
+        <div class="qcat">🍜 餐飲</div><div class="qcat on">🛒 購物</div><div class="qcat">🚇 交通</div>
+        <div class="qcat">🏠 居住</div><div class="qcat">🎬 娛樂</div><div class="qcat">⋯ 其他</div>
+      </div>
+      <div class="qmeta">帳戶：現金（Sticky）<br>商家：全家（Sticky）· 時間：現在</div>
+      <div style="flex:1"></div>
+      <div class="qsave">儲存（Enter）</div>
+      <div class="qmeta" style="text-align:center">儲存後停留此面板繼續記（每筆確認）</div>
+    </div>
+  </div>
+
+  <div class="note"><b>SDD §8 · FR-Q7/S3.9</b>桌面三欄殼：側邊導航＋主內容＋右側快記面板（Ctrl/N，可收合）；工具列掃描（Ctrl+Shift+S）；表格支援寬版資訊（source 標籤：掃描/定期/預扣）。</div>
+  <div class="note" style="bottom:120px"><b>F01-S1.11 · F03-S3.9</b>桌面快捷鍵；無相機 PC → 掃描導向相簿/檔案匯入。</div>
+</div>
+</body>
+</html>

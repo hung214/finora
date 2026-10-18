@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>05 掃描與確認清單 — LedgerSync UI 雛型</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI","Noto Sans TC",system-ui,sans-serif}
+body{background:#e8ecef;display:flex;gap:300px;padding:40px;align-items:flex-start}
+.frame{position:relative;flex:none}
+.phone{width:390px;height:844px;background:#F5F7F8;border-radius:40px;border:10px solid #1c1f22;position:relative;overflow:hidden}
+.notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:120px;height:24px;background:#1c1f22;border-radius:0 0 16px 16px;z-index:9}
+.screen{position:absolute;inset:0;padding:48px 14px 20px;overflow-y:auto}
+.note{position:absolute;left:410px;width:250px;background:#FFF7C2;border-left:4px solid #E6B800;padding:10px 12px;font-size:12px;border-radius:6px;box-shadow:2px 2px 6px rgba(0,0,0,.15);line-height:1.5}
+.note b{display:block;margin-bottom:4px;color:#8a6d00}
+.cam{position:relative;height:300px;background:linear-gradient(135deg,#16302e,#0b1f1e);border-radius:20px;overflow:hidden}
+.cam .qbox{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:210px;height:130px;border:2px dashed #6EE7DB;border-radius:12px}
+.cam .hint{position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#9fd4d0;font-size:12px}
+.cam .x{position:absolute;top:10px;left:12px;color:#9fd4d0;font-size:16px}
+.thumbs{display:flex;gap:8px;margin:10px 0}
+.thumb{width:52px;height:52px;border-radius:10px;background:#fff;border:2px solid #0B7A75;display:flex;align-items:center;justify-content:center;font-size:18px;position:relative}
+.thumb span{position:absolute;bottom:-6px;right:-6px;background:#0B7A75;color:#fff;font-size:9px;border-radius:8px;padding:1px 5px}
+.done{background:#0B7A75;color:#fff;text-align:center;font-weight:700;border-radius:14px;padding:13px;margin-bottom:14px;font-size:15px}
+.h2{font-size:16px;font-weight:800;color:#1c2b2a;margin-bottom:8px}
+.card{background:#fff;border-radius:16px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.06);margin-bottom:12px}
+.card .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.mini{width:44px;height:44px;border-radius:8px;background:#EDF1F2;display:flex;align-items:center;justify-content:center;font-size:20px}
+.row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.lbl{font-size:11px;color:#98a5a4;display:block;margin-bottom:3px}
+.val{font-size:14px;color:#1c2b2a;font-weight:600;padding:6px 8px;border-radius:8px;background:#F7F9FA}
+.hl{background:#FFF1D6;border:1px solid #F5C86B;color:#B45309}
+.hl small{display:block;font-weight:400;font-size:10px}
+.amount2{font-size:26px;font-weight:800;color:#1c2b2a;padding:6px 8px;border-radius:8px;background:#F7F9FA;display:inline-block}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.chip{font-size:12px;padding:6px 11px;border-radius:12px;background:#F7F9FA;border:1px solid #e3e7ea;color:#7d8b8a}
+.chip.on{background:#0B7A75;color:#fff;border-color:#0B7A75}
+.save{background:#0B7A75;color:#fff;text-align:center;font-weight:700;border-radius:14px;padding:12px;font-size:15px}
+.counter{font-size:12px;color:#7d8b8a}
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="screen">
+      <div class="cam">
+        <span class="x">✕</span>
+        <div class="qbox"></div>
+        <div class="hint">對準電子發票：先掃左側 QR（發票資訊），再掃右側 QR（明細）· FR-S1/S2</div>
+      </div>
+      <div class="thumbs">
+        <div class="thumb">🧾<span>1</span></div>
+        <div class="thumb">🧾<span>2</span></div>
+        <div class="thumb">🧾<span>3</span></div>
+        <div class="thumb" style="border-style:dashed;border-color:#c9d2d4">＋</div>
+      </div>
+      <div class="done">完成掃描（已掃 3 張）</div>
+
+      <div class="h2">確認清單（3 張）</div>
+      <div class="card">
+        <div class="head">
+          <div style="display:flex;gap:10px;align-items:center">
+            <div class="mini">🧾</div>
+            <div><b style="font-size:14px">測試超商</b><div class="counter">1 / 3 · 儲存後自動跳下一張</div></div>
+          </div>
+          <span class="chip on" style="border:none">QR 解析</span>
+        </div>
+        <div class="row">
+          <div style="flex:1"><span class="lbl">日期（低信賴 0.5 → 需確認）</span><div class="val hl">2026/10/18<small>請確認日期</small></div></div>
+          <div style="flex:1;margin-left:8px"><span class="lbl">商家</span><div class="val">測試超商</div></div>
+        </div>
+        <div class="row" style="align-items:flex-end">
+          <div><span class="lbl">總額（必經人工檢視）</span><div class="amount2">$195</div></div>
+          <div style="flex:1;margin-left:8px"><span class="lbl">帳戶（上次掃描所用）</span><div class="val">現金</div></div>
+        </div>
+        <span class="lbl" style="margin-top:6px">分類（必選，預設「其他」）</span>
+        <div class="chips">
+          <span class="chip">餐飲</span><span class="chip on">購物</span><span class="chip">交通</span><span class="chip">其他</span>
+        </div>
+        <div style="font-size:11px;color:#98a5a4;margin-bottom:10px">明細：咖啡 2×95=190、茶葉蛋 5（來自右側 QR）</div>
+        <div class="save">確認儲存（原圖存為附件）</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note" style="top:60px"><b>FR-S1/S2 · S3.2</b>雙 QR 連讀合併（500ms 暫存）；總額 195=186+9 校驗通過。</div>
+  <div class="note" style="top:250px"><b>FR-S7 · S3.7</b>連續掃描模式：即時縮圖+張數；「完成掃描」進確認清單。</div>
+  <div class="note" style="top:380px"><b>FR-S4 · S3.3</b>確認卡必選分類（預設其他）、帳戶預設上次掃描所用；儲存後**自動跳下一張**（維持連續性）。</div>
+  <div class="note" style="top:520px"><b>FR-S5 · S3.5</b>信賴度 <0.7 的欄位高亮（此例：日期 0.5），未處理不可儲存。</div>
+  <div class="note" style="top:640px"><b>S3.4 · FR-S4</b>總額必經人工檢視：清空/0 元會被擋下；無法辨識格式 → 回退手動輸入（S3.6）。</div>
+</div>
+</body>
+</html>

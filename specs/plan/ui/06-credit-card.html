@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>06 信用卡與帳單 — LedgerSync UI 雛型</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI","Noto Sans TC",system-ui,sans-serif}
+body{background:#e8ecef;display:flex;gap:300px;padding:40px;align-items:flex-start}
+.frame{position:relative;flex:none}
+.phone{width:390px;height:844px;background:#F5F7F8;border-radius:40px;border:10px solid #1c1f22;position:relative;overflow:hidden}
+.notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:120px;height:24px;background:#1c1f22;border-radius:0 0 16px 16px;z-index:9}
+.screen{position:absolute;inset:0;padding:48px 16px 88px;overflow-y:auto}
+.note{position:absolute;left:410px;width:250px;background:#FFF7C2;border-left:4px solid #E6B800;padding:10px 12px;font-size:12px;border-radius:6px;box-shadow:2px 2px 6px rgba(0,0,0,.15);line-height:1.5}
+.note b{display:block;margin-bottom:4px;color:#8a6d00}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.header h1{font-size:22px;color:#1c2b2a}
+.card{background:#fff;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.card h3{font-size:13px;color:#7d8b8a;margin-bottom:8px}
+.row{display:flex;justify-content:space-between;align-items:center}
+.big{font-size:26px;font-weight:800}
+.visual{background:linear-gradient(135deg,#0B7A75,#064E4B);border-radius:18px;color:#fff;padding:18px;margin-bottom:12px}
+.visual .no{font-size:18px;letter-spacing:3px;font-weight:700}
+.visual .meta{font-size:11px;opacity:.85;margin-top:8px;line-height:1.7}
+.chipbtn{background:#F5C86B;color:#12312F;font-weight:800;border-radius:12px;padding:10px 18px;font-size:14px}
+.badge{font-size:11px;padding:2px 8px;border-radius:10px;font-weight:700}
+.b-paid{background:#E6F4F3;color:#0B7A75}.b-partial{background:#FFF1D6;color:#B45309}.b-over{background:#FBE4E4;color:#D64545}.b-open{background:#EDF1F2;color:#5c6b6a}
+.bill{padding:10px 0;border-bottom:1px solid #F0F3F4}
+.bill:last-child{border:none}
+.bill b{font-size:14px;color:#1c2b2a}
+.bill .s{font-size:11px;color:#98a5a4;display:block;margin-top:2px}
+.amt{font-weight:700;font-size:14px}
+.red{color:#D64545}.green{color:#0B7A75}
+.nav{position:absolute;bottom:0;left:0;right:0;height:76px;background:#fff;border-top:1px solid #e3e7ea;display:flex;align-items:center;justify-content:space-around;padding:0 8px}
+.nav .it{font-size:11px;color:#98a5a4;text-align:center}
+.nav .it.on{color:#0B7A75;font-weight:700}
+.nav .ic{font-size:20px;display:block;text-align:center;margin-bottom:2px}
+.fab{width:56px;height:56px;border-radius:50%;background:#0B7A75;color:#fff;display:flex;align-items:center;justify-content:center;font-size:26px;margin-top:-30px;box-shadow:0 4px 14px rgba(11,122,117,.45)}
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="screen">
+      <div class="header"><h1>富邦卡</h1><div class="chipbtn" style="background:#0B7A75;color:#fff">繳款</div></div>
+
+      <div class="visual">
+        <div style="display:flex;justify-content:space-between"><span style="font-size:12px;opacity:.8">CREDIT CARD</span><span>💳</span></div>
+        <div class="no">•••• •••• •••• 1234</div>
+        <div class="meta">
+          結帳日：每月 5 號 ｜ 繳款日：結帳日＋15 天 ｜ 歸屬：當天算本期（FR-C2）<br>
+          扣款帳戶：薪轉 ｜ 額度：100,000（已用 8%）
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>本期應付（10/6~11/5，未結帳）</h3>
+        <div class="row"><span class="big">8,000</span><span style="font-size:12px;color:#98a5a4">3 筆預扣 + 5,000（本期新）</span></div>
+        <div style="font-size:11px;color:#98a5a4;margin-top:8px">⚠ 銀行帳戶餘額不受預扣影響（FR-C1）</div>
+      </div>
+
+      <div class="cols" style="display:flex;gap:12px;margin-bottom:12px">
+        <div class="card" style="flex:1;margin:0"><h3>未繳帳單</h3><div class="big green" style="font-size:20px">0</div></div>
+        <div class="card" style="flex:1;margin:0"><h3>未來已承諾（分期）</h3><div class="big" style="font-size:20px">25,000</div><div style="font-size:10px;color:#98a5a4;margin-top:4px">筆電 5/6 期</div></div>
+      </div>
+
+      <div class="card">
+        <h3>帳單歷史</h3>
+        <div class="bill">
+          <div class="row"><b>9/6~10/5 期</b><span class="badge b-partial">部分繳</span><span class="amt">應繳 5,000</span></div>
+          <span class="s">已繳 2,000 · 剩餘 3,000 · 10/20 繳款截止</span>
+        </div>
+        <div class="bill">
+          <div class="row"><b>8/6~9/5 期</b><span class="badge b-paid">已繳</span><span class="amt green">4,000</span></div>
+          <span class="s">9/18 全額繳清（含退款負項 −1,000）</span>
+        </div>
+        <div class="bill">
+          <div class="row"><b>7/6~8/5 期</b><span class="badge b-over">逾期</span><span class="amt red">3,120</span></div>
+          <span class="s">8/20 截止未繳清（v1 不計息，持續顯示）</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="nav">
+      <div class="it"><span class="ic">🏠</span>總覽</div>
+      <div class="it"><span class="ic">📋</span>明細</div>
+      <div class="fab">＋</div>
+      <div class="it"><span class="ic">🎯</span>預算</div>
+      <div class="it"><span class="ic">⚙️</span>設定</div>
+    </div>
+  </div>
+
+  <div class="note" style="top:60px"><b>FR-A3 · FR-C2 · S4.4</b>卡設定：結帳日/繳款日/扣款帳戶/**歸屬規則（每卡可設定）**；修改自下期生效。</div>
+  <div class="note" style="top:230px"><b>FR-C1 · AC-04</b>本期應付即時累加預扣；薪轉餘額不變——銀行在「繳款」時才扣。</div>
+  <div class="note" style="top:400px"><b>FR-C7 · S4.9</b>「未來已承諾支出」：分期自動排程未來 pending 交易。</div>
+  <div class="note" style="top:520px"><b>FR-C4~C6 · S4.5~S4.8</b>帳單狀態機：部分繳/已繳/逾期；繳款從連結帳戶轉帳；N-5 繳款提醒前 3 天+當天。</div>
+</div>
+</body>
+</html>

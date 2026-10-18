@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>04 預算與收入目標 — LedgerSync UI 雛型</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI","Noto Sans TC",system-ui,sans-serif}
+body{background:#e8ecef;display:flex;gap:300px;padding:40px;align-items:flex-start}
+.frame{position:relative;flex:none}
+.phone{width:390px;height:844px;background:#F5F7F8;border-radius:40px;border:10px solid #1c1f22;position:relative;overflow:hidden}
+.notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:120px;height:24px;background:#1c1f22;border-radius:0 0 16px 16px;z-index:9}
+.screen{position:absolute;inset:0;padding:48px 16px 88px;overflow-y:auto}
+.note{position:absolute;left:410px;width:250px;background:#FFF7C2;border-left:4px solid #E6B800;padding:10px 12px;font-size:12px;border-radius:6px;box-shadow:2px 2px 6px rgba(0,0,0,.15);line-height:1.5}
+.note b{display:block;margin-bottom:4px;color:#8a6d00}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.header h1{font-size:22px;color:#1c2b2a}
+.iconbtn{width:38px;height:38px;border-radius:10px;background:#fff;border:1px solid #e3e7ea;display:flex;align-items:center;justify-content:center;font-size:16px}
+.card{background:#fff;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.card h3{font-size:13px;color:#7d8b8a;margin-bottom:8px}
+.row{display:flex;justify-content:space-between;align-items:center}
+.big{font-size:24px;font-weight:800;color:#1c2b2a}
+.bar{height:10px;background:#EDF1F2;border-radius:5px;margin-top:10px;overflow:hidden}
+.bar i{display:block;height:100%;background:#0B7A75;border-radius:5px}
+.bar i.warn{background:#F59E0B}.bar i.over{background:#D64545}
+.muted{font-size:11px;color:#98a5a4;margin-top:6px}
+.tag{font-size:10px;background:#EDE4FF;color:#6D4FC4;border-radius:8px;padding:2px 6px;margin-left:6px}
+.badge{font-size:11px;padding:2px 8px;border-radius:10px;background:#E6F4F3;color:#0B7A75;font-weight:600}
+.bitem{padding:10px 0;border-bottom:1px solid #F0F3F4}
+.bitem:last-child{border:none}
+.bitem .row b{font-size:14px;color:#1c2b2a}
+.bitem .pct{font-size:12px;font-weight:700}
+.red{color:#D64545}.green{color:#0B7A75}.orange{color:#B45309}
+.nav{position:absolute;bottom:0;left:0;right:0;height:76px;background:#fff;border-top:1px solid #e3e7ea;display:flex;align-items:center;justify-content:space-around;padding:0 8px}
+.nav .it{font-size:11px;color:#98a5a4;text-align:center}
+.nav .it.on{color:#0B7A75;font-weight:700}
+.nav .ic{font-size:20px;display:block;text-align:center;margin-bottom:2px}
+.fab{width:56px;height:56px;border-radius:50%;background:#0B7A75;color:#fff;display:flex;align-items:center;justify-content:center;font-size:26px;margin-top:-30px;box-shadow:0 4px 14px rgba(11,122,117,.45)}
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="screen">
+      <div class="header"><h1>預算</h1><div class="iconbtn">＋</div></div>
+
+      <div class="card">
+        <div class="row">
+          <h3>總預算（週期 10/1~10/31）</h3><span class="pct orange">64%</span>
+        </div>
+        <div class="row" style="margin-top:4px"><span class="big">19,230</span><span style="font-size:12px;color:#7d8b8a">/ 30,000</span></div>
+        <div class="bar"><i style="width:64%"></i></div>
+        <div class="muted">剩餘 10,770 · 每日可用 1,196 · 月底預測 26,090（含預扣）</div>
+      </div>
+
+      <div class="card">
+        <h3>分類預算</h3>
+        <div class="bitem">
+          <div class="row"><b>餐飲</b><span class="pct orange">87.5%</span></div>
+          <div class="row" style="margin-top:2px"><span style="font-size:12px;color:#7d8b8a">7,000 / 8,000 <span class="tag">預扣 1,000</span></span><span style="font-size:11px;color:#98a5a4">日均 388</span></div>
+          <div class="bar"><i class="warn" style="width:87.5%"></i></div>
+        </div>
+        <div class="bitem">
+          <div class="row"><b>購物</b><span class="pct red">105%</span></div>
+          <div class="row" style="margin-top:2px"><span style="font-size:12px;color:#7d8b8a">5,260 / 5,000</span><span style="font-size:11px;color:#98a5a4">超支 260</span></div>
+          <div class="bar"><i class="over" style="width:100%"></i></div>
+        </div>
+        <div class="bitem">
+          <div class="row"><b>交通</b><span class="pct green">42%</span></div>
+          <div class="row" style="margin-top:2px"><span style="font-size:12px;color:#7d8b8a">840 / 2,000</span><span style="font-size:11px;color:#98a5a4">日均 67</span></div>
+          <div class="bar"><i style="width:42%"></i></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <h3>收入目標（10 月）</h3><span class="badge">已達成 103%</span>
+        </div>
+        <div class="row" style="margin-top:6px"><span class="big green">62,000</span><span style="font-size:12px;color:#7d8b8a">/ 目標 60,000</span></div>
+        <div class="bar"><i style="width:100%"></i></div>
+      </div>
+
+      <div class="card">
+        <h3>本月結餘</h3>
+        <div class="row"><span style="font-size:13px;color:#7d8b8a">預計（目標−總預算）</span><span class="big green" style="font-size:18px">30,000</span></div>
+        <div class="row" style="margin-top:6px"><span style="font-size:13px;color:#7d8b8a">實際（含預扣）</span><span class="big" style="font-size:18px">49,660</span></div>
+      </div>
+    </div>
+
+    <div class="nav">
+      <div class="it"><span class="ic">🏠</span>總覽</div>
+      <div class="it"><span class="ic">📋</span>明細</div>
+      <div class="fab">＋</div>
+      <div class="it on"><span class="ic">🎯</span>預算</div>
+      <div class="it"><span class="ic">⚙️</span>設定</div>
+    </div>
+  </div>
+
+  <div class="note" style="top:60px"><b>FR-B2/B3</b>週期起始日可自訂（此例 1 號）；進度含已用/剩餘/每日可用/月底預測。</div>
+  <div class="note" style="top:200px"><b>FR-B5 · S5.3</b>預算用量**含信用卡預扣**：餐飲標籤顯示「預扣 1,000」；105% 超支為紅色（N-3），記帳不封鎖（S5.2）。</div>
+  <div class="note" style="top:430px"><b>FR-B4 · AC-05</b>87.5% → N-1 已發一次；80/100/超支各級別每期僅通知一次。</div>
+  <div class="note" style="top:560px"><b>FR-B6 · AC-13</b>收入目標達標率 103% 顯示「已達成」；N-10 達成通知為 P2 選用。</div>
+  <div class="note" style="top:660px"><b>FR-B7</b>預計結餘 = 收入目標 − 總預算；實際結餘含預扣——兩行並列口徑清楚。</div>
+</div>
+</body>
+</html>
