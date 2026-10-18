@@ -21,14 +21,14 @@
 | 欄位 | 內容 |
 |---|---|
 | 更新時間 | 2026-10-18 |
-| 階段 | S0 進行中：**T-H1/T-H2 完成（33 測試綠）＋已合併 main 並發佈 v0.1.0**；T-H3~H9 待做 |
-| 當前分支 | main（`b658329` merge，已 push）；tag：**v0.1.0**（觸發 release 工作流建置四平台產物） |
-| 當前任務 | 完成：遠端連接（github.com/hung214/finora）、T-H1 記憶體 DB fixture（sqlite3 直連 schema v1）、T-H2 Clock（單一時間來源）、tag-on-main/release 工作流、TR-7/DBG-001 記錄 |
-| 紅綠燈狀態 | `flutter test` = **33 全綠**（＋T-H1×7、T-H2×5）；`dart analyze` = No issues found! |
+| 階段 | **S0 完成（T-H1~H9 全數 ✅）**，v0.2.0 已自動發佈；下一里程碑 M1（F01 快速記帳） |
+| 當前分支 | main（`6509a4a` merge，已 push）；tag：v0.1.0、**v0.2.0**（tag-on-main 自動建立，release 工作流建置四平台產物中） |
+| 當前任務 | 完成：T-H3 雲端 adapter（**雙裝置拓撲模擬**：每裝置各自本地 SQLite＋雲端檔案交換）、T-H4 通知 spy、T-H5 標準資料集、T-H6 發票測資＋編碼器（deflate+Base32）、T-H7 Gherkin runner（BE）、T-H8 FE 掛鉤（驗證延至 M1）、T-H9 truth 對齊測試（pubspec/schema↔truth 自動檢查上 CI） |
+| 紅綠燈狀態 | `flutter test` = **56 全綠**；`dart analyze` = No issues found! |
 | 工作區 | 乾淨（session.md 本次更新後 commit＋push） |
-| truth 對齊 | techstack **v0.3.2**（sqlite3 2.9.4 過渡、drift TR-7 暫緩、CI 工作流登記）；data-spec/api-spec 未動 |
-| 環境筆記 | ⚠️ 路徑非 ASCII → `dart analyze`（flutter analyze 崩潰）；junction ledger_app。⚠️ TR-7：drift codegen 與 Dart 3.13.5 不相容（過渡 sqlite3 直連，M1 前於 CI 重試）。⚠️ sqlcipher 0.7.0+eol（TR-6）。看畫面：flutter run → 🎨 UI Demo |
-| 阻塞／待決 | ①GitHub Actions 首次 release 執行結果待確認（macOS app 名/簽名等可能需微調）②SP-1 SQLCipher EOL（M1 前）③T-H3~H9 待做 ④drift 回歸（TR-7，CI 重試） |
+| truth 對齊 | techstack v0.3.2；**T-H9 上線**（pubspec⊆techstack、schema⊆dbml 自動斷言）；api-spec 未動 |
+| 環境筆記 | ⚠️ 路徑非 ASCII → `dart analyze`；junction ledger_app。⚠️ TR-7：drift 過渡 sqlite3 直連（M1 前 CI 重試）。⚠️ sqlcipher 0.7.0+eol（TR-6）。看畫面：flutter run → 🎨 UI Demo |
+| 阻塞／待決 | ①v0.2.0 release 工作流四平台建置結果待確認（首次可能需微調）②SP-1 SQLCipher EOL（M1 前）③drift 回歸（TR-7）④PM 簽核 UI Demo／文件集 |
 
 ## 3. 下一步（精確到檔案與動作）
 
@@ -50,6 +50,7 @@
 
 | 日期 | 摘要 | 分支 | 狀態 |
 |---|---|---|---|
+| 2026-10-18 | **S0 完成**：T-H3 雲端 adapter（雙裝置拓撲：每裝置各自本地 SQLite＋雲端檔案交換 OpBundle 契約）、T-H4 通知 spy、T-H5 標準資料集、T-H6 發票測資＋deflate/Base32 編碼器、T-H7 Gherkin runner（解析/背景/Outline/標籤過濾）、T-H8 FE 掛鉤（M1 啟用）、T-H9 truth 對齊測試上 CI；版本 bump 0.2.0+1 → **tag-on-main 自動建立 v0.2.0 並觸發 release** | feature/T-H-helpers-2 → main | ✅（39be197 紅 / f803eb2 綠 / e669783 bump / merge 6509a4a / tag v0.2.0） |
 | 2026-10-18 | **遠端上線＋S0 開跑**：接 origin（hung214/finora）push main；T-H1 記憶體 DB fixture（sqlite3 2.9.4 直連 schema v1 對齊 data-spec.dbml）＋T-H2 Clock（單一時間來源）→ **33 測試綠**；新增需求落地：tag-on-main 自動 v 標籤＋release 四平台工作流（Android/Windows/macOS/iOS→GitHub Release）；TR-7（drift 工具鏈不相容，過渡 sqlite3）＋DBG-001 結案；techstack v0.3.2；**tag v0.1.0 已推送觸發 release** | feature/T-H-test-helpers → main | ✅（9622009 紅 / b557029 綠 / 1d7a463 ci / merge b658329 / tag v0.1.0） |
 | 2026-10-18 | **UI Demo 畫廊**：7 畫面（總覽/明細/快記＋每筆確認/預算/信用卡/分類設定/設定同步）＋深淺色切換（DemoThemeScope）；新增 09 分類設定 HTML 雛型；品牌名虛構化 27 檔（全家→陽光、富邦卡→示例卡、悠遊卡→票證卡等，版權考量）；README 授權聲明；analyze 零問題、21 測試綠 | feature/ui-demo-gallery → main | ✅（89571c9 / 01a295c / merge bcd4ee5） |
 | 2026-10-18 | S0 骨架：flutter create 四平台（116 檔）、pubspec 對齊 techstack、Money/HLC/Balance + 21 測試全綠、dart analyze 零問題、BDD feature 同步（tool/sync_features.ps1）、CI workflow、README；truth v0.3.1 實鎖版本回寫（SQLCipher EOL → TR-6） | main | 骨架 ✅（commit 96bca5f / 8430b03） |
