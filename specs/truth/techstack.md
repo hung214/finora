@@ -2,7 +2,7 @@
 
 | 項目 | 內容 |
 |---|---|
-| 文件版本 | v0.3.1（S0 實鎖版本回寫） |
+| 文件版本 | v0.3.2（S0 實鎖版本回寫＋TR-7 過渡方案） |
 | 日期 | 2026-10-18 |
 | 性質 | **原始碼技術棧的唯一事實來源**。SDD §3 為設計說明；本檔記錄「將寫進程式碼」的定案（含版本）。兩者不一致時以本檔為準並回修 SDD |
 | 變更規則 | 僅能經 PR 變更；新增/升級依賴需通過授權審查（research.md D14）+ 全測試綠燈；每次變更記錄於 §8 變更記錄 |
@@ -51,7 +51,8 @@
 | domain | freezed / json_serializable | 2.5.8 | 實體/OpBundle 模型 | SDD §4 |
 | domain | intl | 0.20.3 | 多語系/幣別格式 | FR-O1 |
 | domain | uuid | 4.6.0 | UUIDv7（交易/實體 ID） | SDD §4.2 |
-| data | drift / drift_dev | 2.28.2 | SQLite ORM + Reactive Streams + migration（D2） | SDD §4.2 |
+| data | sqlite3 | 2.9.4 | **T-S1 過渡**：本地 DB 直連（lib/data/sqlite/，schema 對齊 data-spec.dbml） | SDD §4.2 |
+| data | drift / drift_dev | 2.35.2（⚠ TR-7 暫緩：與 Dart 3.13.5 工具鏈不相容，M1 前於 CI 重試回歸；屆時 sqlite 直連層 API 不變僅換底層） | SQLite ORM + Reactive Streams + migration（D2） | SDD §4.2 |
 | data | sqlite3_flutter_libs | 0.5.42 | 四平台 SQLite 原生庫 | — |
 | data | sqlcipher_flutter_libs | 0.7.0+eol（⚠ 套件已標 EOL → SP-1 強化評估） | DB 加密（FR-X2，D2） | SDD §7 |
 | data | cryptography | 2.9.0 | AES-256-GCM（D8；Argon2id 僅備份檔密碼用，效能見 research TR-4） | SDD §7 |
@@ -80,7 +81,7 @@
 | 測試 | flutter_test、mocktail、integration_test | mocktail 1.0.5（lock） |
 | BDD | flutter_gherkin（步驟定義掛接 BDD.md） | 3.x |
 | Codegen | build_runner（drift_dev/freezed/json_serializable） | build_runner 2.5.4（lock） |
-| CI | GitHub Actions（analyze/unit/integration-P0/四平台 build） | — |
+| CI | GitHub Actions：**CI**（analyze/test）、**tag-on-main**（合併 main 自動 `v` 版本標籤）、**release**（四平台產物 → GitHub Release） | — |
 | 發佈 | Codemagic 或 Fastlane（iOS 簽名/上架） | 🔬 SP-7 |
 
 ---
@@ -145,3 +146,4 @@
 |---|---|---|---|
 | 2026-10-18 | v0.3 | 初版：依 research.md D1~D14 定案寫入；未定案項標 🔬 | — |
 | 2026-10-18 | v0.3.1 | S0 `flutter pub get` 實鎖版本回寫（drift 2.28.2／sqlcipher_flutter_libs 0.7.0+eol ⚠EOL／intl 0.20.3 等）；新增 §6-7 SQLCipher EOL 風險 | — |
+| 2026-10-18 | v0.3.2 | TR-7：drift/build_runner 與 Dart 3.13.5 工具鏈不相容（analyzer 7.x dot-shorthand、dart_style 3.1.13+ 需 fe types、2.16.x cache 損壞）→ T-S1 改 **sqlite3 2.9.4 直連**過渡；新增 tag-on-main/release 工作流登記（§2.4） | — |

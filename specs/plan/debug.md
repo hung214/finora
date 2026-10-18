@@ -45,6 +45,7 @@
 
 | ID | 日期 | 嚴重度 | 來源 | 摘要 | 分支 | 回歸情境 | 狀態 | 根因 |
 |---|---|---|---|---|---|---|---|---|
+| DBG-001 | 2026-10-18 | Major | T-H1 紅綠燈（drift codegen） | build_runner/drift 與 Dart 3.13.5 工具鏈不相容：analyzer 7.x 序列化 SDK dot-shorthand 崩潰；dart_style 3.1.13+ 需 Dart 3.14 fe types（LabelReference 等）；build_runner 2.16.x pub cache 提取損壞、2.17.1 與 json_serializable 衝突 | feature/T-H-test-helpers | tests 依新 DB 邊界改寫（33 情境綠） | ✅ 結案 | 環境工具鏈問題（非程式缺陷）；過渡方案 sqlite3 直連（research TR-7、techstack v0.3.2），M1 前於 CI 重試 drift 回歸 |
 | DBG-000（格式範例） | 2026-10-18 | Major | F04-BE 結帳歸屬 | （範例）卡B 當天消費誤入本期 | fix/dbg-000-example | F04-BE 新增回歸情境 | ✅ 結案 | （範例）boundary_rule 未傳入 period 計算 |
 
 > DBG-000 僅示範欄位格式，非真實缺陷；第一筆真實條目由 DBG-001 起。

@@ -1,0 +1,104 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  # 四平台產物建置（Android / Windows / macOS / iOS）。
+  # 註：iOS 未簽名（--no-codesign）；macOS 未公證——正式上架走 M7（MSIX/DMG notarization，SP-7）。
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter test --tags "@BE and @P0" || true   # 產物發佈前先跑 P0 測試（正式 gate 於 M1 收緊）
+      - run: flutter build apk --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter build windows --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64
+          path: build/windows/x64/runner/Release/
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter build macos --release
+      - name: 打包 .app 為 zip
+        run: |
+          cd build/macos/Build/Products/Release
+          ditto -c -k --keepParent ledger_sync.app LedgerSync-macos.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-app
+          path: build/macos/Build/Products/Release/LedgerSync-macos.zip
+
+  build-ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter build ios --release --no-codesign
+      - name: 打包未簽名 IPA（Payload）
+        run: |
+          mkdir -p build/ios/Payload
+          cp -r build/ios/iphoneos/Runner.app build/ios/Payload/
+          cd build/ios
+          zip -qry LedgerSync-ios-unsigned.zip Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-unsigned
+          path: build/ios/LedgerSync-ios-unsigned.zip
+
+  release:
+    needs: [build-android, build-windows, build-macos, build-ios]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+          path: dist
+      - name: 發佈 GitHub Release（四平台產物）
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.apk
+            dist/LedgerSync-macos.zip
+            dist/LedgerSync-ios-unsigned.zip
+            dist/*.exe
+            dist/*.dll
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -18,6 +18,7 @@
 | Commit | `type(scope): subject`，type ∈ feat/fix/test/refactor/docs/chore；scope 用 FR 或模組（例：`feat(FR-C2): billing boundary rule include/exclude`）。**粒度：每個情境紅綠燈循環至少一個 commit**（🔴 `test(dsl): F04-BE 結帳歸屬紅燈` → 🟢 `feat(FR-C2): …` → 🔵 `refactor: …`）；每個功能合併前至少含 T-Fxx-BE 與 T-Fxx-FE 各一個功能級 commit |
 | PR | 標題必帶 FR/AC/情境 ID（追溯鍵）；描述需附：紅燈證據（失敗輸出）→ 綠燈證據（通過輸出）→ truth 對齊檢查清單（§5） |
 | 合併 | P0 測試全綠才可合併；功能分支以 `--no-ff` merge 回 main（merge commit 帶 FR/AC，例：`Merge feature/F04-credit-card-billing (FR-C, AC-04/11)`），合併後刪除功能分支；truth 檔（specs/truth/*）變更須另外一個 PR 且由架構簽核（research §1.3 護欄） |
+| Tag | **工作完整合併至 main 時自動建立版本標籤**：tag-on-main workflow 讀 pubspec `version`（去除 +build）→ `v{major.minor.patch}`（已存在則略過）；標籤推送觸發 **release 工作流**建置 Android/Windows/macOS/iOS 產物並發佈 GitHub Release（`.github/workflows/tag-on-main.yml` / `release.yml`） |
 | Session | 休息／中斷前：更新根目錄 `session.md`（快照＋下一步＋歷程）、回寫 `tasks.md` §6 狀態、確認已 commit；恢復工作依 `session.md` §4 SOP |
 | 禁止 | force push main；跳過測試（--no-verify）合併；truth 與程式碼同 PR（先 truth 後碼） |
 

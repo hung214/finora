@@ -218,6 +218,7 @@ specs/
 | 文件同步 | 功能修正必同步 SDD/BDD/TDD/DDD 相關檔案（矩陣檢查，未同步不可合併） | tasks.md §7 |
 | truth | schema/API/棧變更**先改 truth 再改碼**；T-H9 自動對齊測試 | tasks.md §5 |
 | 除錯 | `specs/plan/debug.md` 建 DBG-NNN 條目；每條目至少一個回歸情境 | tasks.md §4.3 |
+| Tag/Release | 完整工作合併 main → 自動建立 `v` 版本標籤 → Release 工作流建置 **Android/Windows/macOS/iOS** 產物上 GitHub Release | tasks.md §0.1 |
 | 交接 | 休息前更新 `session.md`；恢復工作依其 SOP | session.md |
 
 ---
