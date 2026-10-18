@@ -1,0 +1,37 @@
+name: ledger_sync
+description: "LedgerSync — 本地優先跨平台記帳 App（規格：SPEC v0.3 / techstack v0.3）"
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.13.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # ── 依 specs/truth/techstack.md §2；版本鎖定以 pubspec.lock 為準，變更須回寫 truth ──
+  flutter_riverpod: ^2.6.1        # 狀態管理（research D3）
+  go_router: ^14.6.0              # 路由（桌面分欄/深連結）
+  drift: ^2.20.0                  # SQLite ORM + Reactive Streams（research D2）
+  sqlite3_flutter_libs: ^0.5.24   # 四平台 SQLite 原生庫
+  sqlcipher_flutter_libs: ">=0.6.0 <1.0.0" # DB 加密（FR-X2；SP-1 驗證四平台）
+  cryptography: ^2.7.0            # AES-256-GCM（D8；Argon2id 備份檔密碼用）
+  flutter_secure_storage: ^9.2.2  # DB 金鑰 / OAuth token（Keychain/Keystore/DPAPI）
+  local_auth: ^2.3.0              # 生物辨識 App 鎖（FR-X1）
+  intl: ">=0.19.0 <0.22.0"        # 多語系/幣別格式
+  uuid: ^4.5.1                    # UUIDv7（實體 ID）
+  freezed_annotation: ^2.4.4      # 實體/OpBundle 模型
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  drift_dev: ^2.20.0              # T-S1 起使用（T-H9 schema 對齊 data-spec.dbml）
+  build_runner: ^2.4.13
+  freezed: ^2.5.7
+  json_serializable: ^6.9.0
+  mocktail: ^1.0.4                # BE 測試 stub（T-H 掛鉤）
+
+flutter:
+  uses-material-design: true
