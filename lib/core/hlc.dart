@@ -1,3 +1,5 @@
+import 'clock.dart';
+
 /// Hybrid Logical Clock（SDD §5.5.4）— 多裝置變更排序的唯一版本戳。
 ///
 /// 序列化格式：`{毫秒:015d}.{計數器:05d}.{deviceId}`，例：
@@ -5,6 +7,7 @@
 ///
 /// - 本機寫入：[now] 或 [receive]（看過遠端事件後推進）。
 /// - 合併判定：[compareTo]（毫秒 → 計數器 → 裝置 ID），保證全網嚴格可比。
+/// - 時間單一來源：[Clock]（T-H2 fake clock）。
 class Hlc implements Comparable<Hlc> {
   const Hlc(this.milliseconds, this.counter, this.deviceId);
 
@@ -12,8 +15,8 @@ class Hlc implements Comparable<Hlc> {
   final int counter;
   final String deviceId;
 
-  /// 系統時鐘（可注入以便測試；T-H2 fake clock 原則）。
-  static int Function() clock = () => DateTime.now().millisecondsSinceEpoch;
+  /// 系統時鐘（可注入以便測試；預設委派 [Clock]，單一時間來源）。
+  static int Function() clock = Clock.nowMs;
 
   /// 建立本機新版本戳。
   factory Hlc.now(String deviceId) => Hlc(clock(), 0, deviceId);
