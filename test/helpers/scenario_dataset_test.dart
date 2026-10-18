@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_sync/data/sqlite/app_database.dart';
+import 'package:ledger_sync/domain/entities/account.dart';
 import 'package:ledger_sync/domain/entities/transaction.dart';
 import 'package:ledger_sync/domain/services/balance_calculator.dart';
 
@@ -19,6 +20,19 @@ Tx _toTx(TxRow r) => Tx(
       accountId: r.accountId,
       toAccountId: r.toAccountId,
       occurredAt: r.occurredAt,
+    );
+
+Account _toAccount(AccountRow r) => Account(
+      id: r.id,
+      type: switch (r.type) {
+        'bank' => AccountType.bank,
+        'credit' => AccountType.credit,
+        'ewallet' => AccountType.ewallet,
+        'other' => AccountType.other,
+        _ => AccountType.cash,
+      },
+      name: r.name,
+      openingAmountMinor: r.openingAmountMinor,
     );
 
 void main() {
@@ -57,7 +71,9 @@ void main() {
   });
 
   test('衍生餘額由標準資料集重算：現金 480／銀行 40,400（AC-10 語意）', () {
-    final accounts = {for (final a in db.allAccounts()) a.id: a};
+    final accounts = {
+      for (final a in db.allAccounts()) a.id: _toAccount(a),
+    };
     final txs = db.allTransactions().map(_toTx).toList();
     const calc = BalanceCalculator();
     expect(calc.assetBalance(account: accounts['cash']!, txs: txs), 480);

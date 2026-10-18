@@ -1,7 +1,3 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_test/flutter_test.dart';
-
 /// T-H8：前端測試掛鉤（integration_test 用；M1 起 F01-FE 情境啟用）。
 ///
 /// - [pumpBackground]：模擬 App 切背景 N 秒（App 鎖 F08：背景逾時鎖定 AC-09）。
@@ -12,6 +8,9 @@ import 'package:flutter_test/flutter_test.dart';
 /// 說明：這些掛鉤需在 integration_test 的真機/模擬器環境執行（`flutter test
 /// integration_test`），單元測試無法驗證；M1 FE 首跑時以 F01-S1.11 / F08 情境啟用。
 library;
+
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 /// 模擬切背景 [duration] 後返回前景（驅動 AppLockController 判定）。
 Future<void> pumpBackground(WidgetTester tester, Duration duration) async {

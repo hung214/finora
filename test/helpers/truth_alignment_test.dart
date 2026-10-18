@@ -18,7 +18,8 @@ void main() {
       }
       if (inDeps) {
         if (line.startsWith('dev_dependencies:') || line.trim().isEmpty) break;
-        if (line.startsWith('  ') && !line.trim().startsWith('#')) {
+        // 僅取兩格縮排的直接依賴（排除巢狀 sdk: 等）
+        if (line.startsWith('  ') && !line.startsWith('   ') && !line.trim().startsWith('#')) {
           final name = line.trim().split(':').first.trim();
           if (name.isNotEmpty) deps.add(name);
         }

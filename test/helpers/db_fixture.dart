@@ -112,4 +112,42 @@ class DbFixture {
   }) async {
     db.setSetting(key, value);
   }
+
+  /// T-H5：標準劇例資料集（acceptance 背景資料）。
+  /// 帳戶 4（現金 1,000／銀行 10,000／票證卡 0／示例卡 0）＋分類 5＋交易 3（→oplog 3）。
+  static Future<void> seedStandardScenario(AppDatabase db) async {
+    await seedAccount(db, id: 'cash', type: 'cash', name: '現金', opening: 1000);
+    await seedAccount(db, id: 'bank', type: 'bank', name: '銀行', opening: 10000);
+    await seedAccount(db, id: 'ewallet', type: 'ewallet', name: '票證卡', opening: 0);
+    await seedAccount(db, id: 'card', type: 'credit', name: '示例卡', opening: 0);
+    await seedCategory(db, id: 'c-food', kind: 'expense', name: '餐飲');
+    await seedCategory(db, id: 'c-traffic', kind: 'expense', name: '交通');
+    await seedCategory(db, id: 'c-shop', kind: 'expense', name: '購物');
+    await seedCategory(db, id: 'c-other', kind: 'expense', name: '其他', isSystem: true);
+    await seedCategory(db, id: 'c-salary', kind: 'income', name: '薪資');
+    await seedTx(
+        db,
+        id: 't-1',
+        kind: 'expense',
+        amountMinor: 120,
+        accountId: 'cash',
+        category: 'c-food',
+        occurredAt: 1760736000000);
+    await seedTx(
+        db,
+        id: 't-2',
+        kind: 'income',
+        amountMinor: 30000,
+        accountId: 'bank',
+        category: 'c-salary',
+        occurredAt: 1760650000000);
+    await seedTx(
+        db,
+        id: 't-3',
+        kind: 'transfer',
+        amountMinor: 400,
+        accountId: 'cash',
+        toAccountId: 'bank',
+        occurredAt: 1760650000000);
+  }
 }

@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'gherkin/gherkin.dart';
+import 'gherkin.dart';
 
 /// T-H7 驗收：自製 Gherkin runner（BE）——解析 .feature 並以 dsl.md 登記之句型執行。
 /// 正式情境檔（test/bdd/*.feature）於 M1 起以本 runner 掛接 step definitions。
@@ -48,10 +48,10 @@ Feature: 樣本功能
     final doc = GherkinParser.parse(sample);
     final executed = await runner.run(doc);
     expect(executed, 3); // 情境一 1 次＋Outline 2 列
-    expect(runner.log.where((s) => s.startsWith('種子資料')), hasLength(3));
+    expect(runner.log.where((s) => s.contains('種子資料')), hasLength(3)); // 背景×每情境
     expect(
-      runner.log.where((s) => s.startsWith('大綱動作')).toList(),
-      ['大綱動作 1', '大綱動作 2'],
+      runner.log.where((s) => s.contains('大綱動作')).toList(),
+      ['大綱情境 · When 大綱動作 1', '大綱情境 · When 大綱動作 2'],
     );
   });
 
@@ -65,7 +65,7 @@ Feature: 樣本功能
     final executed =
         await runner.run(doc, tagFilter: (tags) => tags.contains('@AC-01'));
     expect(executed, 1);
-    expect(runner.log.where((s) => s.startsWith('大綱動作')), isEmpty);
+    expect(runner.log.where((s) => s.contains('大綱動作')), isEmpty);
   });
 
   test('未匹配步驟 → 明確失敗（提醒登記 dsl.md）', () async {

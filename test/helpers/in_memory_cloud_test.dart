@@ -1,12 +1,28 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_sync/data/sqlite/app_database.dart';
+import 'package:ledger_sync/domain/entities/account.dart';
+import 'package:ledger_sync/domain/entities/transaction.dart';
 import 'package:ledger_sync/domain/services/balance_calculator.dart';
 import 'package:ledger_sync/platform/cloud/cloud_storage_adapter.dart';
 
 import 'db_fixture.dart';
 import 'in_memory_cloud_adapter.dart';
+
+Account _toAccount(dynamic r) => Account(
+      id: r.id as String,
+      type: AccountType.cash,
+      name: r.name as String,
+      openingAmountMinor: r.openingAmountMinor as int,
+    );
+
+Tx _toTx(dynamic r) => Tx(
+      id: r.id as String,
+      kind: TxKind.expense,
+      amountMinor: r.amountMinor as int,
+      accountId: r.accountId as String,
+    );
 
 /// T-H3 驗收：in-memory 雲端 adapter（SDD §6 抽象的 fake 實作）。
 /// 架構核心（使用者確認）：**每個裝置本地各有一個 SQLite 資料庫**，
@@ -107,12 +123,14 @@ void main() {
     const calc = BalanceCalculator();
     expect(
       calc.assetBalance(
-          account: deviceA.allAccounts().first, txs: deviceA.transactionsByAccount('cash')),
+          account: _toAccount(deviceA.allAccounts().first),
+          txs: deviceA.transactionsByAccount('cash').map(_toTx)),
       805, // 1000 − 195
     );
     expect(
       calc.assetBalance(
-          account: deviceB.allAccounts().first, txs: deviceB.transactionsByAccount('bank')),
+          account: _toAccount(deviceB.allAccounts().first),
+          txs: deviceB.transactionsByAccount('bank').map(_toTx)),
       10000,
     );
 
