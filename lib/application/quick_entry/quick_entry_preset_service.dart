@@ -46,8 +46,12 @@ class QuickEntryPresetService {
     }
     account ??= _firstActiveAccount();
 
-    // FR-Q4②：分類預設（本 commit：目前時段最常用）。
-    final category = _slotTopCategory(now);
+    // FR-Q4②：分類預設優先序——同商家歷史最常用 ＞ 目前時段最常用。
+    CategoryRow? category;
+    if (merchant != null) {
+      category = _merchantTopCategory(merchant);
+    }
+    category ??= _slotTopCategory(now);
     return QuickEntryPreset(account: account, category: category, time: now);
   }
 
@@ -58,6 +62,30 @@ class QuickEntryPresetService {
     if (h < 12) return QuickEntrySlot.morning; // 上午 06:00–12:00
     if (h < 18) return QuickEntrySlot.afternoon; // 下午 12:00–18:00
     return QuickEntrySlot.evening; // 晚上 18:00–24:00
+  }
+
+  /// 同商家歷史最常用分類（S1.2）：筆數最多者；同數取最近使用。
+  /// 無該商家歷史（或歷史皆未標分類）→ null，交由下一優先序。
+  CategoryRow? _merchantTopCategory(String merchant) {
+    final stats = <String, (int, int)>{}; // categoryId → (筆數, 最新 occurred_at)
+    for (final tx in _db.transactionsByMerchant(merchant)) {
+      if (tx.categoryId == null) continue;
+      final (count, latest) = stats[tx.categoryId!] ?? (0, 0);
+      stats[tx.categoryId!] = (count + 1, latest > tx.occurredAt ? latest : tx.occurredAt);
+    }
+    if (stats.isEmpty) return null;
+    String? top;
+    (int, int) topStat = (0, 0);
+    for (final entry in stats.entries) {
+      final (count, latest) = entry.value;
+      final (topCount, topLatest) = topStat;
+      final better = count > topCount || (count == topCount && latest >= topLatest);
+      if (better) {
+        top = entry.key;
+        topStat = entry.value;
+      }
+    }
+    return _categoryById(top!);
   }
 
   /// 目前時段歷史最常用分類：筆數最多者；同數取最近使用。
