@@ -46,12 +46,14 @@ class QuickEntryPresetService {
     }
     account ??= _firstActiveAccount();
 
-    // FR-Q4②：分類預設優先序——同商家歷史最常用 ＞ 目前時段最常用。
+    // FR-Q4②：分類預設優先序——同商家 ＞ 目前時段 ＞ 最近使用 ＞ 內建「其他」。
     CategoryRow? category;
     if (merchant != null) {
       category = _merchantTopCategory(merchant);
     }
     category ??= _slotTopCategory(now);
+    category ??= _recentCategory();
+    category ??= _builtinOtherCategory();
     return QuickEntryPreset(account: account, category: category, time: now);
   }
 
@@ -113,6 +115,22 @@ class QuickEntryPresetService {
       }
     }
     return _categoryById(top!);
+  }
+
+  /// 最近使用分類（FR-Q4②優先序 3）：上一筆交易所標分類。
+  CategoryRow? _recentCategory() {
+    final last = _db.lastTransaction();
+    if (last?.categoryId == null) return null;
+    return _categoryById(last!.categoryId!);
+  }
+
+  /// 內建預設「其他」（FR-Q4②優先序 4；S1.3 無任何歷史回退）。
+  CategoryRow? _builtinOtherCategory() {
+    final expenses = _db.categoriesByKind('expense');
+    for (final c in expenses) {
+      if (c.name == '其他') return c; // 內建集之「其他」（is_system）
+    }
+    return expenses.isEmpty ? null : expenses.first;
   }
 
   CategoryRow? _categoryById(String id) {
