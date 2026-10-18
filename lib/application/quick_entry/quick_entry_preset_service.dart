@@ -1,3 +1,4 @@
+import '../../core/clock.dart';
 import '../../data/sqlite/app_database.dart';
 
 /// 快記預填結果（FR-Q4／SDD §5.1 系統預填：帳戶 + 分類 + 時間 = 現在）。
@@ -6,7 +7,7 @@ class QuickEntryPreset {
 
   final AccountRow account;
 
-  /// 預設分類；無歷史且查無內建「其他」時為 null（FE 顯示空欄）。
+  /// 預設分類；查無推薦時為 null（回退規則見 C4/S1.3）。
   final CategoryRow? category;
   final DateTime time;
 }
@@ -14,10 +15,10 @@ class QuickEntryPreset {
 /// 快記智慧預設服務（FR-Q4，F01-BE）。
 ///
 /// 規則（SPEC §5.3 FR-Q4、acceptance F01 S1.1~S1.4）：
-/// 1. `quick_entry.smart_preset = off` → 固定預設 `quick_entry.fixed_preset`
-///    （JSON：account_id/category_id；帳戶已封存/刪除 → 回退第一個未封存帳戶）。
-/// 2. 帳戶預設 = **上一筆交易所用帳戶**（非最常用）；已封存 → 第一個未封存。
-/// 3. 分類優先序：同商家歷史最常用 ＞ 目前時段最常用 ＞ 最近使用 ＞ 內建「其他」。
+/// 1. 帳戶預設 = **上一筆交易所用帳戶**（非最常用）；已封存 → 第一個未封存帳戶。
+/// 2. 分類預設優先序：同商家歷史最常用 ＞ 目前時段最常用 ＞ 最近使用 ＞ 內建「其他」。
+///    （商家規則／回退規則於後續情境 commit 補齊——TDD 情境逐條紅綠。）
+/// 3. `quick_entry.smart_preset = off` → 固定預設（S1.4，後續 commit）。
 ///
 /// 時段以**裝置本地時區**計算（acceptance S1.1 邊界）：清晨 00:00–06:00／
 /// 上午 06:00–12:00／下午 12:00–18:00／晚上 18:00–24:00。
@@ -26,14 +27,82 @@ class QuickEntryPreset {
 class QuickEntryPresetService {
   QuickEntryPresetService(this._db);
 
-  // ignore: unused_field — 紅燈階段（TDD）：規則實作後移除本標記。
   final AppDatabase _db;
 
   /// 計算快記預填（[merchant] 為商家欄目前輸入值，觸發同商家規則）。
-  QuickEntryPreset compute({String? merchant}) => throw UnimplementedError('T-F01-BE 紅燈階段');
+  QuickEntryPreset compute({String? merchant}) {
+    final now = Clock.now();
+
+    // FR-Q4①：帳戶預設 = 上一筆交易所用帳戶；封存 → 第一個未封存（S1.1 邊界）。
+    final last = _db.lastTransaction();
+    AccountRow? account;
+    if (last != null) {
+      for (final a in _db.allAccounts()) {
+        if (a.id == last.accountId && !a.archived) {
+          account = a;
+          break;
+        }
+      }
+    }
+    account ??= _firstActiveAccount();
+
+    // FR-Q4②：分類預設（本 commit：目前時段最常用）。
+    final category = _slotTopCategory(now);
+    return QuickEntryPreset(account: account, category: category, time: now);
+  }
 
   /// 時段判定（本地時區；acceptance S1.1 四段表）。
-  static QuickEntrySlot slotOf(DateTime t) => throw UnimplementedError('T-F01-BE 紅燈階段');
+  static QuickEntrySlot slotOf(DateTime t) {
+    final h = t.hour;
+    if (h < 6) return QuickEntrySlot.dawn; // 清晨 00:00–06:00
+    if (h < 12) return QuickEntrySlot.morning; // 上午 06:00–12:00
+    if (h < 18) return QuickEntrySlot.afternoon; // 下午 12:00–18:00
+    return QuickEntrySlot.evening; // 晚上 18:00–24:00
+  }
+
+  /// 目前時段歷史最常用分類：筆數最多者；同數取最近使用。
+  CategoryRow? _slotTopCategory(DateTime now) {
+    final slot = slotOf(now);
+    // M1 規模：全量載入後於 Dart 分組（報表/搜尋優化屬 F10）。
+    final stats = <String, (int, int)>{}; // categoryId → (筆數, 最新 occurred_at)
+    for (final tx in _db.allTransactions()) {
+      if (tx.deletedAt != null || tx.categoryId == null) continue; // 墓標排除
+      final at = DateTime.fromMillisecondsSinceEpoch(tx.occurredAt);
+      if (slotOf(at) != slot) continue;
+      final (count, latest) = stats[tx.categoryId!] ?? (0, 0);
+      stats[tx.categoryId!] = (count + 1, latest > tx.occurredAt ? latest : tx.occurredAt);
+    }
+    if (stats.isEmpty) return null;
+    String? top;
+    (int, int) topStat = (0, 0);
+    for (final entry in stats.entries) {
+      final (count, latest) = entry.value;
+      final (topCount, topLatest) = topStat;
+      final better = count > topCount || (count == topCount && latest >= topLatest);
+      if (better) {
+        top = entry.key;
+        topStat = entry.value;
+      }
+    }
+    return _categoryById(top!);
+  }
+
+  CategoryRow? _categoryById(String id) {
+    for (final c in _db.categoriesByKind('expense')) {
+      if (c.id == id) return c;
+    }
+    return null;
+  }
+
+  /// 第一個未封存帳戶（依建立順序；S1.3/S1.1 邊界回退規則）。
+  AccountRow _firstActiveAccount() {
+    final active = _db.allAccounts().where((a) => !a.archived).toList()
+      ..sort((a, b) {
+        final byTime = a.createdAt.compareTo(b.createdAt);
+        return byTime != 0 ? byTime : a.id.compareTo(b.id);
+      });
+    return active.first;
+  }
 }
 
 enum QuickEntrySlot { dawn, morning, afternoon, evening }
