@@ -278,11 +278,11 @@ Table templates {
 }
 
 Table settings {
-  key varchar [pk, note: "如 quick_entry.smart_preset / sync.mode / lock.timeout_sec / budget.notif_state"]
+  key varchar [pk, note: "如 quick_entry.smart_preset / quick_entry.fixed_preset / sync.mode / lock.timeout_sec / budget.notif_state"]
   value varchar [not null, note: "JSON"]
   updated_at integer [not null]
 
-  Note: "部分為 per-device（如 sync.mode、鎖定門檻），部分隨同步（通知開關）— 以 key 前綴約定：device.* 不入 oplog"
+  Note: "部分為 per-device（如 sync.mode、鎖定門檻），部分隨同步（通知開關）— 以 key 前綴約定：device.* 不入 oplog。quick_entry.smart_preset 取值 on/off；quick_entry.fixed_preset 為 JSON {\"account_id\",\"category_id\"}（FR-Q4 固定預設，F01）"
 }
 
 // ── 附件 ──────────────────────────────────────────
@@ -354,4 +354,5 @@ Ref: recurring_transactions.category_id > categories.id [delete: restrict]
 Ref: attachments.transaction_id > transactions.id [delete: cascade]
 
 // ── 變更記錄 ──────────────────────────────────────
+// 2026-10-18 | v0.3.1 | settings 補登 F01 key 命名：quick_entry.smart_preset（on/off）、quick_entry.fixed_preset（JSON 帳戶/分類）——tasks.md §4.1 F01 truth 對齊項 | PR: feature/F01-quick-entry
 // 2026-10-18 | v0.3 | 初版：SDD §4.2 全表補完（+recurring_transactions/templates/settings/sync_events/income_goals/FTS5 影子表） | PR: —

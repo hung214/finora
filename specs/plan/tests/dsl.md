@@ -28,7 +28,7 @@
 
 ## 2. 後端 DSL（@BE，綁定純 Dart）
 
-**環境與掛鉤**：記憶體 Drift DB（每 Scenario 重建）、fake clock、in-memory CloudStorageAdapter、notification spy、StopWatch 效能計測。
+**環境與掛鉤**：記憶體 SQLite DB（每 Scenario 重建；TR-7 過渡 sqlite3 直連）、fake clock、in-memory CloudStorageAdapter、notification spy、StopWatch 效能計測。
 
 ### 2.1 Given（前置）
 
@@ -44,12 +44,24 @@
 | `Given 預算「{cat}」金額 {amount}、起始日 {day}` | budgets |
 | `Given 收入目標 {amount}` | income_goals |
 | `Given 定期交易「{name}」每月 {day} 日金額 {amount}` | recurring_transactions + next_due |
+| `Given 已建立分類{names}` | categories（連續「名稱」緊接，如「餐飲」「交通」；「其他」為內建 is_system） |
+| `Given 歷史: {desc}` | 分號分隔段落：①`昨日 HH:MM 帳戶/分類 金額`（單筆支出）②`本週{時段}帳戶/分類 N 筆`（本週前 N 日同時段各 1 筆）→ transactions + oplog |
+| `Given 商家「{m}」過去 {n} 筆分類皆為「{c}」` | transactions（merchant=m，過去 n 日各 1 筆，20:00 時段避開上午統計） |
+| `Given 目前時段最常用分類為「{c}」` | 依 acceptance 時段表，於過去 3 日同時段各 1 筆該分類 |
+| `Given 帳本無任何交易` | 斷言交易為 0 筆（防背景污染） |
+| `Given 設定 {key} = {value}` | settings upsert |
+| `Given 固定預設 = {account}/{category}` | `quick_entry.fixed_preset`（JSON：account_id/category_id） |
+| `Given 已儲存 {n} 筆（{amounts}）` | fixture 直寫 n 筆支出於第一個未封存帳戶（金額清單「、」分隔，依序遞減 1 分鐘） |
+| `And 連線已關閉` | in-memory adapter 進入 failing 態（模擬離線） |
 
 ### 2.2 When（動作）
 
 | 句型 | 綁定行為 |
 |---|---|
 | `When 呼叫 SaveTransactionUseCase（帳戶「{a}」、分類「{c}」、金額 {amt}、時間 {t}）` | UseCase 呼叫（計時） |
+| `When 呼叫 SaveTransactionUseCase（帳戶「{a}」、分類「{c}」、金額 {amt}、時間 {t}）計時 {n} 次` | NFR-01：n 次計時取 P95 |
+| `When 呼叫 QuickEntryPresetService 計算預設` | FR-Q4 智慧／固定預設計算（不含商家） |
+| `When 呼叫 QuickEntryPresetService 計算預設（商家={m}）` | 同上＋商家歷史分類優先 |
 | `When 呼叫 UndoLastTransaction` | 軟刪除+oplog |
 | `When 執行 BillingCycleService.run（「{card}」）` | 結帳引擎 |
 | `When 執行 RepayStatementUseCase（帳單 {period}、金額 {amt}）` | 繳款 |
@@ -77,7 +89,14 @@
 | `Then 裝置 {a} 與裝置 {b} 的重算餘額一致` | 跨 fixture 比對 |
 | `Then 衝突事件 1 筆，被覆蓋內容為 "{text}"` | sync_events |
 | `Then 雲端 backups/ 保留 {n} 份` | fake adapter list |
-| `Then 效能：入庫耗時 {ms}ms < 300ms` | StopWatch |
+| `Then 效能：入庫耗時 {ms}ms < 300ms（P95）` | StopWatch P95（F01-BE NFR-01；{ms} 為計畫預記值，以實測 P95 < 300 斷言） |
+| `Then 預設帳戶 = 「{name}」` / `Then 預設帳戶 = 第一個未封存帳戶` | QuickEntryPreset 輸出（FR-Q4） |
+| `Then 預設分類 = 「{name}」` | QuickEntryPreset 輸出 |
+| `Then 預設時間 = {datetime}` | QuickEntryPreset 輸出（= 現在） |
+| `Then 交易已入庫且 settlement_status = {status}` | DB 讀取（最後一次 UseCase 儲存） |
+| `And oplog 與交易位於同一 DB transaction（中斷模擬不產生孤兒）` | beforeOplog 注入拋錯 → rollback，兩表皆無孤兒（SDD §5.1） |
+| `Then 交易 {amount} 為軟刪除（deleted_at 非 null）` | 以金額對映 Given 已儲存之最近一筆 |
+| `And oplog 新增 {n} 筆（墓標）` | delta=n 且新 oplog payload=NULL |
 | `Then 解析結果：商家="{m}"、總額={amt}、日期={date}` | parser 輸出 |
 | `Then 搜尋 "{kw}" 命中 {n} 筆` | FTS5 bigram |
 

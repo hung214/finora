@@ -127,16 +127,59 @@ class AppDatabase {
       _db.select('SELECT * FROM oplog ORDER BY seq').map(OplogRow.fromRow).toList();
 
   /// 交易寫入 + oplog 追加必須同一 transaction（SDD §5.1 儲存事務）。
-  void saveTransactionWithOplog(TxRow t, OplogRow o) {
+  ///
+  /// [beforeOplog] 為測試 seam：於交易列插入後、oplog 追加前呼叫，拋錯即模擬
+  /// 「中斷」，驗證整體 ROLLBACK 不產生孤兒（BDD 步驟：中斷模擬不產生孤兒）。
+  void saveTransactionWithOplog(TxRow t, OplogRow o, {void Function(TxRow)? beforeOplog}) {
     _db.execute('BEGIN');
     try {
       insertTransaction(t);
+      beforeOplog?.call(t);
       appendOp(o);
       _db.execute('COMMIT');
     } catch (_) {
       _db.execute('ROLLBACK');
       rethrow;
     }
+  }
+
+  /// 依 id 讀取單筆交易（含墓標）。
+  TxRow? transactionById(String id) {
+    final rows = _db.select('SELECT * FROM transactions WHERE id = ?', [id]);
+    return rows.isEmpty ? null : TxRow.fromRow(rows.first);
+  }
+
+  /// 上一筆未刪除交易（FR-Q4 帳戶預設 = 上一筆所用帳戶）。
+  /// 排序：occurred_at → created_at → id（後者為同刻之確定性打破）。
+  TxRow? lastTransaction() {
+    final rows = _db.select(
+      'SELECT * FROM transactions WHERE deleted_at IS NULL'
+      ' ORDER BY occurred_at DESC, created_at DESC, id DESC LIMIT 1',
+    );
+    return rows.isEmpty ? null : TxRow.fromRow(rows.first);
+  }
+
+  /// 指定商家的未刪除交易（FR-Q4 同商家歷史分類）。
+  List<TxRow> transactionsByMerchant(String merchant) => _db
+      .select('SELECT * FROM transactions WHERE merchant = ? AND deleted_at IS NULL'
+          ' ORDER BY occurred_at DESC', [merchant])
+      .map(TxRow.fromRow)
+      .toList();
+
+  /// 軟刪除墓標（SDD 原則 5）：deleted_at 非 null + oplog 墓標（payload=NULL）。
+  /// 已刪除者拋 StateError（防重複墓標——同步後多刪，acceptance F01 S1.8）。
+  void softDeleteTransaction(String id, {required int deletedAt, required String hlc}) {
+    final tx = transactionById(id);
+    if (tx == null) {
+      throw StateError('軟刪除失敗：交易不存在 $id');
+    }
+    if (tx.deletedAt != null) {
+      throw StateError('軟刪除失敗：交易已為墓標 $id');
+    }
+    _db.execute(
+      'UPDATE transactions SET deleted_at = ?, updated_at = ?, hlc = ? WHERE id = ?',
+      [deletedAt, deletedAt, hlc, id],
+    );
   }
 
   // ── 設定（key-value；device.* 為 per-device 不入 oplog） ──
@@ -241,10 +284,13 @@ class TxRow {
     required this.createdAt,
     required this.updatedAt,
     required this.hlc,
+    this.deletedAt,
   });
 
   final String id;
   final String kind;
+
+  /// 正數；方向由 [kind] 與帳戶語意決定（SDD §4.2）。
   final int amountMinor;
   final String currency;
   final String accountId;
@@ -258,6 +304,9 @@ class TxRow {
   final int createdAt;
   final int updatedAt;
   final String hlc;
+
+  /// 墓標（SDD 原則 5）；null = 未刪除。
+  final int? deletedAt;
 
   factory TxRow.fromRow(Map<String, Object?> r) => TxRow(
         id: r['id'] as String,
@@ -275,7 +324,28 @@ class TxRow {
         createdAt: r['created_at'] as int,
         updatedAt: r['updated_at'] as int,
         hlc: r['hlc'] as String,
+        deletedAt: r['deleted_at'] as int?,
       );
+
+  /// oplog payload 之整列快照（SDD §5.5.4：非欄位 diff，套用冪等）。
+  Map<String, Object?> toSnapshot() => {
+        'id': id,
+        'kind': kind,
+        'amount_minor': amountMinor,
+        'currency': currency,
+        'account_id': accountId,
+        'to_account_id': toAccountId,
+        'category_id': categoryId,
+        'merchant': merchant,
+        'note': note,
+        'occurred_at': occurredAt,
+        'source': source,
+        'settlement_status': settlementStatus,
+        'created_at': createdAt,
+        'updated_at': updatedAt,
+        'hlc': hlc,
+        'deleted_at': deletedAt,
+      };
 }
 
 class OplogRow {
