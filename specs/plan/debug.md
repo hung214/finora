@@ -45,7 +45,7 @@
 
 | ID | 日期 | 嚴重度 | 來源 | 摘要 | 分支 | 回歸情境 | 狀態 | 根因 |
 |---|---|---|---|---|---|---|---|---|
-| DBG-002 | 2026-10-18 | Major | 本地部署建置（flutter build windows） | ①專案路徑含非 ASCII（記帳）→ MSBuild 讀不到 app.dill，原生建置失敗 ②flutter_secure_storage_windows 需 atlstr.h（VS C++ ATL 元件缺） | fix/TR-8-windows-build | Windows release 建置＋啟動冒煙（本輪通過） | ✅ 結案 | ①路徑非 ASCII：以 ASCII clone（finora-build）建置；**建議長期將 repo 移至 ASCII 路徑** ②ATL 元件缺：TR-8（secure_storage/local_auth 移至 M2，安裝元件後回歸） |
+| DBG-002 | 2026-10-18 | Major | 本地部署建置（flutter build windows） | ①專案路徑含非 ASCII（記帳）→ MSBuild 讀不到 app.dill，原生建置失敗 ②flutter_secure_storage_windows 需 atlstr.h（VS C++ ATL 元件缺） | fix/TR-8-windows-build | Windows release 建置＋啟動冒煙（本輪通過） | ✅ 結案 | ①路徑非 ASCII：曾以 ASCII clone（finora-build）建置；**已根治：2026-10-18 repo 遷移至 ASCII 路徑 `E:\opencode\finora`，`dart analyze`／56 測試／Windows Release 建置（81.9s）全數直接通過（遷移後需 `flutter clean` 清含舊路徑的 CMakeCache）** ②ATL 元件缺：TR-8（secure_storage/local_auth 移至 M2，安裝元件後回歸） |
 | DBG-001 | 2026-10-18 | Major | T-H1 紅綠燈（drift codegen） | build_runner/drift 與 Dart 3.13.5 工具鏈不相容：analyzer 7.x 序列化 SDK dot-shorthand 崩潰；dart_style 3.1.13+ 需 Dart 3.14 fe types（LabelReference 等）；build_runner 2.16.x pub cache 提取損壞、2.17.1 與 json_serializable 衝突 | feature/T-H-test-helpers | tests 依新 DB 邊界改寫（33 情境綠） | ✅ 結案 | 環境工具鏈問題（非程式缺陷）；過渡方案 sqlite3 直連（research TR-7、techstack v0.3.2），M1 前於 CI 重試 drift 回歸 |
 | DBG-000（格式範例） | 2026-10-18 | Major | F04-BE 結帳歸屬 | （範例）卡B 當天消費誤入本期 | fix/dbg-000-example | F04-BE 新增回歸情境 | ✅ 結案 | （範例）boundary_rule 未傳入 period 計算 |
 

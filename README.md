@@ -90,7 +90,7 @@ flutter run -d <ios-device>      # iOS
 ```
 
 > ⚠️ **Windows 本機建置注意**（DBG-002）：
-> ① 專案路徑**不可含非 ASCII 字元**（含中文會使 MSBuild 崩潰）——建議 repo 放在 ASCII 路徑（如 `E:\opencode\finora`），或以 ASCII clone 副本建置。
+> ① 專案路徑**不可含非 ASCII 字元**（含中文會使 MSBuild 崩潰）——**本 repo 已遷移至 ASCII 路徑 `E:\opencode\finora`，直接建置/分析驗證通過（2026-10-18，DBG-002-① 根治）**；若日後搬移，請保持 ASCII 路徑（搬移後需 `flutter clean` 清除含舊路徑的 `build/` 快取再建置）。
 > ② `flutter_secure_storage_windows` 需 VS「C++ ATL」元件（atlstr.h）——v0.2.x 過渡版已暫緩該插件（TR-8），M2 回歸前需安裝元件。
 
 ### 3.3 測試（TDD 紅綠燈的落點）
@@ -102,7 +102,7 @@ pwsh tool/sync_features.ps1      # 同步 BDD feature 檔（specs → test 副�
 
 > 🎨 **看 UI 畫面**：`flutter run` 後點首頁「🎨 開啟 UI Demo」— 7 個畫面（總覽／明細／快記＋每筆確認／預算／信用卡／分類設定／設定同步），支援**深色/淺色切換**（FR-O1）；資料為虛構劇例。HTML 雛型（含規格便利貼）：`specs/plan/ui/`。
 
-> ⚠️ **本機小技巧**：專案路徑含非 ASCII 字元（如本專案所在的「記帳」資料夾）時，`flutter analyze` 可能崩潰（LSP 已知問題）——改用 `dart analyze`（讀同一份 `analysis_options.yaml`，規則相同）。CI 的 checkout 路徑為 ASCII，不受影響。
+> 💡 **本機小技巧**：若專案路徑含非 ASCII 字元，`flutter analyze` 可能崩潰（LSP 已知問題）——改用 `dart analyze`（讀同一份 `analysis_options.yaml`，規則相同）。本 repo 現位於 ASCII 路徑，兩者皆可直接使用。CI 的 checkout 路徑為 ASCII，不受影響。
 - feature 檔分佈：後端 `test/bdd/`、前端 `integration_test/features/`（來源：`specs/plan/tests/`）。
 - 標籤分級：`@P0` PR 必跑、`@P1` nightly、`@P2` release 前（見 `specs/plan/tests/README.md` §3）。
 

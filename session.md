@@ -21,24 +21,22 @@
 | 欄位 | 內容 |
 |---|---|
 | 更新時間 | 2026-10-18 |
-| 階段 | **休息中：使用者將遷移資料夾至英文路徑（根治 DBG-002-①）**。目前狀態：本地部署版 ✅（Windows Release 冒煙通過，zip 11.7MB 於 `dist/`）；S0 ✅、M0 ✅；下一步遷移後進 M1-F01 |
-| 當前分支 | main（`f2a22bd` 已推送）；tag：v0.1.0、v0.2.0（release 工作流） |
-| 當前任務 | 完成：本地部署建置實測 → 結案 **DBG-002**（①路徑非 ASCII → ASCII clone 建置 ②flutter_secure_storage 需 ATL → TR-8 移至 M2）；tool/package_windows.ps1 |
-| 紅綠燈狀態 | `flutter test` = **56 全綠**；`dart analyze` = No issues found!；Windows Release 建置＋啟動冒煙通過 |
-| 工作區 | 乾淨（休息前最終 commit 見 git log） |
+| 階段 | **遷移完成 ✅：DBG-002-① 根治驗證通過**（新路徑 `E:\opencode\finora` 直接 `dart analyze`／56 測試綠／Windows Release 建置 81.9s 全數成功，不需 clone 副本）。S0 ✅、M0 ✅；下一步 **M1-F01** |
+| 當前分支 | main（將 commit 遷移驗證回寫）；tag：v0.1.0、v0.2.0（release 工作流） |
+| 當前任務 | 完成：遷移後驗證——還原誤刪的 `opencode.json`（/system-analysis 指令）、刪除舊 junction、`flutter clean` 清含舊路徑絕對路徑的 CMakeCache 後直接建置成功；README §3.2／debug.md DBG-002 已回寫「已遷移／根治」 |
+| 紅綠燈狀態 | `dart analyze` = No issues found!（新路徑直接執行）；`flutter test` = **56 全綠**；`flutter build windows --release` 直接成功（81.9s） |
+| 工作區 | 文件回寫待 commit（本列更新後） |
 | truth 對齊 | techstack **v0.3.3**（TR-8：secure_storage/local_auth 移至 M2 回歸）；T-H9 對齊測試持續把關 |
-| 環境筆記 | ⚠️ **遷移進行中**：repo 將由 `E:\opencode\記帳` 搬至英文路徑（建議 `E:\opencode\finora`）。遷移後：①`dart analyze`/`flutter build` 應在新路徑直接成功（DBG-002 根治）②舊 junction `...\Temp\opencode\ledger_app` 刪除 ③finora-build clone 可留（origin 為 GitHub）④README §3.2 之警告可移除 |
-| 阻塞／待決 | ①遷移完成待驗證（下次開工第一步）②v0.2.0 GitHub release 四平台結果確認 ③SP-1 SQLCipher EOL（M1 前）④PM 簽核 |
+| 環境筆記 | ✅ **已遷移**：repo 位於 `E:\opencode\finora`（ASCII），DBG-002-① 根治。注意：**搬移 repo 後首次建置須先 `flutter clean`**（舊 `build/` 的 CMakeCache 含舊絕對路徑會報錯）。舊 Temp junction `ledger_app` 已刪；`...\Temp\opencode\finora-build` clone 留存（可刪，origin 為 GitHub 不受影響） |
+| 阻塞／待決 | ①v0.2.0 GitHub release 四平台結果確認 ②SP-1 SQLCipher EOL（M1 前）③PM 簽核 |
 
-## 3. 下一步（休息中：資料夾遷移至英文路徑；下次開工照此執行）
+## 3. 下一步（進 M1-F01：快速記帳；下次開工照此執行）
 
-1. **使用者動作**：關閉所有使用該資料夾的程式（含本 opencode 工作階段）→ 將 `E:\opencode\記帳` 整體搬移/改名至英文路徑（建議 **`E:\opencode\finora`**）。搬移不影響 git 內容與遠端 origin。
-2. **下次開工**（在新路徑開啟 opencode，照 §4 SOP）：
-   a. `git status` 確認乾淨、`git log` 與本檔歷程一致。
-   b. 清理舊路徑遺留：刪除舊 junction `C:\Users\hung2\AppData\Local\Temp\opencode\ledger_app`；`...\Temp\opencode\finora-build` clone 可留（origin 為 GitHub，不受本機路徑影響）或刪除。
-   c. **驗證根治（DBG-002-①）**：在新路徑直接執行 `dart analyze` 與 `flutter build windows --release`——應直接成功，不再需要 clone 副本／`dart analyze` 替代。成功後：更新本檔環境筆記（移除非 ASCII 警告）、README §3.2 警告改為「已遷移」、debug.md DBG-002 補記遷移根治。
-   d. **進 M1**：開分支 `feature/F01-quick-entry`，依 `specs/plan/tasks.md` §4.0 SOP（BE 情境先行：T-F01-BE 智慧預設×4 → 儲存事務 → Undo → 離線 → 效能；每情境一 commit）。
-3. 休息前檢查清單（§1）本次全數通過；燈號與快照一致。
+1. **開分支**：`git checkout -b feature/F01-quick-entry`，依 `specs/plan/tasks.md` §4.0 SOP。
+2. **BE 情境先行**（TDD 紅→綠→refactor，每情境一 commit）：T-F01-BE 智慧預設×4 → 儲存事務 → Undo → 離線 → 效能。
+3. 情境來源：`specs/plan/tests/backend/F01_quick-entry.feature`（8 情境）＋ acceptance `F01_quick-entry.md`（AC-01/02）。
+4. 完成後 FE 掛鉤（T-H8 已備）：`integration_test/features/frontend/F01_quick-entry.feature`（7 情境）。
+5. 休息前照 §1 檢查清單更新本檔。
 
 ## 4. 恢復工作 SOP（下次開工照此執行）
 
@@ -52,6 +50,7 @@
 
 | 日期 | 摘要 | 分支 | 狀態 |
 |---|---|---|---|
+| 2026-10-18 | **遷移完成＋DBG-002-① 根治驗證**：repo 移至 `E:\opencode\finora`；還原誤刪 `opencode.json`；刪舊 junction；`flutter clean` 清舊 CMakeCache（含舊路徑絕對路徑）後 `dart analyze`／56 測試／Windows Release 建置（81.9s）全數直接通過；README §3.2、debug.md 回寫「已遷移／根治」 | main | ✅ |
 | 2026-10-18 | **休息交接**：使用者將遷移資料夾至英文路徑（根治 DBG-002-①）；§3 已寫入遷移後驗證與 M1 接續步驟 | main | 休息前 ✅（工作區乾淨、56 綠燈） |
 | 2026-10-18 | **本地測試部署版**：Windows Release 建置實測 → DBG-002（①路徑非 ASCII 使 MSBuild 失敗 → ASCII clone `finora-build` 建置 ②secure_storage 需 ATL → TR-8 移至 M2）→ 建置成功（17.7s）＋**啟動冒煙通過**（行程存活 8s/127.7MB）→ 打包 `dist/LedgerSync-v0.2.0-windows-x64-local-test.zip`（11.7MB）＋tool/package_windows.ps1；techstack v0.3.3 | fix/TR-8-windows-build → main | ✅（5db6c26 / merge f8db9a5） |
 | 2026-10-18 | **S0 完成**：T-H3 雲端 adapter（雙裝置拓撲：每裝置各自本地 SQLite＋雲端檔案交換 OpBundle 契約）、T-H4 通知 spy、T-H5 標準資料集、T-H6 發票測資＋deflate/Base32 編碼器、T-H7 Gherkin runner（解析/背景/Outline/標籤過濾）、T-H8 FE 掛鉤（M1 啟用）、T-H9 truth 對齊測試上 CI；版本 bump 0.2.0+1 → **tag-on-main 自動建立 v0.2.0 並觸發 release** | feature/T-H-helpers-2 → main | ✅（39be197 紅 / f803eb2 綠 / e669783 bump / merge 6509a4a / tag v0.2.0） |
