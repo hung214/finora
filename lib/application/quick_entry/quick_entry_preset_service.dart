@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import '../../core/clock.dart';
 import '../../data/sqlite/app_database.dart';
 
@@ -29,9 +31,22 @@ class QuickEntryPresetService {
 
   final AppDatabase _db;
 
+  /// settings key 命名（truth：data-spec.dbml settings Note，v0.3.1）。
+  static const _smartPresetKey = 'quick_entry.smart_preset';
+  static const _fixedPresetKey = 'quick_entry.fixed_preset';
+
   /// 計算快記預填（[merchant] 為商家欄目前輸入值，觸發同商家規則）。
   QuickEntryPreset compute({String? merchant}) {
     final now = Clock.now();
+
+    // S1.4：關閉智慧預設 → 固定預設（不受歷史/上一筆/商家影響）。
+    if (_db.getSetting(_smartPresetKey) == 'off') {
+      return QuickEntryPreset(
+        account: _fixedAccount(),
+        category: _fixedCategory(),
+        time: now,
+      );
+    }
 
     // FR-Q4①：帳戶預設 = 上一筆交易所用帳戶；封存 → 第一個未封存（S1.1 邊界）。
     final last = _db.lastTransaction();
@@ -64,6 +79,38 @@ class QuickEntryPresetService {
     if (h < 12) return QuickEntrySlot.morning; // 上午 06:00–12:00
     if (h < 18) return QuickEntrySlot.afternoon; // 下午 12:00–18:00
     return QuickEntrySlot.evening; // 晚上 18:00–24:00
+  }
+
+  /// 固定預設帳戶（S1.4）：JSON `{"account_id": ...}`；缺失/已封存/已刪除
+  /// → 回退第一個未封存帳戶並由 FE 提示一次（acceptance S1.4 邊界）。
+  AccountRow _fixedAccount() {
+    final preset = _readFixedPreset();
+    if (preset != null) {
+      final id = preset['account_id'] as String?;
+      if (id != null) {
+        for (final a in _db.allAccounts()) {
+          if (a.id == id && !a.archived) return a;
+        }
+      }
+    }
+    return _firstActiveAccount();
+  }
+
+  /// 固定預設分類（S1.4）：JSON `{"category_id": ...}`；查無 → 回退內建「其他」。
+  CategoryRow? _fixedCategory() {
+    final preset = _readFixedPreset();
+    final id = preset?['category_id'] as String?;
+    if (id != null) {
+      final c = _categoryById(id);
+      if (c != null) return c;
+    }
+    return _builtinOtherCategory();
+  }
+
+  Map<String, Object?>? _readFixedPreset() {
+    final raw = _db.getSetting(_fixedPresetKey);
+    if (raw == null || raw.isEmpty) return null;
+    return jsonDecode(raw) as Map<String, Object?>;
   }
 
   /// 同商家歷史最常用分類（S1.2）：筆數最多者；同數取最近使用。
