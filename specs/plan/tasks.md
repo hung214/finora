@@ -171,12 +171,16 @@ S11-12：T-F08 → T-F09 → 效能複測（NFR-01~03）→ 上架
 
 | 區塊 | 任務 | 狀態 |
 |---|---|---|
-| 前置 | 專案骨架（flutter create 四平台＋Money/HLC/Balance＋21 測試＋CI＋README＋BDD feature 同步） | ✅（96bca5f；dart analyze 零問題） |
-| 前置 | UI Demo 畫廊（7 畫面＋深淺色切換＋分類設定頁＋品牌虛構化 27 檔） | ✅（89571c9/01a295c；PR gate：analyze 零問題＋21 測試綠） |
-| Helper | T-H1~T-H9 | ☐×9 |
-| Migration | T-S1~T-S5 | ☐×5 |
+| 前置 | 專案骨架（flutter create 四平台＋Money/HLC/Balance＋CI＋README＋BDD feature 同步） | ✅（96bca5f） |
+| 前置 | UI Demo 畫廊（7 畫面＋深淺色切換＋分類設定頁＋品牌虛構化 27 檔） | ✅（89571c9/01a295c） |
+| Helper | T-H1 記憶體 DB fixture（sqlite3 直連 schema v1）＋T-H2 Clock | ✅（9622009 紅/b557029 綠） |
+| Helper | T-H3 雲端 adapter（雙裝置拓撲模擬）＋T-H4 通知 spy＋T-H5 標準資料集＋T-H6 發票測資＋編碼器 | ✅（39be197 紅/f803eb2 綠） |
+| Helper | T-H7 Gherkin runner（BE）＋T-H8 FE 掛鉤（驗證延至 M1 FE 首跑）＋T-H9 truth 對齊測試 | ✅（f803eb2） |
+| Migration | T-S1 schema v1（建表＋建表回歸＋truth 對齊基線，隨 T-H1 完成） | ✅ |
+| Migration | T-S2~T-S5（v2~v5，M2~M6 隨各 feature） | ☐×4 |
 | Feature | T-F01~F10（BE+FE 共 51 情境） | ☐ |
-| 對齊 | §5 清單 CI 化 | ☐ |
+| 對齊 | §5 清單自動化（pubspec/schema ✓ 已上 CI）；PR review 項人工 | 🟢 |
+| 發佈 | v0.1.0（骨架+Demo+T-H1/2）、v0.2.0（S0 完成）自動標籤＋Release | ✅ |
 
 - 狀態更新規則：🔴/🟢 由 CI 與 PR 自動可推導；🔵 與 ✅ 由開發者於 PR 描述更新；每 Sprint 結束回寫本表（對應 research §2.2 出口條件）。
 
