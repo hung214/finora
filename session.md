@@ -21,14 +21,14 @@
 | 欄位 | 內容 |
 |---|---|
 | 更新時間 | 2026-10-18 |
-| 階段 | **S0 完成（T-H1~H9 全數 ✅）**，v0.2.0 已自動發佈；下一里程碑 M1（F01 快速記帳） |
-| 當前分支 | main（`6509a4a` merge，已 push）；tag：v0.1.0、**v0.2.0**（tag-on-main 自動建立，release 工作流建置四平台產物中） |
-| 當前任務 | 完成：T-H3 雲端 adapter（**雙裝置拓撲模擬**：每裝置各自本地 SQLite＋雲端檔案交換）、T-H4 通知 spy、T-H5 標準資料集、T-H6 發票測資＋編碼器（deflate+Base32）、T-H7 Gherkin runner（BE）、T-H8 FE 掛鉤（驗證延至 M1）、T-H9 truth 對齊測試（pubspec/schema↔truth 自動檢查上 CI） |
-| 紅綠燈狀態 | `flutter test` = **56 全綠**；`dart analyze` = No issues found! |
+| 階段 | **本地測試部署版完成**（Windows x64 Release，啟動冒煙 ✅，zip 11.7MB 於 `dist/`）；S0 ✅、M0 ✅；下一步 M1-F01 |
+| 當前分支 | main（`f8db9a5` fix/TR-8 已合併推送）；tag：v0.1.0、v0.2.0（release 工作流） |
+| 當前任務 | 完成：本地部署建置實測 → 發現並結案 **DBG-002**（①路徑非 ASCII → ASCII clone 建置 ②flutter_secure_storage 需 ATL 元件 → TR-8 移至 M2）；tool/package_windows.ps1 打包腳本 |
+| 紅綠燈狀態 | `flutter test` = **56 全綠**；`dart analyze` = No issues found!；**Windows Release 建置成功＋啟動冒煙通過**（行程存活 8s、127.7MB） |
 | 工作區 | 乾淨（session.md 本次更新後 commit＋push） |
-| truth 對齊 | techstack v0.3.2；**T-H9 上線**（pubspec⊆techstack、schema⊆dbml 自動斷言）；api-spec 未動 |
-| 環境筆記 | ⚠️ 路徑非 ASCII → `dart analyze`；junction ledger_app。⚠️ TR-7：drift 過渡 sqlite3 直連（M1 前 CI 重試）。⚠️ sqlcipher 0.7.0+eol（TR-6）。看畫面：flutter run → 🎨 UI Demo |
-| 阻塞／待決 | ①v0.2.0 release 工作流四平台建置結果待確認（首次可能需微調）②SP-1 SQLCipher EOL（M1 前）③drift 回歸（TR-7）④PM 簽核 UI Demo／文件集 |
+| truth 對齊 | techstack **v0.3.3**（TR-8：secure_storage/local_auth 移至 M2 回歸）；T-H9 對齊測試持續把關 |
+| 環境筆記 | ⚠️ **路徑非 ASCII 是硬傷**：原生建置必須在 ASCII 路徑（clone 副本 `C:\Users\hung2\AppData\Local\Temp\opencode\finora-build`；**建議長期把 repo 移至 `E:\opencode\finora`**）。⚠️ TR-6 SQLCipher EOL、TR-7 drift 暫緩。**執行注意：M0 為記憶體 DB，資料不持久化（重啟清空）——M1 接檔案 DB** |
+| 阻塞／待決 | ①**建議：repo 遷移至 ASCII 路徑**（根治建置問題，待使用者決定）②v0.2.0 GitHub release 四平台結果確認 ③SP-1 SQLCipher EOL（M1 前）④PM 簽核 UI Demo／文件集 |
 
 ## 3. 下一步（精確到檔案與動作）
 
@@ -50,6 +50,7 @@
 
 | 日期 | 摘要 | 分支 | 狀態 |
 |---|---|---|---|
+| 2026-10-18 | **本地測試部署版**：Windows Release 建置實測 → DBG-002（①路徑非 ASCII 使 MSBuild 失敗 → ASCII clone `finora-build` 建置 ②secure_storage 需 ATL → TR-8 移至 M2）→ 建置成功（17.7s）＋**啟動冒煙通過**（行程存活 8s/127.7MB）→ 打包 `dist/LedgerSync-v0.2.0-windows-x64-local-test.zip`（11.7MB）＋tool/package_windows.ps1；techstack v0.3.3 | fix/TR-8-windows-build → main | ✅（5db6c26 / merge f8db9a5） |
 | 2026-10-18 | **S0 完成**：T-H3 雲端 adapter（雙裝置拓撲：每裝置各自本地 SQLite＋雲端檔案交換 OpBundle 契約）、T-H4 通知 spy、T-H5 標準資料集、T-H6 發票測資＋deflate/Base32 編碼器、T-H7 Gherkin runner（解析/背景/Outline/標籤過濾）、T-H8 FE 掛鉤（M1 啟用）、T-H9 truth 對齊測試上 CI；版本 bump 0.2.0+1 → **tag-on-main 自動建立 v0.2.0 並觸發 release** | feature/T-H-helpers-2 → main | ✅（39be197 紅 / f803eb2 綠 / e669783 bump / merge 6509a4a / tag v0.2.0） |
 | 2026-10-18 | **遠端上線＋S0 開跑**：接 origin（hung214/finora）push main；T-H1 記憶體 DB fixture（sqlite3 2.9.4 直連 schema v1 對齊 data-spec.dbml）＋T-H2 Clock（單一時間來源）→ **33 測試綠**；新增需求落地：tag-on-main 自動 v 標籤＋release 四平台工作流（Android/Windows/macOS/iOS→GitHub Release）；TR-7（drift 工具鏈不相容，過渡 sqlite3）＋DBG-001 結案；techstack v0.3.2；**tag v0.1.0 已推送觸發 release** | feature/T-H-test-helpers → main | ✅（9622009 紅 / b557029 綠 / 1d7a463 ci / merge b658329 / tag v0.1.0） |
 | 2026-10-18 | **UI Demo 畫廊**：7 畫面（總覽/明細/快記＋每筆確認/預算/信用卡/分類設定/設定同步）＋深淺色切換（DemoThemeScope）；新增 09 分類設定 HTML 雛型；品牌名虛構化 27 檔（全家→陽光、富邦卡→示例卡、悠遊卡→票證卡等，版權考量）；README 授權聲明；analyze 零問題、21 測試綠 | feature/ui-demo-gallery → main | ✅（89571c9 / 01a295c / merge bcd4ee5） |
