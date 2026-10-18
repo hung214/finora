@@ -89,6 +89,10 @@ flutter run -d <android-device>  # Android
 flutter run -d <ios-device>      # iOS
 ```
 
+> ⚠️ **Windows 本機建置注意**（DBG-002）：
+> ① 專案路徑**不可含非 ASCII 字元**（含中文會使 MSBuild 崩潰）——建議 repo 放在 ASCII 路徑（如 `E:\opencode\finora`），或以 ASCII clone 副本建置。
+> ② `flutter_secure_storage_windows` 需 VS「C++ ATL」元件（atlstr.h）——v0.2.x 過渡版已暫緩該插件（TR-8），M2 回歸前需安裝元件。
+
 ### 3.3 測試（TDD 紅綠燈的落點）
 ```powershell
 flutter test                     # 後端（@BE：領域/資料/同步邏輯，PR gate）

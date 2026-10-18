@@ -23,9 +23,11 @@ migrate_working_dir/
 # is commented out by default.
 #.vscode/
 
+# 本地部署產物（tool/package_windows.ps1 輸出）
+dist/
+
 # Flutter/Dart/Pub related
 **/doc/api/
-**/ios/Flutter/.last_build_id
 .dart_tool/
 .flutter-plugins-dependencies
 .pub-cache/
