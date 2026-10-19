@@ -8,27 +8,166 @@ permissions:
   contents: write
 
 jobs:
+  # 步驟 1：讀 pubspec 版本 → 標籤不存在則建立；Release 不存在則串接四平台建置。
+  # ⚠️ 架構決策（2026-10-19）：GITHUB_TOKEN 推送的標籤**不會**觸發下游工作流
+  #   （GitHub 防遞迴規則）——原「tag-on-main 打標籤 → release.yml 聞 tag 而建」
+  #   的鏈式設計從未生效（v0.1.0~v0.4.0 皆無 Release）。改由本工作流直接串接
+  #   建置與發佈；release.yml 保留為「手動推標籤」的後備路徑。
+  #   冪等性：Release 已存在 → 建置全跳過（下次 main push 自檢自癒）。
   tag:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      needs-release: ${{ steps.release_check.outputs.needs-release }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: 讀取 pubspec 版本（去除 +build）
+      - name: 讀取 pubspec 版本（去 +build）
         id: version
         run: |
           VER=$(grep -m1 '^version:' pubspec.yaml | sed 's/version: //; s/+.*//' | tr -d ' \r')
           echo "version=$VER" >> "$GITHUB_OUTPUT"
           echo "版本：v$VER"
-      - name: 建立版本標籤（不存在時；tasks.md §0.1 Tag 規範）
+      - name: 建立版本標籤（不存在時）
         run: |
           TAG="v${{ steps.version.outputs.version }}"
           if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
-            echo "標籤 $TAG 已存在，略過"
+            echo "標籤 $TAG 已存在，跳過"
           else
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git tag -a "$TAG" -m "Release $TAG（merge to main 自動標籤）"
             git push origin "$TAG"
-            echo "已建立並推送 $TAG（觸發 release 工作流）"
+            echo "已建立並推送 $TAG"
           fi
+      - name: 檢查 Release 是否已發佈（冪等：已發佈則不重建）
+        id: release_check
+        run: |
+          TAG="v${{ steps.version.outputs.version }}"
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG")
+          if [ "$STATUS" = "404" ]; then
+            echo "needs-release=true" >> "$GITHUB_OUTPUT"
+            echo "Release $TAG 不存在 → 觸發四平台建置"
+          else
+            echo "needs-release=false" >> "$GITHUB_OUTPUT"
+            echo "Release $TAG 已存在（HTTP $STATUS）→ 跳過建置"
+          fi
+
+  # ── 四平台建置（僅當 Release 缺失；checkout 對準標籤版本） ──
+  # 說明：iOS 為無簽名（--no-codesign）；macOS 打包未公證（MSIX/DMG notarization 屬 M7／SP-7）。
+  # P0 測試把關由同 push 的 CI 工作流負責（analyze＋test）。
+
+  build-android:
+    needs: tag
+    if: needs.tag.outputs.needs-release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.tag.outputs.version }}
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter build apk --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+  build-windows:
+    needs: tag
+    if: needs.tag.outputs.needs-release == 'true'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.tag.outputs.version }}
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter build windows --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64
+          path: build/windows/x64/runner/Release/
+
+  build-macos:
+    needs: tag
+    if: needs.tag.outputs.needs-release == 'true'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.tag.outputs.version }}
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter build macos --release
+      - name: 打包 .app 為 zip
+        run: |
+          cd build/macos/Build/Products/Release
+          ditto -c -k --keepParent ledger_sync.app LedgerSync-macos.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-app
+          path: build/macos/Build/Products/Release/LedgerSync-macos.zip
+
+  build-ios:
+    needs: tag
+    if: needs.tag.outputs.needs-release == 'true'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.tag.outputs.version }}
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter build ios --release --no-codesign
+      - name: 打包無簽名 IPA（Payload）
+        run: |
+          mkdir -p build/ios/Payload
+          cp -r build/ios/iphoneos/Runner.app build/ios/Payload/
+          cd build/ios
+          zip -qry LedgerSync-ios-unsigned.zip Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-unsigned
+          path: build/ios/LedgerSync-ios-unsigned.zip
+
+  # 步驟 2：發佈 GitHub Release（四平台產物；全建置成功才發——任一失敗不發半套，
+  # 下次 main push 自動重試）。
+  release:
+    needs: [tag, build-android, build-windows, build-macos, build-ios]
+    if: needs.tag.outputs.needs-release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+          path: dist
+      - name: 發佈 GitHub Release（四平台產物）
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.tag.outputs.version }}
+          files: |
+            dist/*.apk
+            dist/LedgerSync-macos.zip
+            dist/LedgerSync-ios-unsigned.zip
+            dist/*.exe
+            dist/*.dll
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

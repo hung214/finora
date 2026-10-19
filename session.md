@@ -27,8 +27,8 @@
 | 紅綠燈狀態 | 合併前：`dart analyze` No issues、`flutter test` 57 綠、FE 6 情境 Windows 實跑綠；main push 觸發 CI＋release 工作流 |
 | 工作區 | 乾淨（文件回寫後 commit） |
 | truth 對齊 | techstack v0.3.5（path_provider 2.1.6，PM 定案）；data-spec v0.3.1；dsl.md §2/§3 F01 句型齊備 |
-| 環境筆記 | repo 於 `E:\opencode\finora`。gh CLI 已裝（scoop 2.102.0）**但尚未 gh auth login**——PR 流程待認證。本地包 `dist/LedgerSync-v0.2.0-windows-x64-local-test.zip` 檔名仍為 0.2.0（打包腳本讀 pubspec，下輪重打包即為 0.4.0） |
-| 阻塞／待決 | ①v0.4.0 release 四平台結果確認（Releases 頁）②v0.2.0 四平台結果補確認（歷史待辦）③SPEC FR-Q4「五段」vs acceptance S1.1「四段」矛盾待 PM ④SP-1 SQLCipher EOL（DB 明文過渡中）⑤gh auth login（PR 流程恢復） |
+| 環境筆記 | repo 於 `E:\opencode\finora`。**Release 流水線教訓（2026-10-19 修復）**：GITHUB_TOKEN 推的標籤不會觸發下游工作流（GitHub 防遞迴）→ 原鏈式 tag→release 設計從未生效、v0.1.0~v0.4.0 均無 Release；已改為 tag-on-main 單一工作流串接（Release 已存在則冪等跳過、自癒）。gh CLI 已裝（scoop 2.102.0）**但尚未 gh auth login** |
+| 阻塞／待決 | ①v0.4.0 release 四平台建置結果確認（修復推送後自動補建——Releases/Actions 頁）②v0.1.0/v0.2.0 歷史版本無 Release（如需：手動重推標籤走 release.yml 後備路徑）③SPEC FR-Q4「五段」vs acceptance「四段」待 PM ④SP-1 SQLCipher EOL ⑤gh auth login |
 
 ## 3. 下一步（M1-F02 交易帳戶；下次開工照此執行）
 
@@ -50,6 +50,7 @@
 
 | 日期 | 摘要 | 分支 | 狀態 |
 |---|---|---|---|
+| 2026-10-19 | **Release 流水線修復**：使用者回報 release 未建——API 查證 Releases 全空（v0.1.0~v0.4.0 從未執行）。根因：tag-on-main 以 GITHUB_TOKEN 推標籤，GitHub 防遞迴規則使下游 release.yml 永不觸發。修法：四平台建置併入 tag-on-main 單一工作流＋Release 存在冪等檢查（缺失自癒）＋checkout 對準標籤版本；release.yml 保留為手動推標籤後備；tasks §0.1 Tag 列回寫。修復推送即自動補建 v0.4.0 | main | 🔄（建置驗證中） |
 | 2026-10-19 | **F01 合併 main＋v0.4.0 release 觸發**：--no-ff 合併（ffadf09；gh 未登入改本地合併）；bump 0.4.0+1（897255d）→ tag-on-main 自動建 **v0.4.0** → release 四平台建置；production 接線（path_provider，冒煙驗證 DB 建立）隨合併上 main——exe 即正式主殼 | feature/F01-quick-entry → main | ✅（merge ffadf09 / tag v0.4.0） |
 | 2026-10-19 | **T-F01-FE 完成（@P0 6 情境 🔴→🟢）＋分支整理**：C8 紅（c8c8515：dsl §3 登記 8 句型＋App 骨架＋FE harness；feature 背景順序修正）→ C9-C14 綠：S1 預填（1115b52）、S2 對話框（46990a5）、S3 Sticky＋S4 返回（a47ae1d）、S5 時間選擇器（ee57ae0）、S6 復原（593df0f）；**Windows 實跑 6 情境全綠（12s）**；harness 三教訓（KeyedSubtree 隔離/^ 錨點/@P1 過濾）；非 F01 之 2 commits 拆分至 main（62bd646 opencode、6912b8e TR-9） | feature/F01-quick-entry | 🔵（情境全綠、待 PR 合併） |
 | 2026-10-18 | **T-F01-BE 完成（8 情境 🔴→🟢）**：C1 紅（2618b13：dsl 登記＋BDD harness＋stubs；Undo 期望修正 1880 對齊 acceptance S1.8；dbml v0.3.1 settings key）→ C2-C7 綠：S1 時段/上一筆（6ec94af）、S2 商家（58ad00b）、S3 回退（dce4e9a）、S4 固定預設（24255eb）、S5 儲存事務（d045e12；S7 離線/S8 效能同）、S6 Undo 墓標（51a34cd）；57 測試全綠；opencode.json 修復（0d98087） | feature/F01-quick-entry | 🔵（BE 綠、FE 待、未合併） |
