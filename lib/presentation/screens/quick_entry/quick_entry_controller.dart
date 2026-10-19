@@ -134,8 +134,29 @@ class QuickEntryController extends AutoDisposeNotifier<QuickEntryState> {
   // ── 儲存/繼續/復原（SDD §5.1 狀態機） ─────────────────────
 
   /// 儲存（FR-Q5）：成功 → SavedDialog（顯示本次已記 N 筆）；失敗回
-  /// Inputting 保留輸入＋錯誤提示。
-  void save() => throw UnimplementedError('T-F01-FE 紅燈階段');
+  /// Inputting 保留輸入＋錯誤提示（SDD §5.1）。
+  void save() {
+    if (state.account == null || state.amount.isEmpty) return;
+    final amountMinor = int.tryParse(state.amount);
+    if (amountMinor == null || amountMinor <= 0) return; // 非法輸入：停留輸入態
+    state = state.copyWith(phase: QuickEntryPhase.committing);
+    final sw = Stopwatch()..start();
+    ref.read(saveTransactionProvider).execute(
+          accountId: state.account!.id,
+          categoryId: state.category?.id,
+          amountMinor: amountMinor,
+          occurredAt: state.occurredAt,
+          merchant: state.merchant.isEmpty ? null : state.merchant,
+        );
+    // NFR-01 UI 計時（S1.6）：純入庫耗時（BE P95 已驗 <300ms）。
+    state = state.copyWith(
+      phase: QuickEntryPhase.savedDialog,
+      sessionCount: state.sessionCount + 1,
+      lastSaveMs: sw.elapsedMilliseconds,
+    );
+    // 明細/總覽即時刷新（AC-02，SDD 原則 2：衍生值即時反映）。
+    ref.invalidate(ledgerProvider);
+  }
 
   /// 繼續（FR-Q2/Q5）：Sticky 保留帳戶/分類/商家；金額清空（FE 欄位）、
   /// 時間重設為現在（FR-Q5）。
