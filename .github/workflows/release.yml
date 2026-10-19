@@ -21,10 +21,12 @@ jobs:
       - run: flutter pub get
       - run: flutter test --tags "@BE and @P0" || true   # 產物發佈前先跑 P0 測試（正式 gate 於 M1 收緊）
       - run: flutter build apk --release
+      - name: 重新命名 APK
+        run: mv build/app/outputs/flutter-apk/app-release.apk LedgerSync-android.apk
       - uses: actions/upload-artifact@v4
         with:
           name: android-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: LedgerSync-android.apk
 
   build-windows:
     runs-on: windows-latest
@@ -36,10 +38,14 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter build windows --release
+      # ⚠ 必須打包「整個 Release 資料夾」——缺 data/（icudtl.dat、flutter_assets）
+      #   則 exe 無法啟動（v0.4.0 缺陷修正）。
+      - name: 打包完整資料夾為 zip（含 data/）
+        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath LedgerSync-windows-x64.zip
       - uses: actions/upload-artifact@v4
         with:
           name: windows-x64
-          path: build/windows/x64/runner/Release/
+          path: LedgerSync-windows-x64.zip
 
   build-macos:
     runs-on: macos-latest
@@ -94,11 +100,10 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/*.apk
+            dist/LedgerSync-android.apk
+            dist/LedgerSync-windows-x64.zip
             dist/LedgerSync-macos.zip
             dist/LedgerSync-ios-unsigned.zip
-            dist/*.exe
-            dist/*.dll
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
