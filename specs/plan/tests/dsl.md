@@ -133,7 +133,7 @@
 |---|---|
 | `Given App 已完成首次設定` | 啟動至總覽（略過引導） |
 | `Given 使用者位於{page}頁` | 導航至該分頁（NavigationBar 點選；同句型之 Then 用法見 §3.3） |
-| `Given 已建立帳戶「{name}」(餘額 {amount})` | fixture API（同 BE 語意；未標類型 → cash，FE 情境不涉類型語意） |
+| `Given 已建立帳戶「{name}」(餘額 {amount})` | fixture API（同 BE 語意；未標類型 → 內建集名稱對映：票證卡=ewallet、銀行=bank、其餘 cash——F02 儲值語意需類型） |
 | `Given 已建立分類{names}` | categories（連續「名稱」緊接；「其他」為內建 is_system；同 BE 語意） |
 | `Given 歷史交易: {描述}` | fixture API。段型：①`昨日 HH:MM 帳戶/分類/商家 金額 元`（單筆支出）②`本週{時段}帳戶/分類 N 筆`（前 N 日同時段各 1 筆）——**須在「模擬系統時間」之後**（相對日以凍結時間為基準） |
 | `Given 模擬系統時間為 {datetime}` | fake clock 凍結 |
@@ -141,6 +141,7 @@
 | `Given 已儲存 {n} 筆（{account}/{category}/{merchant}）並於對話框按「繼續」` | 逐筆：設定→儲存→按「繼續」（Sticky 觸發；金額未標 → 120） |
 | `Given 已於本 session 儲存 {n} 筆` | 前 n-1 筆儲存後按「繼續」，第 n 筆儲存後**留於對話框**（復原入口） |
 | `Given 帳本為全新空本（無帳戶/分類/交易）` | 以全新 in-memory DB 替換（fixture 層；DBG-003 回歸用——App 未 pump 前生效） |
+| `Given 已存在一筆支出 {amount} 元` | fixture 直寫 1 筆支出（第一個未封存帳戶）並凍結基準日 2026/10/19 12:00（對齊情境日期算術：2026/11/18 = +30 日；F02-FE S4） |
 | `Given 裝置處於飛航模式` | 連線模擬關閉 |
 | `Given 同步模式設定為「{mode}」` | settings 寫入 |
 
@@ -151,6 +152,10 @@
 | `When 開啟快速記帳頁` / `When 按下 Ctrl+N（macOS 為 ⌘N）` | 快記入口 |
 | `When 開啟快速記帳頁並連續記錄 {n} 筆後按下「完成」` | 開快記→連存 n 筆（每筆按繼續，末筆按完成）→返回原分頁（S1.9） |
 | `When 輸入金額 {amount}` | 鍵盤輸入 |
+| `When 開啟支出記錄` | 開啟快記（預設支出模式；F02-FE S1 同「開啟快速記帳頁」） |
+| `When 建立轉帳「{from}」→「{to}」金額 {amt}` | 快記轉帳模式：開快記→切轉帳→選來源/目標→輸入→儲存→完成（F02-FE S2） |
+| `When 建立「儲值」交易 {to} 金額 {amt} 來源={from}` | 同轉帳（目標=票證卡；F02-FE S3） |
+| `When 刪除該筆交易` | 明細列 → 刪除動作（bottom sheet「刪除」；軟刪除，F02-FE S4） |
 | `When 按下「{label}」` | 點擊可見文字按鈕 |
 | `When 點擊時間欄位` | 時間選擇器 |
 | `When 掃描標準測資發票（左QR+右QR）` | 影像回放注入掃描器 |
@@ -171,6 +176,13 @@
 | `Then 儲存按鈕為禁用狀態` | enabled=false |
 | `Then 明細頁即時顯示該 {n} 筆` | 清單斷言 |
 | `Then 顯示「{text}」` / `Then 不顯示「{text}」` | 文字存在性（「日期時間選擇器」綁定 find.byType(QuickDateTimePicker)） |
+| `Then 顯示「{text}」且為可點擊` | 文字存在＋對應按鈕 enabled（F02-FE S1 儲存鈕啟用） |
+| `Then 顯示「{label}」樣式（非支出圖示）` | 明細列樣式：textContaining({label})＋轉帳圖示 swap_horiz（F02-FE S2） |
+| `Then 顯示「{text}」（不顯示「{other}」）` | 組合斷言：儲值文案出現且支出字樣不出現（F02-FE S3） |
+| `Then 帳戶「{name}」餘額顯示為 {amount}` | 總覽餘額卡（千分位格式；導航至總覽分頁後 find.text，F02-FE S2） |
+| `Then 明細頁即時顯示該 {n} 筆（已移除）` | 該 session 金額文字自明細消失（軟刪除即時反映，F02-FE S4） |
+| `Then 設定→「最近刪除」顯示 {n} 筆（剩餘 {days} 天）` | RecentDeletionsPage：墓標列數＋「剩餘 N 天」文字（M1 入口＝明細 AppBar；設定頁整體屬 F07；剩餘天數以**曆日**計，F02-FE S4） |
+| `Then 設定→「最近刪除」顯示 {n} 筆` | 同上（無剩餘天數限定；0 筆＝空狀態） |
 | `Then 進度條為警示色（{color}）` | 樣式斷言 + 截圖 |
 | `Then 金額全部顯示為 ●●●●` | 遮蔽 |
 | `Then 出現鎖定畫面` | lock screen |

@@ -37,3 +37,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  # BDD feature 檔（integration_test 於 app 行程內讀取——macOS/桌面 CWD 非專案根，
+  # File 相對路徑失效；以 rootBundle 資產載入，tool/sync_features.ps1 同步後入包）。
+  assets:
+    - integration_test/features/
