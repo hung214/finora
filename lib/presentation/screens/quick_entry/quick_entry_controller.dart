@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../application/providers.dart';
-import '../../../core/clock.dart';
 import '../../../data/sqlite/app_database.dart';
 
 /// 快記狀態機階段（SDD §5.1）。
@@ -69,8 +68,14 @@ class QuickEntryState {
 class QuickEntryController extends AutoDisposeNotifier<QuickEntryState> {
   @override
   QuickEntryState build() {
-    // T-F01-FE 紅燈階段：FR-Q4 預設計算尚未接線（C9 接 preset）。
-    return QuickEntryState(phase: QuickEntryPhase.ready, occurredAt: Clock.now());
+    // FR-Q4／SDD §5.1 系統預填：帳戶＋分類（智慧/固定預設）＋時間=現在。
+    final preset = ref.watch(quickEntryPresetProvider).compute();
+    return QuickEntryState(
+      phase: QuickEntryPhase.ready,
+      account: preset.account,
+      category: preset.category,
+      occurredAt: preset.time,
+    );
   }
 
   // ── 欄位輸入（Inputting） ─────────────────────────────────
