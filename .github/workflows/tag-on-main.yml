@@ -69,7 +69,8 @@ jobs:
         with:
           ref: v${{ needs.tag.outputs.version }}
       - name: 讀取版本號
-        run: echo "VER=$(grep -m1 '^version:' pubspec.yaml | sed 's/version: //; s/+.*//' | tr -d ' \r')" >> "$GITHUB_ENV"
+        run: |
+          echo "VER=$(grep -m1 '^version:' pubspec.yaml | sed 's/version: //; s/+.*//' | tr -d ' \r')" >> "$GITHUB_ENV"
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -126,7 +127,8 @@ jobs:
         with:
           ref: v${{ needs.tag.outputs.version }}
       - name: 讀取版本號
-        run: echo "VER=$(grep -m1 '^version:' pubspec.yaml | sed 's/version: //; s/+.*//' | tr -d ' \r')" >> "$GITHUB_ENV"
+        run: |
+          echo "VER=$(grep -m1 '^version:' pubspec.yaml | sed 's/version: //; s/+.*//' | tr -d ' \r')" >> "$GITHUB_ENV"
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -150,7 +152,8 @@ jobs:
         with:
           ref: v${{ needs.tag.outputs.version }}
       - name: 讀取版本號
-        run: echo "VER=$(grep -m1 '^version:' pubspec.yaml | sed 's/version: //; s/+.*//' | tr -d ' \r')" >> "$GITHUB_ENV"
+        run: |
+          echo "VER=$(grep -m1 '^version:' pubspec.yaml | sed 's/version: //; s/+.*//' | tr -d ' \r')" >> "$GITHUB_ENV"
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
