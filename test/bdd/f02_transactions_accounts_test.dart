@@ -29,8 +29,13 @@ void main() {
     _bind(runner, w);
 
     try {
-      final executed =
-          await runner.run(doc, tagFilter: (tags) => tags.contains('@BE') && tags.contains('@P0'));
+      // 多幣別情境 @P1 @M2 屬 M2（PM 確認 2026-10-19 deferred）；feature 層 @P0
+      // 會被所有情境繼承，須以 !@M2 排除 M2 範圍。
+      final executed = await runner.run(
+        doc,
+        tagFilter: (tags) =>
+            tags.contains('@BE') && tags.contains('@P0') && !tags.contains('@M2'),
+      );
       expect(executed, 5, reason: 'F02-BE 應執行 5 個情境（@BE @P0；多幣別 @P1 @M2 屬 M2）');
       // ignore: avoid_print
       print(runner.log.join('\n'));
@@ -264,11 +269,42 @@ void _bind(GherkinRunner runner, _World w) {
         reason: 'FR-T3：保留期屆滿實體清除（oplog 墓標保留，GC 屬 F07）');
   });
 
-  // ── Then：交易 kind（F02 S2.4/S2.6；「且無分類」變體於 C6 先於本句型登記）──
+  // ── When：還款（F02 S2.6）────────────────────────────────
+  runner.on(r'建立還款交易 來源={from} 目標={to} 金額 {amt}$', (p) {
+    _saveWithValidation(
+      w,
+      () => w.save.execute(
+            accountId: w.accounts[p['from']!]!,
+            amountMinor: _amount(p['amt']!),
+            occurredAt: Clock.now(),
+            kind: TxKind.repayment,
+            toAccountId: w.accounts[p['to']!],
+          ),
+    );
+  });
+
+  // ── Then：交易 kind（F02 S2.4/S2.6）──────────────────────
+  // 「且無分類」變體須先於 base 句型登記（lazy match 前綴碰撞，同前教訓）。
+  runner.on(r'交易 kind = {kind} 且無分類$', (p) {
+    final id = w.lastCreatedTxId;
+    expect(id, isNotNull, reason: 'When 應已建立交易');
+    final row = w.db.transactionById(id!)!;
+    expect(row.kind, p['kind'], reason: '交易 kind（還款語意）');
+    expect(row.categoryId, isNull, reason: '還款無分類（S2.6：固定還款語意）');
+  });
+
   runner.on(r'交易 kind = {kind}$', (p) {
     final id = w.lastCreatedTxId;
     expect(id, isNotNull, reason: 'When 應已建立交易');
     expect(w.db.transactionById(id!)!.kind, p['kind'], reason: '交易 kind（儲值/還款語意）');
+  });
+
+  // ── Then：未繳合計（F02 S2.6）────────────────────────────
+  runner.on(r'帳戶「{card}」未繳合計 = {amount}（含還款抵扣）$', (p) {
+    final row = w.db.allAccounts().firstWhere((r) => r.name == p['card']);
+    final unpaid = const BalanceCalculator()
+        .creditUnpaidTotal(card: _accountEntity(row), txs: w.db.allTransactions().map(_txEntity));
+    expect(unpaid, _amount(p['amount']!), reason: '還款抵扣未繳合計（下限 0；M3 前骨架版）');
   });
 
   // ── Then：餘額（dsl.md §2.3 既有句型）─────────────────────

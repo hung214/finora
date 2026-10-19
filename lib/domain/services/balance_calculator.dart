@@ -66,4 +66,22 @@ class BalanceCalculator {
     }
     return open;
   }
+
+  /// 信用卡「未繳合計」：本期應付 − Σ 還款抵扣（toAccountId 指向該卡者），下限 0。
+  ///
+  /// 還款使負債減少但**不得為負**（無負債時還款不產生負未繳；溢繳語意屬
+  /// M3 帳單引擎，F04）。[txs] 需為該卡相關之全部交易（F02 S2.6）。
+  int creditUnpaidTotal({
+    required Account card,
+    required Iterable<Tx> txs,
+  }) {
+    var repayments = 0;
+    for (final tx in txs) {
+      if (!tx.deleted && tx.kind == TxKind.repayment && tx.toAccountId == card.id) {
+        repayments += tx.amountMinor;
+      }
+    }
+    final open = creditOpenBalance(card: card, txs: txs) - repayments;
+    return open < 0 ? 0 : open;
+  }
 }
