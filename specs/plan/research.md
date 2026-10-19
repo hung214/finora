@@ -196,6 +196,7 @@ Spike 技術驗證（M0，時限盒） ──失敗──► 回退研究，換�
 | TR-6 | sqlcipher_flutter_libs 0.7.0+eol（套件已標記 EOL，S0 pub get 發現） | D2 加密整合 | SP-1 強化評估：改自帶 SQLCipher native（sqlite3 FFI + cipher 編譯）或替代加密層；M1 前定案（techstack §6-7） |
 | TR-7 | drift/build_runner codegen 與 Dart 3.13.5 工具鏈不相容（analyzer 7.x 無法序列化 SDK dot-shorthand；dart_style 3.1.13+ 需 Dart 3.14 fe types；build_runner 2.16.x pub cache 提取損壞） | D2/T-S1 | **過渡**：T-S1 以 sqlite3 2.9.4 直連（lib/data/sqlite/，schema 仍以 data-spec.dbml 為準）；M1 前於 CI（Linux）重試 drift 回歸，屆時 DB 層 API 不變僅換底層（DBG-001 結案記錄） |
 | TR-8 | flutter_secure_storage_windows 需要 VS C++ ATL 元件（atlstr.h），本機 Build Tools 未安裝 → Windows 建置失敗（本地部署實測發現） | FR-X1/X2 | **過渡**：flutter_secure_storage 與 local_auth 移出 pubspec 至 M2 回歸；M2 前安裝 VS「C++ ATL for v143」元件或改 DPAPI 直呼；techstack v0.3.3（DBG-002 結案記錄） |
+| TR-9 | flutter_gherkin 3.x（2022 後未更新）執行期 API 與 Dart 3.13.5/integration_test 摩擦：smoke 測試三輪編譯錯誤（Given/Then/GherkinRunner 匯出面、StepContext 泛型面），執行期相容性未證明（import 分析可過 ≠ 可跑，同 TR-7 型態） | BDD FE | **過渡**：FE 情境改用 T-H7 自製 Gherkin runner + integration_test（runner 已於 BE 56 測試驗證；async handler 擴充向後相容）；flutter_gherkin 不入 pubspec；dsl.md §3 登記句型不變，僅綁定機制改變；techstack v0.3.4。flutter_gherkin 相容性於 CI 觀察，若上修可用再評估回歸 |
 
 ## 6. 變更控制（research → truth 流程）
 

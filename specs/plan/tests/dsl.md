@@ -4,7 +4,7 @@
 |---|---|
 | 文件版本 | v0.3（初版） |
 | 用途 | 前端／後端 `.feature` 檔的**步驟句型唯一登記處**。新步驟必須先登記於本檔再實作綁定；未登記句型視為違規 |
-| 綁定 | 前端：flutter_gherkin（integration_test）｜後端：自製 Gherkin runner + flutter_test |
+| 綁定 | 前端：自製 Gherkin runner + integration_test（TR-9 過渡；同 T-H7）｜後端：自製 Gherkin runner + flutter_test |
 
 ---
 
@@ -83,7 +83,7 @@
 
 ---
 
-## 3. 前端 DSL（@FE，綁定 flutter_gherkin）
+## 3. 前端 DSL（@FE，綁定自製 runner + integration_test，TR-9）
 
 **環境與掛鉤**：integration_test 啟動真 App（注入 fake clock/mock cloud/notification spy）；螢幕截圖存檔供報告；桌面 runner 支援快捷鍵注入。
 

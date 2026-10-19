@@ -2,7 +2,7 @@
 
 | 項目 | 內容 |
 |---|---|
-| 文件版本 | v0.3.3（TR-8：Windows 建置安全儲存插件暫緩） |
+| 文件版本 | v0.3.4（TR-9：BDD FE 綁定改自製 runner） |
 | 日期 | 2026-10-18 |
 | 性質 | **原始碼技術棧的唯一事實來源**。SDD §3 為設計說明；本檔記錄「將寫進程式碼」的定案（含版本）。兩者不一致時以本檔為準並回修 SDD |
 | 變更規則 | 僅能經 PR 變更；新增/升級依賴需通過授權審查（research.md D14）+ 全測試綠燈；每次變更記錄於 §8 變更記錄 |
@@ -80,7 +80,7 @@
 | 用途 | 工具 | 版本 |
 |---|---|---|
 | 測試 | flutter_test、mocktail、integration_test | mocktail 1.0.5（lock） |
-| BDD | flutter_gherkin（步驟定義掛接 BDD.md） | 3.x |
+| BDD | 自製 Gherkin runner（`test/helpers/gherkin/`，BE/FE 共用；T-H7） | —（⚠ TR-9 暫緩：flutter_gherkin 3.x 執行期相容性未證明，不入 pubspec；dsl.md 登記句型不變） |
 | Codegen | build_runner（drift_dev/freezed/json_serializable） | build_runner 2.5.4（lock） |
 | CI | GitHub Actions：**CI**（analyze/test）、**tag-on-main**（合併 main 自動 `v` 版本標籤）、**release**（四平台產物 → GitHub Release） | — |
 | 發佈 | Codemagic 或 Fastlane（iOS 簽名/上架） | 🔬 SP-7 |
@@ -149,3 +149,4 @@
 | 2026-10-18 | v0.3.1 | S0 `flutter pub get` 實鎖版本回寫（drift 2.28.2／sqlcipher_flutter_libs 0.7.0+eol ⚠EOL／intl 0.20.3 等）；新增 §6-7 SQLCipher EOL 風險 | — |
 | 2026-10-18 | v0.3.2 | TR-7：drift/build_runner 與 Dart 3.13.5 工具鏈不相容（analyzer 7.x dot-shorthand、dart_style 3.1.13+ 需 fe types、2.16.x cache 損壞）→ T-S1 改 **sqlite3 2.9.4 直連**過渡；新增 tag-on-main/release 工作流登記（§2.4） | — |
 | 2026-10-18 | v0.3.3 | TR-8：flutter_secure_storage_windows 需 VS C++ ATL 元件（atlstr.h 缺）→ 與 local_auth 一起移出 pubspec 至 M2 回歸；新增 §2.4 release 工作流實測（本地 Windows 建置） | — |
+| 2026-10-18 | v0.3.4 | TR-9：flutter_gherkin 3.x 執行期與 Dart 3.13.5 工具鏈摩擦（smoke 三輪編譯錯誤，同 TR-7 型態）→ BDD FE 綁定改 T-H7 自製 runner + integration_test（integration_test 入 pubspec dev_deps，屬 §2.4 測試列既有項） | — |

@@ -1,9 +1,13 @@
-/// T-H7：自製 Gherkin runner（BE）——解析 `.feature` 檔並以 dsl.md 登記之句型執行。
+/// T-H7：自製 Gherkin runner（BE/FE 共用，TR-9）——解析 `.feature` 檔並以
+/// dsl.md 登記之句型執行。
 ///
 /// 支援：Feature/Background/Scenario/Scenario Outline + Examples/標籤（@）/步驟關鍵字
 /// Given-When-Then-And-But。句型綁定以 `{param}` 佔位（轉為具名 regex 群組）。
+/// handler 支援同步（BE）與 async（FE，WidgetTester 驅動）兩種簽名。
 /// 新句型必先登記 `specs/plan/tests/dsl.md`（tasks.md §5-4）。
 library;
+
+import 'dart:async';
 
 class GherkinStep {
   const GherkinStep(this.keyword, this.text);
@@ -174,7 +178,7 @@ class GherkinParser {
 
 enum _Mode { header, background, scenario, examples }
 
-typedef GherkinStepHandler = void Function(Map<String, String> params);
+typedef GherkinStepHandler = FutureOr<void> Function(Map<String, String> params);
 
 /// 未匹配到任何句型綁定（dsl.md §5：新句型需先登記）。
 class GherkinStepNotBound implements Exception {
@@ -253,7 +257,7 @@ class GherkinRunner {
           for (var i = 0; i < binding.names.length; i++) {
             params[binding.names[i]] = m.group(i + 1) ?? '';
           }
-          binding.handler(params);
+          await binding.handler(params);
           log.add('$scenarioName · ${step.keyword} $text');
           bound = true;
           break;
