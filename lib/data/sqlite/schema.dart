@@ -102,3 +102,49 @@ class SchemaV1 {
     'CREATE INDEX idx_tx_category ON transactions(category_id, occurred_at)',
   ];
 }
+
+/// Schema v2（M2 基線，T-S2）：budgets（FR-B2）＋ income_goals（FR-B6）＋
+/// transactions_fts（FTS5 影子表，FR-R3 bigram）——逐句對齊 data-spec.dbml v0.3
+/// （表已於 v0.3 全表補完，本版為 code schema 對齊落地）。
+class SchemaV2 {
+  SchemaV2._();
+
+  static const int version = 2;
+
+  /// 必建表（遷移於交易內全有全無；失敗即阻斷）。
+  static const List<String> statements = [
+    '''
+    CREATE TABLE budgets (
+      id TEXT PRIMARY KEY,
+      category_id TEXT,
+      amount_minor INTEGER NOT NULL,
+      period_start_day INTEGER NOT NULL DEFAULT 1,
+      rollover INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      hlc TEXT NOT NULL,
+      deleted_at INTEGER
+    )
+    ''',
+    '''
+    CREATE TABLE income_goals (
+      id TEXT PRIMARY KEY,
+      amount_minor INTEGER NOT NULL,
+      period_start_day INTEGER NOT NULL DEFAULT 1,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      hlc TEXT NOT NULL,
+      deleted_at INTEGER
+    )
+    ''',
+  ];
+
+  /// FTS5 虛擬表（FR-R3：中文 bigram 影子欄位——unicode61 不切中文）。
+  ///
+  /// **容錯降級**：部分環境（如 winsqlite3.dll）可能缺 FTS5 模組——建表失敗
+  /// 不阻斷 v2 遷移（遷移器 try-catch 跳過）；F10 依表存在性分流（FTS5／LIKE）。
+  static const List<String> ftsStatements = [
+    'CREATE VIRTUAL TABLE transactions_fts USING fts5'
+        '(merchant_bigram, note_bigram, rowid_ref UNINDEXED)',
+  ];
+}

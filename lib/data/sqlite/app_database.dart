@@ -34,36 +34,62 @@ class AppDatabase {
   late final Database _db;
   bool _closed = false;
 
-  int get schemaVersion => SchemaV1.version;
+  int get schemaVersion => SchemaV2.version;
 
   void _migrate() {
-    // DBG-004：遷移必須冪等——
-    // ① `PRAGMA user_version` 版本閘：已遷移之 DB 直接跳過（第二啟動不再重跑 DDL）。
-    // ② 既有表偵測：修補 user_version 未標記的舊版 DB（v0.4.x 期間建立者）——
-    //    DDL 於交易內全有全無，accounts 存在 ⇒ 六表齊備。
-    // DDL 字串維持原樣（T-H9 truth 對齊 regex 相容）；多版本遷移器隨 T-S2 落地。
-    final current = _db.select('PRAGMA user_version').first.values.first as int;
-    if (current >= SchemaV1.version) return;
-    final tablesExist = _db
-        .select("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'accounts'")
-        .isNotEmpty;
-    if (tablesExist) {
-      _db.execute('PRAGMA user_version = ${SchemaV1.version}');
-      return;
+    // DBG-004／T-S2：多版本冪等遷移——
+    // ① `PRAGMA user_version` 版本閘：已達最新直接跳過（第二啟動不再重跑 DDL）。
+    // ② 既有表偵測：v0.4.x 期間建立、user_version 未標記之舊檔 → 補標 v1。
+    // ③ 逐版本增量：每版本於交易內全有全無（v1 全量 DDL／v2 增量表）。
+    // DDL 字串維持原樣（T-H9 truth 對齊 regex 相容）。
+    var current = _db.select('PRAGMA user_version').first.values.first as int;
+    if (current >= SchemaV2.version) return;
+    if (current < 1) {
+      final tablesExist = _db
+          .select("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'accounts'")
+          .isNotEmpty;
+      if (tablesExist) {
+        current = 1;
+        _db.execute('PRAGMA user_version = ${SchemaV1.version}');
+      }
     }
-    _db.execute('BEGIN');
-    try {
-      for (final s in SchemaV1.statements) {
-        _db.execute(s);
+    if (current < 1) {
+      _db.execute('BEGIN');
+      try {
+        for (final s in SchemaV1.statements) {
+          _db.execute(s);
+        }
+        for (final s in SchemaV1.indexes) {
+          _db.execute(s);
+        }
+        _db.execute('PRAGMA user_version = ${SchemaV1.version}');
+        _db.execute('COMMIT');
+      } catch (_) {
+        _db.execute('ROLLBACK');
+        rethrow;
       }
-      for (final s in SchemaV1.indexes) {
-        _db.execute(s);
+    }
+    if (current < 2) {
+      _db.execute('BEGIN');
+      try {
+        for (final s in SchemaV2.statements) {
+          _db.execute(s);
+        }
+        _db.execute('PRAGMA user_version = ${SchemaV2.version}');
+        _db.execute('COMMIT');
+      } catch (_) {
+        _db.execute('ROLLBACK');
+        rethrow;
       }
-      _db.execute('PRAGMA user_version = ${SchemaV1.version}');
-      _db.execute('COMMIT');
-    } catch (_) {
-      _db.execute('ROLLBACK');
-      rethrow;
+      // FTS5 虛擬表：環境缺模組時**容錯降級**（不阻斷 v2；F10 依表存在性分流）。
+      for (final s in SchemaV2.ftsStatements) {
+        try {
+          _db.execute(s);
+        } catch (e) {
+          // ignore: avoid_print
+          print('T-S2：FTS5 建表跳過（環境不支援）——$e');
+        }
+      }
     }
   }
 
