@@ -1,0 +1,37 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../application/providers.dart';
+import '../../../domain/services/balance_calculator.dart';
+
+/// 總覽頁（M1 精簡）：帳戶與衍生餘額（SDD 原則 2：餘額一律由交易重算）。
+class OverviewPage extends ConsumerWidget {
+  const OverviewPage({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final accounts = ref.watch(activeAccountsProvider);
+    final txs = ref.watch(ledgerProvider).map(txEntity).toList();
+    const calc = BalanceCalculator();
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('總覽')),
+      body: ListView(
+        padding: const EdgeInsets.all(12),
+        children: [
+          for (final row in accounts)
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.account_balance_wallet_outlined),
+                title: Text(row.name),
+                trailing: Text(
+                  '餘額 ${calc.assetBalance(account: accountEntity(row), txs: txs)}',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}

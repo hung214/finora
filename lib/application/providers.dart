@@ -1,0 +1,83 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../data/sqlite/app_database.dart';
+import '../domain/entities/account.dart';
+import '../domain/entities/transaction.dart';
+import 'quick_entry/quick_entry_preset_service.dart';
+import 'quick_entry/save_transaction_use_case.dart';
+import 'quick_entry/undo_last_transaction_use_case.dart';
+
+/// App 資料庫（M1）。
+///
+/// **注入約定**：production 由 `main()` 以檔案 DB override（path_provider 決策
+/// 待 PM，見 session.md 阻塞清單）；測試以 in-memory DB override（dsl.md §1.5：
+/// Given 直寫 fixture，不經 UI）。
+final dbProvider = Provider<AppDatabase>((ref) {
+  throw UnimplementedError('dbProvider 須於 main() 或測試 override 注入');
+});
+
+/// 快記智慧預設（FR-Q4）。
+final quickEntryPresetProvider =
+    Provider((ref) => QuickEntryPresetService(ref.watch(dbProvider)));
+
+/// 儲存事務（FR-Q5，SDD §5.1）。
+final saveTransactionProvider =
+    Provider((ref) => SaveTransactionUseCase(ref.watch(dbProvider)));
+
+/// 復原上一筆（FR-Q3）。
+final undoLastTransactionProvider =
+    Provider((ref) => UndoLastTransactionUseCase(ref.watch(dbProvider)));
+
+/// 未封存帳戶（快記/總覽）。
+final activeAccountsProvider = Provider((ref) =>
+    ref.watch(dbProvider).allAccounts().where((a) => !a.archived).toList());
+
+/// 支出分類（快記/分類設定）。
+final expenseCategoriesProvider =
+    Provider((ref) => ref.watch(dbProvider).categoriesByKind('expense'));
+
+/// 明細（未刪除交易，occurred_at 降冪；SDD 原則 2：衍生值一律重算）。
+final ledgerProvider =
+    NotifierProvider<LedgerNotifier, List<TxRow>>(LedgerNotifier.new);
+
+class LedgerNotifier extends Notifier<List<TxRow>> {
+  @override
+  List<TxRow> build() {
+    final txs = ref
+        .watch(dbProvider)
+        .allTransactions()
+        .where((t) => t.deletedAt == null)
+        .toList()
+      ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    return txs;
+  }
+
+  /// 儲存/復原後刷新（快記 controller 呼叫；明細即時反映 AC-02）。
+  void refresh() => ref.invalidateSelf();
+}
+
+// ── Row → 領域實體對映（BalanceCalculator 介面對齊） ──────────
+
+Account accountEntity(AccountRow r) => Account(
+      id: r.id,
+      type: AccountType.values.byName(r.type),
+      name: r.name,
+      currency: r.currency,
+      openingAmountMinor: r.openingAmountMinor,
+      archived: r.archived,
+    );
+
+Tx txEntity(TxRow r) => Tx(
+      id: r.id,
+      kind: TxKind.values.byName(r.kind),
+      amountMinor: r.amountMinor,
+      accountId: r.accountId,
+      toAccountId: r.toAccountId,
+      categoryId: r.categoryId,
+      merchant: r.merchant,
+      note: r.note,
+      occurredAt: r.occurredAt,
+      source: TxSource.values.byName(r.source),
+      settlementStatus: SettlementStatus.values.byName(r.settlementStatus),
+      deleted: r.deletedAt != null,
+    );
