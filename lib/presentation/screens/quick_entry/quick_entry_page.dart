@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../application/providers.dart';
+import 'quick_date_time_picker.dart';
 import 'quick_entry_controller.dart';
 
 /// 快記頁（FR-Q1~Q8，acceptance F01）。
@@ -97,7 +98,15 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
             TextButton(
               key: const Key('quick-entry-time'),
               onPressed: () {
-                // T-F01-FE 紅燈階段：QuickDateTimePicker 未接線（C13）。
+                // FR-Q8（S1.5）：bottom sheet 選擇器，不離開快記頁。
+                showModalBottomSheet<void>(
+                  context: context,
+                  isScrollControlled: true, // 內容高於半屏時可捲動（桌面小視窗）
+                  builder: (_) => QuickDateTimePicker(
+                    initial: state.occurredAt,
+                    onSelected: controller.setOccurredAt,
+                  ),
+                );
               },
               child: Text(
                 DateFormat('yyyy/MM/dd HH:mm').format(state.occurredAt),

@@ -24,17 +24,16 @@ class _QuickDateTimePickerState extends State<QuickDateTimePicker> {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Text('選擇日期與時間',
-                style: Theme.of(context).textTheme.titleMedium),
-          ),
-          SizedBox(
-            height: 320,
-            child: CalendarDatePicker(
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Text('選擇日期與時間',
+                  style: Theme.of(context).textTheme.titleMedium),
+            ),
+            CalendarDatePicker(
               initialDate: widget.initial,
               firstDate: DateTime(2020),
               lastDate: DateTime(2032, 12, 31),
@@ -46,18 +45,18 @@ class _QuickDateTimePickerState extends State<QuickDateTimePicker> {
                 widget.initial.minute,
               ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: FilledButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                widget.onSelected(_selected);
-              },
-              child: const Text('確定'),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: FilledButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  widget.onSelected(_selected);
+                },
+                child: const Text('確定'),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
