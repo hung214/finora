@@ -90,6 +90,19 @@ class AppDatabase {
         ],
       );
 
+  /// 帳戶寫入 + oplog 追加於同一 transaction（SDD §5.1 契約；首次啟動播種用）。
+  void insertAccountWithOplog(AccountRow a, OplogRow o) {
+    _db.execute('BEGIN');
+    try {
+      insertAccount(a);
+      appendOp(o);
+      _db.execute('COMMIT');
+    } catch (_) {
+      _db.execute('ROLLBACK');
+      rethrow;
+    }
+  }
+
   List<AccountRow> allAccounts() => _db
       .select('SELECT * FROM accounts ORDER BY sort_order IS NULL, sort_order')
       .map(AccountRow.fromRow)
@@ -102,6 +115,19 @@ class AppDatabase {
         ' VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
         [c.id, c.kind, c.parentId, c.name, c.isSystem ? 1 : 0, c.createdAt, c.updatedAt, c.hlc],
       );
+
+  /// 分類寫入 + oplog 追加於同一 transaction（SDD §5.1 契約；首次啟動播種用）。
+  void insertCategoryWithOplog(CategoryRow c, OplogRow o) {
+    _db.execute('BEGIN');
+    try {
+      insertCategory(c);
+      appendOp(o);
+      _db.execute('COMMIT');
+    } catch (_) {
+      _db.execute('ROLLBACK');
+      rethrow;
+    }
+  }
 
   List<CategoryRow> categoriesByKind(String kind) => _db
       .select('SELECT * FROM categories WHERE kind = ? ORDER BY sort_order IS NULL, sort_order', [kind])
@@ -261,6 +287,19 @@ class AccountRow {
         updatedAt: r['updated_at'] as int,
         hlc: r['hlc'] as String,
       );
+
+  /// oplog payload 之整列快照（SDD §5.5.4）。
+  Map<String, Object?> toSnapshot() => {
+        'id': id,
+        'type': type,
+        'name': name,
+        'currency': currency,
+        'opening_amount_minor': openingAmountMinor,
+        'archived': archived,
+        'created_at': createdAt,
+        'updated_at': updatedAt,
+        'hlc': hlc,
+      };
 }
 
 class CategoryRow {
@@ -294,6 +333,18 @@ class CategoryRow {
         updatedAt: r['updated_at'] as int,
         hlc: r['hlc'] as String,
       );
+
+  /// oplog payload 之整列快照（SDD §5.5.4）。
+  Map<String, Object?> toSnapshot() => {
+        'id': id,
+        'kind': kind,
+        'parent_id': parentId,
+        'name': name,
+        'is_system': isSystem,
+        'created_at': createdAt,
+        'updated_at': updatedAt,
+        'hlc': hlc,
+      };
 }
 
 class TxRow {
