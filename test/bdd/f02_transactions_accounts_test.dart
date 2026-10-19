@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_sync/application/quick_entry/save_transaction_use_case.dart';
+import 'package:ledger_sync/application/stats/monthly_stats_service.dart';
 import 'package:ledger_sync/core/clock.dart';
 import 'package:ledger_sync/data/sqlite/app_database.dart';
 import 'package:ledger_sync/domain/entities/account.dart';
@@ -61,6 +62,9 @@ class _World {
 
   /// 最近一次驗證失敗訊息（未拋例外為 null）。
   String? validationError;
+
+  /// 最近一次成功建立之交易 id（kind 斷言用，F02 S2.4/S2.6）。
+  String? lastCreatedTxId;
 }
 
 void _bind(GherkinRunner runner, _World w) {
@@ -140,6 +144,95 @@ void _bind(GherkinRunner runner, _World w) {
       expect(op.packedSeq, isNull, reason: '未打包（待 SyncCoordinator，F07）');
     }
   });
+
+  // ── Given：統計基準線（F02 S2.3 測試資料）────────────────
+  runner.on(r'本月已支出 {expense}、收入 {income}$', (p) {
+    // 種於票證卡——不得落於該情境有餘額斷言之帳戶（現金/銀行），否則
+    // 600/10400 斷言不成立（harness 決策，PM 已確認 2026-10-19）。
+    final base = Clock.now();
+    final at = DateTime(base.year, base.month, 1, 12).millisecondsSinceEpoch;
+    DbFixture.seedTx(
+      w.db,
+      id: 'tx-stat-e',
+      kind: 'expense',
+      amountMinor: _amount(p['expense']!),
+      accountId: w.accounts['票證卡']!,
+      category: w.categories['餐飲'],
+      occurredAt: at,
+    );
+    DbFixture.seedTx(
+      w.db,
+      id: 'tx-stat-i',
+      kind: 'income',
+      amountMinor: _amount(p['income']!),
+      accountId: w.accounts['票證卡']!,
+      category: w.categories['薪資'],
+      occurredAt: at,
+    );
+  });
+
+  // ── When：轉帳（F02 S2.3/S2.4）───────────────────────────
+  // 注意：儲值變體須先於 base 句型登記（{amt} 為 lazy match，否則「（儲值）」
+  // 後綴被 base 吞入——F01 計時變體同型教訓）。
+  runner.on(r'建立轉帳「{from}」→「{to}」金額 {amt}（儲值）$', (p) {
+    _transfer(w, p['from']!, p['to']!, p['amt']!);
+  });
+
+  runner.on(r'建立轉帳「{from}」→「{to}」金額 {amt}$', (p) {
+    _transfer(w, p['from']!, p['to']!, p['amt']!);
+  });
+
+  // ── Then：統計（F02 S2.3/S2.4/S2.6）──────────────────────
+  runner.on(r'本月支出統計 = {amount}（不含轉帳）$', (p) {
+    expect(
+      MonthlyStatsService(w.db).expenseMinorThisMonth(),
+      _amount(p['amount']!),
+      reason: 'AC-10：轉帳不計入支出統計',
+    );
+  });
+
+  runner.on(r'本月收入統計 = {amount}$', (p) {
+    expect(
+      MonthlyStatsService(w.db).incomeMinorThisMonth(),
+      _amount(p['amount']!),
+      reason: 'AC-10：轉帳不計入收入統計',
+    );
+  });
+
+  // ── Then：餘額（dsl.md §2.3 既有句型）─────────────────────
+  runner.on(r'帳戶「{a}」重算餘額 = {amount}$', (p) {
+    final row = w.db.allAccounts().firstWhere((r) => r.name == p['a']);
+    final balance = const BalanceCalculator()
+        .assetBalance(account: _accountEntity(row), txs: w.db.allTransactions().map(_txEntity));
+    expect(balance, _amount(p['amount']!), reason: '衍生餘額（SDD 原則 2）');
+  });
+}
+
+/// 統一儲存呼叫：捕獲驗證例外（FE 顯示契約）、登記基準線與建立結果。
+void _saveWithValidation(_World w, SaveTransactionResult Function() call) {
+  w.opBaseline = w.db.allOps().length;
+  w.txCountBaseline = w.db.allTransactions().length;
+  try {
+    final result = call();
+    w.lastCreatedTxId = result.transactionId;
+    w.validationError = null;
+  } on TransactionValidationException catch (e) {
+    w.validationError = e.message;
+  }
+}
+
+/// 建立轉帳（S2.3/S2.4 共用；kind=transfer，票證儲值同語意）。
+void _transfer(_World w, String from, String to, String amt) {
+  _saveWithValidation(
+    w,
+    () => w.save.execute(
+          accountId: w.accounts[from]!,
+          amountMinor: _amount(amt),
+          occurredAt: Clock.now(),
+          kind: TxKind.transfer,
+          toAccountId: w.accounts[to],
+        ),
+  );
 }
 
 Tx _txEntity(TxRow r) => Tx(

@@ -157,6 +157,15 @@ class AppDatabase {
       .map(TxRow.fromRow)
       .toList();
 
+  /// 區間內未刪除交易（occurred_at ∈ [start, end)）；本月統計用（F02 S2.3）。
+  List<TxRow> transactionsBetween(int startMs, int endMs) => _db
+      .select('SELECT * FROM transactions'
+              ' WHERE occurred_at >= ? AND occurred_at < ? AND deleted_at IS NULL'
+              ' ORDER BY occurred_at, id',
+          [startMs, endMs])
+      .map(TxRow.fromRow)
+      .toList();
+
   // ── 同步日誌（SDD §5.5） ──────────────────────────────────
 
   void appendOp(OplogRow o) => _db.execute(
