@@ -157,6 +157,15 @@ class AppDatabase {
       .map(TxRow.fromRow)
       .toList();
 
+  /// 區間內未刪除交易（occurred_at ∈ [start, end)）；本月統計用（F02 S2.3）。
+  List<TxRow> transactionsBetween(int startMs, int endMs) => _db
+      .select('SELECT * FROM transactions'
+              ' WHERE occurred_at >= ? AND occurred_at < ? AND deleted_at IS NULL'
+              ' ORDER BY occurred_at, id',
+          [startMs, endMs])
+      .map(TxRow.fromRow)
+      .toList();
+
   // ── 同步日誌（SDD §5.5） ──────────────────────────────────
 
   void appendOp(OplogRow o) => _db.execute(
@@ -228,6 +237,62 @@ class AppDatabase {
       _db.execute(
         'UPDATE transactions SET deleted_at = ?, updated_at = ?, hlc = ? WHERE id = ?',
         [deletedAt, deletedAt, hlc, id],
+      );
+      appendOp(o);
+      _db.execute('COMMIT');
+    } catch (_) {
+      _db.execute('ROLLBACK');
+      rethrow;
+    }
+  }
+
+  /// 實體清除 deleted_at <= cutoffMs 之墓標列（FR-T3 保留期屆滿，F02 S2.5）。
+  /// oplog 墓標保留（同步日誌完整性，GC 屬 F07）。回傳清除筆數；冪等（無候選回 0）。
+  int purgeTransactionsDeletedBefore(int cutoffMs) {
+    _db.execute('BEGIN');
+    try {
+      final count = _db
+          .select(
+              'SELECT COUNT(*) AS c FROM transactions'
+              ' WHERE deleted_at IS NOT NULL AND deleted_at <= ?',
+              [cutoffMs])
+          .first['c'] as int;
+      if (count > 0) {
+        _db.execute(
+          'DELETE FROM transactions WHERE deleted_at IS NOT NULL AND deleted_at <= ?',
+          [cutoffMs],
+        );
+      }
+      _db.execute('COMMIT');
+      return count;
+    } catch (_) {
+      _db.execute('ROLLBACK');
+      rethrow;
+    }
+  }
+
+  /// 還原墓標（FR-T3 30 天內，acceptance F02 S2.5 步驟 3）：deleted_at → NULL
+  /// + oplog **整列快照**（非墓標——還原是 UPDATE，同步端以快照覆蓋）於
+  /// **同一 transaction**（鏡像 [softDeleteTransactionWithOplog] 契約）。
+  /// 未刪除/不存在者拋 StateError（防還原幻影）。
+  void restoreTransactionWithOplog(
+    String id,
+    OplogRow o, {
+    required int restoredAt,
+    required String hlc,
+  }) {
+    final tx = transactionById(id);
+    if (tx == null) {
+      throw StateError('還原失敗：交易不存在 $id');
+    }
+    if (tx.deletedAt == null) {
+      throw StateError('還原失敗：交易未刪除 $id');
+    }
+    _db.execute('BEGIN');
+    try {
+      _db.execute(
+        'UPDATE transactions SET deleted_at = NULL, updated_at = ?, hlc = ? WHERE id = ?',
+        [restoredAt, hlc, id],
       );
       appendOp(o);
       _db.execute('COMMIT');

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../application/providers.dart';
+import 'amount_keypad.dart';
 import 'quick_date_time_picker.dart';
 import 'quick_entry_controller.dart';
 
@@ -26,6 +27,9 @@ class QuickEntryPage extends ConsumerStatefulWidget {
 class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
   final _amountCtrl = TextEditingController();
 
+  /// 計算機運算式（F02 S2.9；受控——顯示於金額欄，＝ 求值後為純數字）。
+  String _expr = '';
+
   @override
   void dispose() {
     _amountCtrl.dispose();
@@ -43,7 +47,16 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
     }
     if (prev == QuickEntryPhase.savedDialog && next != QuickEntryPhase.savedDialog) {
       _amountCtrl.clear(); // 繼續：金額清空（FR-Q5 Sticky 不含金額）
+      setState(() => _expr = ''); // 計算機運算式隨金額重設（F02 S2.9）
     }
+  }
+
+  /// 計算機輸入（F02 S2.9）：運算式 → 金額欄顯示＋controller 同步
+  /// （儲存啟用由 int.tryParse 決定——運算式未完成自然禁用）。
+  void _onKeypadExpr(String expr) {
+    setState(() => _expr = expr);
+    _amountCtrl.text = expr;
+    ref.read(quickEntryControllerProvider.notifier).setAmount(expr);
   }
 
   @override
@@ -64,36 +77,64 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // F02 S2.3：模式切換（支出/轉帳）——轉帳不適用分類/商家（UI 隱藏）。
+            SegmentedButton<QuickEntryMode>(
+              key: const Key('quick-entry-mode'),
+              segments: const [
+                ButtonSegment(value: QuickEntryMode.expense, label: Text('支出')),
+                ButtonSegment(value: QuickEntryMode.transfer, label: Text('轉帳')),
+              ],
+              selected: {state.mode},
+              onSelectionChanged: (modes) => controller.setMode(modes.first),
+            ),
+            const SizedBox(height: 12),
             _pickerField(
               key: const Key('quick-entry-account'),
-              label: '帳戶',
+              label: state.mode == QuickEntryMode.transfer ? '來源帳戶' : '帳戶',
               text: state.account?.name ?? '選擇帳戶',
               entries: accounts.map((a) => (a.id, a.name)),
               onSelected: controller.selectAccountById,
             ),
             const SizedBox(height: 12),
-            _pickerField(
-              key: const Key('quick-entry-category'),
-              label: '分類',
-              text: state.category?.name ?? '選擇分類',
-              entries: categories.map((c) => (c.id, c.name)),
-              onSelected: controller.selectCategoryById,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              key: const Key('quick-entry-merchant'),
-              decoration: const InputDecoration(labelText: '商家'),
-              onChanged: controller.setMerchant,
-            ),
-            const SizedBox(height: 12),
+            if (state.mode == QuickEntryMode.transfer) ...[
+              _pickerField(
+                key: const Key('quick-entry-target'),
+                label: '目標帳戶',
+                text: state.toAccount?.name ?? '選擇目標帳戶',
+                // 同帳戶轉帳 UI 阻擋（S2.3 邊界）：目標選項排除來源帳戶。
+                entries: accounts
+                    .where((a) => a.id != state.account?.id)
+                    .map((a) => (a.id, a.name)),
+                onSelected: controller.selectToAccountById,
+              ),
+              const SizedBox(height: 12),
+            ] else ...[
+              _pickerField(
+                key: const Key('quick-entry-category'),
+                label: '分類',
+                text: state.category?.name ?? '選擇分類',
+                entries: categories.map((c) => (c.id, c.name)),
+                onSelected: controller.selectCategoryById,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const Key('quick-entry-merchant'),
+                decoration: const InputDecoration(labelText: '商家'),
+                onChanged: controller.setMerchant,
+              ),
+              const SizedBox(height: 12),
+            ],
             TextField(
               key: const Key('quick-entry-amount'),
               controller: _amountCtrl,
               autofocus: true, // S1.1-5：金額欄自動聚焦（≤3 次點擊目標）
-              keyboardType: TextInputType.number,
+              // F02 S2.9：常駐計算機鍵盤輸入——none 不彈系統鍵盤（行動端）。
+              keyboardType: TextInputType.none,
               decoration: const InputDecoration(labelText: '金額'),
               onChanged: controller.setAmount,
             ),
+            // 常駐計算機鍵盤（F02 S2.9）：金額欄下方，＝ 求值即時入欄。
+            AmountKeypad(expr: _expr, onExprChanged: _onKeypadExpr),
             const SizedBox(height: 12),
             TextButton(
               key: const Key('quick-entry-time'),
@@ -116,7 +157,11 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
             const SizedBox(height: 24),
             FilledButton(
               key: const Key('quick-entry-save'),
-              onPressed: state.amount.isEmpty ? null : controller.save,
+              // F02 S2.1：金額必填且大於 0（空值/0 皆禁用）；轉帳另需目標帳戶。
+              onPressed: (int.tryParse(state.amount) ?? 0) <= 0 ||
+                      (state.mode == QuickEntryMode.transfer && state.toAccount == null)
+                  ? null
+                  : controller.save,
               child: const Text('儲存'),
             ),
           ],

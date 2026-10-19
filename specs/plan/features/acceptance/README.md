@@ -14,7 +14,7 @@
 | 檔案 | Feature | 對應需求 | 里程碑 | 情境數 |
 |---|---|---|---|---|
 | `F01_quick-entry.md` | 快速記帳與連續記帳 | FR-Q1~Q9 | M1 | 11 |
-| `F02_transactions-accounts.md` | 交易與帳戶餘額 | FR-T、FR-A | M1/M2 | 8 |
+| `F02_transactions-accounts.md` | 交易與帳戶餘額 | FR-T、FR-A | M1/M2 | 9 |
 | `F03_receipt-scan.md` | 發票掃描記帳 | FR-S1~S8 | M4 | 9 |
 | `F04_credit-card-billing.md` | 信用卡預扣與帳單 | FR-C1~C8、FR-A3 | M3 | 11 |
 | `F05_budget-income-goal.md` | 支出預算與收入目標 | FR-B2~B7、FR-O2 | M2 | 7 |

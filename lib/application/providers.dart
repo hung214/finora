@@ -6,6 +6,8 @@ import '../domain/entities/transaction.dart';
 import 'quick_entry/quick_entry_preset_service.dart';
 import 'quick_entry/save_transaction_use_case.dart';
 import 'quick_entry/undo_last_transaction_use_case.dart';
+import 'transactions/delete_transaction_use_case.dart';
+import 'transactions/restore_transaction_use_case.dart';
 
 /// App 資料庫（M1）。
 ///
@@ -27,6 +29,14 @@ final saveTransactionProvider =
 /// 復原上一筆（FR-Q3）。
 final undoLastTransactionProvider =
     Provider((ref) => UndoLastTransactionUseCase(ref.watch(dbProvider)));
+
+/// 刪除交易（FR-T3：明細列刪除入口，F02-FE）。
+final deleteTransactionProvider =
+    Provider((ref) => DeleteTransactionUseCase(ref.watch(dbProvider)));
+
+/// 還原交易（FR-T3：「最近刪除」還原，F02-FE）。
+final restoreTransactionProvider =
+    Provider((ref) => RestoreTransactionUseCase(ref.watch(dbProvider)));
 
 /// 未封存帳戶（快記/總覽）。
 final activeAccountsProvider = Provider((ref) =>
@@ -53,6 +63,27 @@ class LedgerNotifier extends Notifier<List<TxRow>> {
   }
 
   /// 儲存/復原後刷新（快記 controller 呼叫；明細即時反映 AC-02）。
+  void refresh() => ref.invalidateSelf();
+}
+
+/// 最近刪除（墓標，deleted_at 降冪；F02-FE「最近刪除」頁）。
+final recentDeletionsProvider =
+    NotifierProvider<RecentDeletionsNotifier, List<TxRow>>(
+        RecentDeletionsNotifier.new);
+
+class RecentDeletionsNotifier extends Notifier<List<TxRow>> {
+  @override
+  List<TxRow> build() {
+    final txs = ref
+        .watch(dbProvider)
+        .allTransactions()
+        .where((t) => t.deletedAt != null)
+        .toList()
+      ..sort((a, b) => b.deletedAt!.compareTo(a.deletedAt!));
+    return txs;
+  }
+
+  /// 刪除/還原後刷新。
   void refresh() => ref.invalidateSelf();
 }
 

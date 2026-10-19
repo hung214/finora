@@ -3,7 +3,7 @@
 | 項目 | 內容 |
 |---|---|
 | 用途 | **休息／中斷工作前**記錄當前進度，下次開工快速恢復；配套規範見 `specs/plan/tasks.md` §0 |
-| 原則 | ①離開前必填「目前快照＋下一步」②狀態同步回 `tasks.md` §6（🔴/🟢/🔵/✅）③工作變更必先 commit（或明確標註 WIP 原因） |
+| 原則 | ①離開前必填「目前快照＋下一步」②狀態同步回 `tasks.md` §6（🔴/🟢/🔵/✅）③工作變更必先 commit（或明確標註 WIP 原因）④**本地部署驗證**：整體軟體所有測試寫完＋全量綠燈後做**一次**（非每個功能做完就部署；PM 2026-10-20 指示），通過才 push ⑤執行每個任務前列出 TASK/TODOLIST 讓 PM 可見（PM 2026-10-19 指示） |
 
 ---
 
@@ -20,22 +20,22 @@
 
 | 欄位 | 內容 |
 |---|---|
-| 更新時間 | 2026-10-19 |
-| 階段 | **M1-F01 完成＋四輪部署/缺陷修復＋首次啟動播種落地**（v0.4.4 發佈中）。App 本機與 Release 皆可預覽：總覽/明細/快記全流程可用（現金＋內建分類自動就緒）。下一步：**M1-F02 交易帳戶**（帳戶/分類管理 UI） |
-| 當前分支 | main = e20c856（已推送）；v0.4.4 tag/release 管線進行中 |
-| 當前任務 | 本輪：①DBG-003 空帳本灰屏修復（preset.account 可空）②DBG-004 檔案 DB 二次啟動崩潰（_migrate 冪等化：user_version 閘＋既有表偵測）③release 流水線重構（單工作流串接＋Release 冪等自癒）④發佈格式定案（版本化檔名＋Inno Setup per-user exe／DMG／未簽名 IPA；MSIX 撤回；軟體內版本 dart-define）⑤首次啟動播種（內建集＋現金，oplog 同交易契約）。**60 測試全綠** |
-| 紅綠燈狀態 | `dart analyze` No issues；`flutter test` **60 全綠**；本機 exe 雙重啟動實測通過、DB 播種驗證通過（現金＋支出 4＋薪資） |
+| 更新時間 | 2026-10-20（macOS 跨電腦接手） |
+| 階段 | **M1 完成**（S1-2：T-F01＋T-F02 BE→FE 全綠；F02-FE 含 PM 增補之 S2.9 計算機鍵盤）。**部署驗證已通過（全 M1 唯一次）**。下一步：**gh auth → PR 合併回 main（觸發 v0.4.5 release）→ M2**（T-S2 schema v2 → F05 預算 → F10 報表；F02 遺留：拆分 S2.7／多幣別 S2.8） |
+| 當前分支 | feature/F02-transactions-accounts（17 commits，**已推送**；待 PR --no-ff 合併回 main） |
+| 當前任務 | 本輪：①F02-BE @P0 5 情境 🔴→🟢（金額驗證／轉帳守恆＋MonthlyStatsService／儲值 transfer／軟刪除＋TombstonePurge 30 天／還款＋creditUnpaidTotal）②F02-FE @P0 5 情境 🔴→🟢（禁用態／轉帳模式＋樣式／儲值文案／最近刪除還原 UI〔RestoreTransactionUseCase 補口〕／S2.9 計算機鍵盤）③harness 修復（feature rootBundle 資產載入——桌面 CWD；macOS 視窗 800×760） |
+| 紅綠燈狀態 | `dart analyze` No issues；unit **69 全綠**（61＋restore×2＋keypad×6）；**F02-FE 5 情境 macOS 實跑全綠**；F01-FE 回歸 7 情境全綠；macOS Release 46.9MB 建置＋啟動冒煙＋**檔案 DB 二次啟動**（DBG-004 回歸）通過 |
 | 工作區 | 乾淨（文件回寫後 commit） |
-| truth 對齊 | techstack v0.3.6（發佈格式定案；MSIX 撤回）；data-spec v0.3.1；debug.md DBG-003/004 結案；dsl.md BE 9＋FE 7 情境 |
-| 環境筆記 | **Release 教訓**：①GITHUB_TOKEN 推標籤不觸發下游工作流→主徑改單工作流串接（Release 冪等自癒）②build job checkout 標籤——**標籤內容必須含打包腳本修復**（v0.4.2 標籤滯後→Inno 舊路徑錯誤；未發佈標籤已重打到 28565fc）③release.yml 後備（手動推標籤）亦未觸發——**main push 為唯一可靠觸發路徑**。**Inno 本機除錯**：`~\tools\innosetup671\ISCC.exe`（同 CI 6.7.1）＋`~\tools\innosetup7`（7.1.0）。FE 測試：`flutter test integration_test/features/f01_quick_entry_test.dart -d windows`（7 情境）。gh 已裝未登入 |
-| 阻塞／待決 | ①v0.4.4 release 確認 ②v0.4.0/v0.4.2 壞包待刪（Releases 頁手動；gh auth 後可 CLI）③gh auth login ④SPEC FR-Q4 五段 vs 四段待 PM ⑤SP-1 SQLCipher（DB 明文）⑥F02 落地後檢視播種策略（保留/範例帳本）⑦**設定頁按原計畫屬 F07（M5-M6）**——FR-Q4 固定預設目前僅 BE 覆蓋無 UI，F07 設定頁補 |
+| truth 對齊 | techstack v0.3.6；data-spec v0.3.1；dsl.md **v0.5**（§2 BE 18＋§3 FE 16 句型）；acceptance F02 增補 S2.9（README 數 8→9）；debug.md 無新增 |
+| 環境筆記 | **本機 macOS**：Flutter 3.47.7（`~/flutter/flutter_sdk` 淺層 clone）。**F02 新教訓**：①integration_test 於桌面 App 行程內 CWD=`/`——feature 檔須 pubspec assets＋rootBundle（File 相對路徑失效，F01 同修）②句型 lazy match 前綴碰撞——變體（儲值/不含轉帳/且無分類/剩餘天數）**先於** base 登記 ③feature 層 @P0 被所有情境繼承——過濾須 `@BE&&@P0&&!@M2`／`@FE&&!@P1` ④綁定 per-test-file，複用句型須複製 ⑤常駐鍵盤版面→視窗高度需求（macOS xib 800×760；Windows 原 720 已足）⑥`TextInputType.none` 不彈系統鍵盤且 enterText 測試路徑相容（readOnly 則不相容）⑦FE 測試：`flutter test integration_test/features/fXX_..._test.dart -d macos` |
+| 阻塞／待決 | ①**gh auth login**（PR 流程＋壞包 CLI 刪除的前置）②v0.4.0/v0.4.2 壞包待刪 ③SPEC FR-Q4 五段 vs 四段待 PM ④SP-1 SQLCipher（DB 明文）⑤M2：多幣別 feature「餘額 900」數學矛盾待 PM 釋義（100USD×32=3200）⑥播種策略檢視（M2 討論）⑦repo 顯示名 `ledger_sync`（原 finora）——文件內連結注意 |
 
-## 3. 下一步（M1-F02 交易帳戶；下次開工照此執行）
+## 3. 下一步（PR 合併→M2；下次開工照此執行）
 
-1. **確認 release**：https://github.com/hung214/finora/actions 的 release 工作流（四平台）與 https://github.com/hung214/finora/releases 的 v0.4.0 產物。
-2. **讀規範**：acceptance `F02_transactions-accounts.md`＋`specs/plan/tests/backend/F02_transactions-accounts.feature`（6 情境：金額驗證、轉帳守恆、儲值語意、軟刪除、還款、多幣別）＋truth 對齊項（tx_kind/settlement_status enum——data-spec 已有，確認 schema v1 覆蓋）。
-3. **開分支** `feature/F02-transactions-accounts`，照 tasks.md §4.0：BE 情境逐條 🔴→🟢（每情境 ≥1 commit）→ FE（快記/明細擴充轉帳/收入/儲值/還款模式）。
-4. gh auth login 後恢復 PR 流程（gh 已裝 2.102.0）。
+1. **gh auth login**（互動式——PM 於終端執行；gh 2.102.0 已裝）。
+2. **PR**：`gh pr create --base main --head feature/F02-transactions-accounts`（標題帶 FR-T/FR-A/AC-10；附紅綠證據）→ `--no-ff` merge 回 main → **tag-on-main 自動 v0.4.5 release**（merge 前確認 pubspec version bump？§0 Tag 規則讀 pubspec——目前 0.4.4+1，若期望 v0.4.5 須先 bump）。
+3. **v0.4.0/v0.4.2 壞包刪除**：`gh release delete`（gh auth 後）。
+4. **M2 開工**：T-S2（schema v2：budgets／income_goals／transactions_fts——先改 data-spec.dbml truth）→ T-F05（BE 5 情境：閾值×2、含預扣、達標率、起始日）→ FE；之後 T-F10。F02 遺留 M2 項目（拆分 S2.7、多幣別 S2.8＋矛盾釋義）排入 M2 尾。
 5. 休息前照 §1 檢查清單更新本檔。
 
 ## 4. 恢復工作 SOP（下次開工照此執行）
@@ -50,6 +50,8 @@
 
 | 日期 | 摘要 | 分支 | 狀態 |
 |---|---|---|---|
+| 2026-10-20 | **F02-FE 完成＋S2.9 計算機（M1 全綠）**：F02-FE @P0 5 情境 🔴→🟢 macOS 實跑全綠（S1 金額 0/空值禁用／S2 快記轉帳模式＋明細 swap 樣式＋總覽千分位／S3 儲值文案／S4 最近刪除 30 曆日窗口＋還原 UI〔RestoreTransactionUseCase＋unit test〕）；**S2.9 金額計算機鍵盤**（PM 增補：常駐四則運算、＝ 左至右四捨五入整數元、÷0 no-op、連按運算子取代；macOS 視窗 800×760）；**harness 修復**：feature 檔 rootBundle 資產載入（桌面行程 CWD=/，File 相對路徑失效——F01 同修）；規範修正：本地部署驗證＝整體軟體全綠後**一次**、任務前必列 TODOLIST；analyze 0＋unit 69 綠＋F01-FE 回歸全綠；M1 部署驗證通過（Release 46.9MB＋檔案 DB 二次啟動） | feature/F02-transactions-accounts | 🔵（M1 全綠、已部署驗證、已 push、待 PR 合併） |
+| 2026-10-19 | **跨電腦接手（macOS）＋F02-BE 完成**：Flutter 3.27.1→**3.47.7 換裝**（truth 對齊；淺層 clone tag，回收 3.6G）；v0.4.4 release 確認（五產物齊全）；**F02-BE @BE @P0 5 情境 🔴→🟢**（6 commits：金額驗證 TransactionValidationException／轉帳守恆 UseCase kind/toAccountId＋MonthlyStatsService／儲值 transfer 語意／軟刪除 DeleteTransactionUseCase＋TombstonePurgeService 30 天／還款 creditUnpaidTotal 下限 0）；dsl v0.4（+18 句型，多幣別 3 條 @M2 deferred PM 確認）；**harness 教訓**：句型 lazy match 前綴碰撞（變體先於 base 登記）＋feature 層 @P0 繼承（過濾須 !@M2）；**61 測試全綠**；macOS Release 建置＋啟動冒煙＋播種驗證（push 前本地部署規範首次執行，PM 指示） | feature/F02-transactions-accounts | 🔵（BE 🟢 5/6、FE 待；已部署驗證已 push） |
 | 2026-10-19 | **部署實測回饋修復×3＋播種＋發佈格式定案**：DBG-003 空帳本灰屏（preset 可空＋FE 顯示選擇帳戶/儲存禁用）；DBG-004 檔案 DB 二次啟動崩潰（_migrate 冪等化：user_version 閘＋既有表偵測）；Release 流水線重構（單工作流串接＋冪等自癒——GITHUB_TOKEN 鏈式觸發失效為根因）；發佈格式（PM）：版本化檔名＋Inno Setup per-user exe（MSIX 撤回）＋DMG＋未簽名 IPA＋軟體內版本 dart-define；首次啟動播種（內建集＋現金，oplog 契約，PM 定案）；設定頁按原計畫屬 F07（PM）。60 測試全綠；v0.4.3/v0.4.4 發佈；本機 exe 預覽可用 | main | ✅（多 commit，v0.4.4 發佈中） |
 | 2026-10-19 | **T-F01-FE 完成（@P0 6 情境 🔴→🟢）＋分支整理**：C8 紅（c8c8515：dsl §3 登記 8 句型＋App 骨架＋FE harness；feature 背景順序修正）→ C9-C14 綠：S1 預填（1115b52）、S2 對話框（46990a5）、S3 Sticky＋S4 返回（a47ae1d）、S5 時間選擇器（ee57ae0）、S6 復原（593df0f）；**Windows 實跑 6 情境全綠（12s）**；harness 三教訓（KeyedSubtree 隔離/^ 錨點/@P1 過濾）；非 F01 之 2 commits 拆分至 main（62bd646 opencode、6912b8e TR-9） | feature/F01-quick-entry | 🔵（情境全綠、待 PR 合併） |
 | 2026-10-18 | **T-F01-BE 完成（8 情境 🔴→🟢）**：C1 紅（2618b13：dsl 登記＋BDD harness＋stubs；Undo 期望修正 1880 對齊 acceptance S1.8；dbml v0.3.1 settings key）→ C2-C7 綠：S1 時段/上一筆（6ec94af）、S2 商家（58ad00b）、S3 回退（dce4e9a）、S4 固定預設（24255eb）、S5 儲存事務（d045e12；S7 離線/S8 效能同）、S6 Undo 墓標（51a34cd）；57 測試全綠；opencode.json 修復（0d98087） | feature/F01-quick-entry | 🔵（BE 綠、FE 待、未合併） |

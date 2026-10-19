@@ -2,7 +2,7 @@
 
 | 項目 | 內容 |
 |---|---|
-| 文件版本 | v0.3（初版） |
+| 文件版本 | v0.5（F02 全期：§2 BE 18 句型＋§3 FE 16 句型（含 S2.9 計算機 4 句型）；多幣別 3 句型 @M2 暫緩綁定） |
 | 用途 | 前端／後端 `.feature` 檔的**步驟句型唯一登記處**。新步驟必須先登記於本檔再實作綁定；未登記句型視為違規 |
 | 綁定 | 前端：自製 Gherkin runner + integration_test（TR-9 過渡；同 T-H7）｜後端：自製 Gherkin runner + flutter_test |
 
@@ -53,6 +53,8 @@
 | `Given 設定 {key} = {value}` | settings upsert |
 | `Given 固定預設 = {account}/{category}` | `quick_entry.fixed_preset`（JSON：account_id/category_id） |
 | `Given 已儲存 {n} 筆（{amounts}）` | fixture 直寫 n 筆支出於第一個未封存帳戶（金額清單「、」分隔，依序遞減 1 分鐘） |
+| `Given 本月已支出 {expense}、收入 {income}` | fixture 直寫本月支出/收入各 1 筆於票證卡（本月統計基準線；不得落於該情境有餘額斷言之帳戶，F02 S2.3） |
+| `Given 已存在一筆支出 {amount} 元` | fixture 直寫 1 筆支出於第一個未封存帳戶並登記 id（刪除情境目標，F02 S2.5） |
 | `And 連線已關閉` | in-memory adapter 進入 failing 態（模擬離線） |
 
 ### 2.2 When（動作）
@@ -68,6 +70,12 @@
 | `When 執行 RepayStatementUseCase（帳單 {period}、金額 {amt}）` | 繳款 |
 | `When 以「{card}」記錄支出 {amt}` | SaveTransactionUseCase（信用卡語意） |
 | `When 建立轉帳「{from}」→「{to}」金額 {amt}` | transfer |
+| `When 建立轉帳「{from}」→「{to}」金額 {amt}（儲值）` | 同上（儲值語意註記；kind=transfer，FR-A5） |
+| `When 建立還款交易 來源={from} 目標={to} 金額 {amt}` | repayment（無分類；FR-T7） |
+| `When 呼叫 SaveTransactionUseCase（金額 {amt}）` | 最小參數驗證（F02 S2.1：金額規則） |
+| `When 刪除該筆交易` | DeleteTransactionUseCase（軟刪除+oplog 墓標，FR-T3） |
+| `When 模擬時間快轉 {days} 天並執行清除工作` | Clock 快轉＋TombstonePurgeService（30 天保留期，FR-T3） |
+| `When 呼叫 SaveTransactionUseCase（帳戶「{a}」、金額 {amount} {currency}、匯率 {rate}）` | **M2**（F02 S2.8 多幣別 @P1；M1 不綁定） |
 | `When 解析左側 QR 字串 "..." 與右側 QR 字串 "..."` | InvoiceQrParser 純函數 |
 | `When 對 OCR 文字 fixture 執行欄位抽取` | ReceiptPipeline heuristics |
 | `When 執行 SyncCoordinator.pull 與 push` | 同步 |
@@ -83,6 +91,16 @@
 |---|---|
 | `Then 交易 {id} 的 settlement_status = {status}` | DB 讀取 |
 | `Then 帳戶「{a}」重算餘額 = {amount}` | BalanceCalculator（衍生值斷言） |
+| `Then 帳戶「{card}」未繳合計 = {amount}（含還款抵扣）` | BalanceCalculator.creditUnpaidTotal（預扣−退款−還款抵扣，下限 0；M3 帳單引擎前骨架版） |
+| `Then 本月支出統計 = {amount}（不含轉帳）` | MonthlyStatsService（僅 kind=expense；AC-10 統計隔離） |
+| `Then 本月支出統計 = {amount}` | 同上（純值變體，S2.4/S2.6 用；匹配順序須後於「（不含轉帳）」變體） |
+| `Then 本月收入統計 = {amount}` | MonthlyStatsService（僅 kind=income） |
+| `Then 交易 kind = {kind}` | DB 讀取（最後一次 UseCase 建立之交易） |
+| `Then 交易 kind = {kind} 且無分類` | 同上＋category_id IS NULL（FR-T7 還款） |
+| `Then 顯示「{message}」且不入庫` | UseCase 驗證例外訊息＋交易/oplog 零新增（F02 S2.1） |
+| `Then 該筆墓標已物理清除（無法還原）` | transactionById 為 null（FR-T3 保留期屆滿；oplog 墓標保留，GC 屬 F07） |
+| `Then 交易保存原幣 {amount} 與 fx_rate {rate}` | **M2**（F02 S2.8；amount_minor 存原幣 minor units＋fx_rate REAL） |
+| `And 金額運算無浮點誤差（Money VO 斷言）` | **M2**（F02 S2.8；Money 整數 minor units 換算斷言） |
 | `Then 產生帳單 {period}、應繳 {amount}、繳款日 {date}` | statements |
 | `Then 帳單狀態 = {status}、已繳 {amount}、剩餘 {amount}` | statements |
 | `Then oplog 新增 {n} 筆且皆未打包` | oplog |
@@ -115,7 +133,7 @@
 |---|---|
 | `Given App 已完成首次設定` | 啟動至總覽（略過引導） |
 | `Given 使用者位於{page}頁` | 導航至該分頁（NavigationBar 點選；同句型之 Then 用法見 §3.3） |
-| `Given 已建立帳戶「{name}」(餘額 {amount})` | fixture API（同 BE 語意；未標類型 → cash，FE 情境不涉類型語意） |
+| `Given 已建立帳戶「{name}」(餘額 {amount})` | fixture API（同 BE 語意；未標類型 → 內建集名稱對映：票證卡=ewallet、銀行=bank、其餘 cash——F02 儲值語意需類型） |
 | `Given 已建立分類{names}` | categories（連續「名稱」緊接；「其他」為內建 is_system；同 BE 語意） |
 | `Given 歷史交易: {描述}` | fixture API。段型：①`昨日 HH:MM 帳戶/分類/商家 金額 元`（單筆支出）②`本週{時段}帳戶/分類 N 筆`（前 N 日同時段各 1 筆）——**須在「模擬系統時間」之後**（相對日以凍結時間為基準） |
 | `Given 模擬系統時間為 {datetime}` | fake clock 凍結 |
@@ -123,6 +141,7 @@
 | `Given 已儲存 {n} 筆（{account}/{category}/{merchant}）並於對話框按「繼續」` | 逐筆：設定→儲存→按「繼續」（Sticky 觸發；金額未標 → 120） |
 | `Given 已於本 session 儲存 {n} 筆` | 前 n-1 筆儲存後按「繼續」，第 n 筆儲存後**留於對話框**（復原入口） |
 | `Given 帳本為全新空本（無帳戶/分類/交易）` | 以全新 in-memory DB 替換（fixture 層；DBG-003 回歸用——App 未 pump 前生效） |
+| `Given 已存在一筆支出 {amount} 元` | fixture 直寫 1 筆支出（第一個未封存帳戶）並凍結基準日 2026/10/19 12:00（對齊情境日期算術：2026/11/18 = +30 日；F02-FE S4） |
 | `Given 裝置處於飛航模式` | 連線模擬關閉 |
 | `Given 同步模式設定為「{mode}」` | settings 寫入 |
 
@@ -133,6 +152,12 @@
 | `When 開啟快速記帳頁` / `When 按下 Ctrl+N（macOS 為 ⌘N）` | 快記入口 |
 | `When 開啟快速記帳頁並連續記錄 {n} 筆後按下「完成」` | 開快記→連存 n 筆（每筆按繼續，末筆按完成）→返回原分頁（S1.9） |
 | `When 輸入金額 {amount}` | 鍵盤輸入 |
+| `When 開啟支出記錄` | 開啟快記（預設支出模式；F02-FE S1 同「開啟快速記帳頁」） |
+| `When 以計算機鍵盤計算 {expr}` | 逐鈕點按（數字逐位＋運算子＋＝；`+ - * /` 映射鍵面 ＋－×÷）；＝求值寫入金額欄（左至右、TWD 四捨五入至整數元；F02-FE S2.9） |
+| `When 於計算機鍵盤按 {key}` | 單鈕點按（C 清空／⌫ 退位；F02-FE S2.9） |
+| `When 建立轉帳「{from}」→「{to}」金額 {amt}` | 快記轉帳模式：開快記→切轉帳→選來源/目標→輸入→儲存→完成（F02-FE S2） |
+| `When 建立「儲值」交易 {to} 金額 {amt} 來源={from}` | 同轉帳（目標=票證卡；F02-FE S3） |
+| `When 刪除該筆交易` | 明細列 → 刪除動作（bottom sheet「刪除」；軟刪除，F02-FE S4） |
 | `When 按下「{label}」` | 點擊可見文字按鈕 |
 | `When 點擊時間欄位` | 時間選擇器 |
 | `When 掃描標準測資發票（左QR+右QR）` | 影像回放注入掃描器 |
@@ -153,6 +178,15 @@
 | `Then 儲存按鈕為禁用狀態` | enabled=false |
 | `Then 明細頁即時顯示該 {n} 筆` | 清單斷言 |
 | `Then 顯示「{text}」` / `Then 不顯示「{text}」` | 文字存在性（「日期時間選擇器」綁定 find.byType(QuickDateTimePicker)） |
+| `Then 顯示「{text}」且為可點擊` | 文字存在＋對應按鈕 enabled（F02-FE S1 儲存鈕啟用） |
+| `Then 金額欄下方顯示常駐計算機鍵盤` | find.byKey(amount-keypad)；金額欄 readOnly 不彈系統鍵盤（F02-FE S2.9） |
+| `Then 金額欄顯示 {value}` | 金額欄 text == value（＝ 求值結果；TWD 四捨五入整數元） |
+| `Then 顯示「{label}」樣式（非支出圖示）` | 明細列樣式：textContaining({label})＋轉帳圖示 swap_horiz（F02-FE S2） |
+| `Then 顯示「{text}」（不顯示「{other}」）` | 組合斷言：儲值文案出現且支出字樣不出現（F02-FE S3） |
+| `Then 帳戶「{name}」餘額顯示為 {amount}` | 總覽餘額卡（千分位格式；導航至總覽分頁後 find.text，F02-FE S2） |
+| `Then 明細頁即時顯示該 {n} 筆（已移除）` | 該 session 金額文字自明細消失（軟刪除即時反映，F02-FE S4） |
+| `Then 設定→「最近刪除」顯示 {n} 筆（剩餘 {days} 天）` | RecentDeletionsPage：墓標列數＋「剩餘 N 天」文字（M1 入口＝明細 AppBar；設定頁整體屬 F07；剩餘天數以**曆日**計，F02-FE S4） |
+| `Then 設定→「最近刪除」顯示 {n} 筆` | 同上（無剩餘天數限定；0 筆＝空狀態） |
 | `Then 進度條為警示色（{color}）` | 樣式斷言 + 截圖 |
 | `Then 金額全部顯示為 ●●●●` | 遮蔽 |
 | `Then 出現鎖定畫面` | lock screen |

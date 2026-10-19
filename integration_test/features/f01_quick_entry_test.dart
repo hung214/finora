@@ -1,6 +1,5 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -21,12 +20,13 @@ import '../../test/helpers/gherkin/gherkin.dart';
 /// F01-FE 情境執行器（@FE @M1 @FR-Q @P0，6 情境；S1.11 @P1 @desktop 過濾）。
 ///
 /// 來源：specs/plan/tests/frontend/F01_quick-entry.feature（sync_features.ps1
-/// 同步副本）。句型登記簿：specs/plan/tests/dsl.md §3。綁定：T-H7 自製 runner
-/// （TR-9）＋ integration_test；背景每情境重建 App（in-memory DB 直寫）。
+/// 同步副本，pubspec 資產入包——桌面 App 行程 CWD 非專案根，須 rootBundle 讀）。
+/// 句型登記簿：specs/plan/tests/dsl.md §3。綁定：T-H7 自製 runner（TR-9）＋
+/// integration_test；背景每情境重建 App（in-memory DB 直寫）。
 Future<void> main() async {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-  final doc = GherkinParser.parse(
-      File('integration_test/features/F01_quick-entry.feature').readAsStringSync());
+  final doc = GherkinParser.parse(await rootBundle
+      .loadString('integration_test/features/F01_quick-entry.feature'));
 
   testWidgets('F01-FE：快記 UI（6 情境：預填/對話框/Sticky/完成/時間/復原）',
       (tester) async {

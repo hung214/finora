@@ -5,6 +5,16 @@ import 'package:uuid/uuid.dart';
 import '../../core/clock.dart';
 import '../../core/hlc.dart';
 import '../../data/sqlite/app_database.dart';
+import '../../domain/entities/transaction.dart';
+
+/// 交易驗證失敗（[message] 為 FE 顯示契約；BE BDD 斷言同一訊息，F02 S2.1）。
+class TransactionValidationException implements Exception {
+  const TransactionValidationException(this.message);
+  final String message;
+
+  @override
+  String toString() => message;
+}
 
 /// 儲存結果：回傳入庫交易 id（FE 對話框/Undo 用）。
 class SaveTransactionResult {
@@ -28,9 +38,13 @@ class SaveTransactionUseCase {
   /// HLC 裝置 id（M1 本地單機；F07 多裝置時由裝置註冊提供）。
   final String deviceId;
 
-  /// 記一筆（快記預設為支出；轉帳/收入/還款由 F02 擴充參數）。
+  /// 記一筆（F02 擴充：kind 預設支出；transfer/repayment 須 [toAccountId]）。
   ///
   /// [occurredAt] 允許回填（S1.5）；id 以 UUIDv7（data-spec）；HLC 依 [Clock] 取時。
+  /// 契約：
+  /// - 金額一律整數 minor units 且為正（方向由 kind 決定，SDD §4.2）。
+  /// - transfer/repayment 須指定**相異**目標帳戶（同帳戶轉帳 UI 阻擋，BE 為後備防線）。
+  /// - transfer/repayment 不適用分類（S2.6：還款固定還款語意，無分類選擇器）。
   SaveTransactionResult execute({
     required String accountId,
     String? categoryId,
@@ -38,19 +52,26 @@ class SaveTransactionUseCase {
     required DateTime occurredAt,
     String? merchant,
     String? note,
+    TxKind kind = TxKind.expense,
+    String? toAccountId,
   }) {
     if (amountMinor <= 0) {
-      throw ArgumentError.value(amountMinor, 'amountMinor', '金額須為正整數 minor units');
+      // F02 S2.1：金額必填且大於 0（0 或空值皆不得入庫；訊息為 FE 顯示契約）。
+      throw const TransactionValidationException('驗證失敗：金額必須大於 0');
+    }
+    final isCrossAccount = kind == TxKind.transfer || kind == TxKind.repayment;
+    if (isCrossAccount && (toAccountId == null || toAccountId == accountId)) {
+      throw const TransactionValidationException('驗證失敗：轉帳須指定相異目標帳戶');
     }
     final now = Clock.now();
     final row = TxRow(
       id: const Uuid().v7(),
-      kind: 'expense',
+      kind: kind.name,
       amountMinor: amountMinor,
       currency: 'TWD',
       accountId: accountId,
-      toAccountId: null,
-      categoryId: categoryId,
+      toAccountId: isCrossAccount ? toAccountId : null,
+      categoryId: isCrossAccount ? null : categoryId,
       merchant: merchant,
       note: note,
       occurredAt: occurredAt.millisecondsSinceEpoch,

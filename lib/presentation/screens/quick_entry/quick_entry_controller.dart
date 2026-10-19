@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../application/providers.dart';
 import '../../../core/clock.dart';
 import '../../../data/sqlite/app_database.dart';
+import '../../../domain/entities/transaction.dart';
 
 /// 快記狀態機階段（SDD §5.1）。
 enum QuickEntryPhase {
@@ -12,11 +13,16 @@ enum QuickEntryPhase {
   savedDialog,
 }
 
+/// 快記模式（F02：支出／轉帳；收入/還款模式隨 M2+ 情境擴充）。
+enum QuickEntryMode { expense, transfer }
+
 /// 快記狀態（SDD §5.1；Sticky 欄位＝帳戶/分類/商家，金額/時間每筆重設）。
 class QuickEntryState {
   const QuickEntryState({
     required this.phase,
+    this.mode = QuickEntryMode.expense,
     this.account,
+    this.toAccount,
     this.category,
     this.merchant = '',
     this.amount = '',
@@ -26,7 +32,13 @@ class QuickEntryState {
   });
 
   final QuickEntryPhase phase;
+
+  /// 記帳模式（F02 S2.3：轉帳不適用分類/商家，UI 隱藏之）。
+  final QuickEntryMode mode;
   final AccountRow? account;
+
+  /// 轉帳目標帳戶（transfer 專用；BE 驗證須相異）。
+  final AccountRow? toAccount;
   final CategoryRow? category;
   final String merchant;
 
@@ -42,7 +54,10 @@ class QuickEntryState {
 
   QuickEntryState copyWith({
     QuickEntryPhase? phase,
+    QuickEntryMode? mode,
     AccountRow? account,
+    AccountRow? toAccount,
+    bool clearToAccount = false,
     CategoryRow? category,
     String? merchant,
     String? amount,
@@ -52,7 +67,9 @@ class QuickEntryState {
   }) =>
       QuickEntryState(
         phase: phase ?? this.phase,
+        mode: mode ?? this.mode,
         account: account ?? this.account,
+        toAccount: clearToAccount ? null : (toAccount ?? this.toAccount),
         category: category ?? this.category,
         merchant: merchant ?? this.merchant,
         amount: amount ?? this.amount,
@@ -132,23 +149,65 @@ class QuickEntryController extends AutoDisposeNotifier<QuickEntryState> {
     throw StateError('分類不存在：$name');
   }
 
+  // ── 模式與目標帳戶（F02 S2.3 轉帳） ──────────────────────
+
+  /// 切換模式（支出/轉帳）：轉帳不適用分類/商家（BE 強制 null），UI 隱藏之；
+  /// 目標帳戶隨模式重選（來源帳戶保留）。
+  void setMode(QuickEntryMode mode) {
+    if (mode == state.mode) return;
+    state = state.copyWith(mode: mode, clearToAccount: true);
+  }
+
+  void selectToAccountById(String? id) {
+    if (id == null) return;
+    for (final a in ref.read(activeAccountsProvider)) {
+      if (a.id == id && a.id != state.account?.id) {
+        state = state.copyWith(toAccount: a, phase: QuickEntryPhase.inputting);
+        return;
+      }
+    }
+  }
+
+  /// 依名稱選目標帳戶（BDD 綁定用；同帳戶/不存在拋錯——UI 阻擋同帳戶轉帳）。
+  void selectToAccount(String name) {
+    for (final a in ref.read(activeAccountsProvider)) {
+      if (a.name == name && a.id != state.account?.id) {
+        state = state.copyWith(toAccount: a, phase: QuickEntryPhase.inputting);
+        return;
+      }
+    }
+    throw StateError('目標帳戶不存在（或與來源相同）：$name');
+  }
+
   // ── 儲存/繼續/復原（SDD §5.1 狀態機） ─────────────────────
 
-  /// 儲存（FR-Q5）：成功 → SavedDialog（顯示本次已記 N 筆）；失敗回
-  /// Inputting 保留輸入＋錯誤提示（SDD §5.1）。
+  /// 儲存（FR-Q5／F02 S2.3 轉帳）：成功 → SavedDialog（顯示本次已記 N 筆）；
+  /// 失敗回 Inputting 保留輸入＋錯誤提示（SDD §5.1）。
   void save() {
     if (state.account == null || state.amount.isEmpty) return;
     final amountMinor = int.tryParse(state.amount);
     if (amountMinor == null || amountMinor <= 0) return; // 非法輸入：停留輸入態
+    if (state.mode == QuickEntryMode.transfer && state.toAccount == null) return;
     state = state.copyWith(phase: QuickEntryPhase.committing);
     final sw = Stopwatch()..start();
-    ref.read(saveTransactionProvider).execute(
-          accountId: state.account!.id,
-          categoryId: state.category?.id,
-          amountMinor: amountMinor,
-          occurredAt: state.occurredAt,
-          merchant: state.merchant.isEmpty ? null : state.merchant,
-        );
+    if (state.mode == QuickEntryMode.transfer) {
+      // F02 S2.3：轉帳守恆（AC-10）——不計入收支統計；BE 驗證相異帳戶。
+      ref.read(saveTransactionProvider).execute(
+            accountId: state.account!.id,
+            amountMinor: amountMinor,
+            occurredAt: state.occurredAt,
+            kind: TxKind.transfer,
+            toAccountId: state.toAccount!.id,
+          );
+    } else {
+      ref.read(saveTransactionProvider).execute(
+            accountId: state.account!.id,
+            categoryId: state.category?.id,
+            amountMinor: amountMinor,
+            occurredAt: state.occurredAt,
+            merchant: state.merchant.isEmpty ? null : state.merchant,
+          );
+    }
     // NFR-01 UI 計時（S1.6）：純入庫耗時（BE P95 已驗 <300ms）。
     state = state.copyWith(
       phase: QuickEntryPhase.savedDialog,
