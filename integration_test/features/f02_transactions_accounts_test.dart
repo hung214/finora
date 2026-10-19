@@ -1,9 +1,13 @@
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:ledger_sync/application/providers.dart';
 import 'package:ledger_sync/core/clock.dart';
 import 'package:ledger_sync/data/sqlite/app_database.dart';
+import 'package:ledger_sync/presentation/app_shell.dart';
+import 'package:ledger_sync/presentation/screens/quick_entry/quick_entry_page.dart';
 
 import '../../test/helpers/db_fixture.dart';
 import '../../test/helpers/gherkin/gherkin.dart';
@@ -118,6 +122,64 @@ void _bind(GherkinRunner runner, _World w) {
       w.categories[name] = id;
     }
   });
+
+  // ── Given：App 與快記（沿 F01 模式；每情境唯一 Key 強制重建樹）──
+  runner.on(r'使用者位於{page}頁$', (p) async {
+    await _ensureApp(w);
+    // F02 情境僅斷言總覽/明細（分頁斷言綁定於各 Then 內處理）。
+  });
+
+  // ── When：金額驗證（F02-FE S1）───────────────────────────
+  runner.on(r'開啟支出記錄$', (p) async => _ensureQuickEntry(w));
+
+  runner.on(r'輸入金額 {amount}$', (p) async {
+    await _ensureQuickEntry(w);
+    await w.tester.enterText(find.byKey(const Key('quick-entry-amount')), p['amount']!);
+    await w.tester.pump();
+  });
+
+  // ── Then：儲存按鈕狀態（F02-FE S1；dsl §3.3）──────────────
+  runner.on(r'儲存按鈕為禁用狀態$', (p) async {
+    final btn =
+        w.tester.widget<FilledButton>(find.byKey(const Key('quick-entry-save')));
+    expect(btn.onPressed, isNull, reason: '儲存應為禁用（dsl §3.3：enabled=false）');
+  });
+
+  runner.on(r'顯示「{text}」且為可點擊$', (p) async {
+    expect(find.text(p['text']!), findsOneWidget, reason: '應顯示「${p['text']}」');
+    final btn =
+        w.tester.widget<FilledButton>(find.byKey(const Key('quick-entry-save')));
+    expect(btn.onPressed, isNotNull, reason: '「${p['text']}」應為可點擊（enabled）');
+  });
+}
+
+// ── 綁定輔助（沿 F01 模式）─────────────────────────────────
+
+Future<void> _ensureApp(_World w) async {
+  if (w.pumped) return;
+  final container = ProviderContainer(overrides: [
+    dbProvider.overrideWithValue(w.db!),
+  ]);
+  w.containers.add(container);
+  w.container = container;
+  // 每情境以唯一 Key 強制重建整棵樹——否則 const AppShell 會複用 element，
+  // Navigator 路由堆疊（前情境的快記頁/對話框）殘留並掛著舊 container/DB。
+  await w.tester.pumpWidget(
+    KeyedSubtree(
+      key: ValueKey('app-shell-${w.dbs.length}'),
+      child: UncontrolledProviderScope(container: container, child: const AppShell()),
+    ),
+  );
+  await w.tester.pumpAndSettle();
+  w.pumped = true;
+}
+
+Future<void> _ensureQuickEntry(_World w) async {
+  await _ensureApp(w);
+  if (w.tester.any(find.byType(QuickEntryPage))) return;
+  await w.tester.tap(find.byKey(const Key('fab-quick-entry')));
+  await w.tester.pumpAndSettle();
+  expect(w.tester.any(find.byType(QuickEntryPage)), isTrue, reason: '快記頁應已開啟');
 }
 
 int _amount(String s) => int.parse(s.trim().replaceAll(',', ''));

@@ -116,7 +116,8 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
             const SizedBox(height: 24),
             FilledButton(
               key: const Key('quick-entry-save'),
-              onPressed: state.amount.isEmpty ? null : controller.save,
+              // F02 S2.1：金額必填且大於 0——空值或 0 皆禁用（即時切換，無延遲）。
+              onPressed: (int.tryParse(state.amount) ?? 0) <= 0 ? null : controller.save,
               child: const Text('儲存'),
             ),
           ],
