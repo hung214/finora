@@ -31,7 +31,7 @@ void main() {
     try {
       final executed =
           await runner.run(doc, tagFilter: (tags) => tags.contains('@BE') && tags.contains('@P0'));
-      expect(executed, 8, reason: 'F01-BE 應執行 8 個情境（@BE @P0）');
+      expect(executed, 9, reason: 'F01-BE 應執行 9 個情境（@BE @P0，含 DBG-003 回歸）');
       // ignore: avoid_print
       print(runner.log.join('\n'));
     } finally {
@@ -211,6 +211,21 @@ void _bind(GherkinRunner runner, _World w) {
     expect(w.db.allTransactions(), isEmpty, reason: '背景不應殘留交易');
   });
 
+  runner.on(r'帳本為全新空本（無帳戶/分類/交易）$', (p) {
+    // DBG-003 回歸：以全新空 DB 替換——背景所建帳戶/分類/歷史全數作廢，
+    // 服務/UseCase 重新指向新 DB（fixture 層，dsl §1.5）。
+    final db = DbFixture.create();
+    w.dbs.add(db);
+    w.db = db;
+    w.accounts.clear();
+    w.categories.clear();
+    w.save = SaveTransactionUseCase(db);
+    w.undo = UndoLastTransactionUseCase(db);
+    w.preset = QuickEntryPresetService(db);
+    w.presetResult = null;
+    w.opBaseline = 0;
+  });
+
   runner.on(r'設定 {key} = {value}$', (p) => w.db.setSetting(p['key']!, p['value']!));
 
   runner.on(r'固定預設 = {account}/{category}$', (p) {
@@ -292,12 +307,21 @@ void _bind(GherkinRunner runner, _World w) {
   // ── Then：預設輸出 ───────────────────────────────────────
   runner.on(r'預設帳戶 = 「{name}」$', (p) {
     expect(w.presetResult, isNotNull);
-    expect(w.presetResult!.account.name, p['name'], reason: 'FR-Q4 預設帳戶');
+    expect(w.presetResult!.account?.name, p['name'], reason: 'FR-Q4 預設帳戶');
   });
 
   runner.on(r'預設帳戶 = 第一個未封存帳戶$', (p) {
     expect(w.presetResult, isNotNull);
-    expect(w.presetResult!.account.id, _firstActiveAccount(w.db).id, reason: 'S1.3 回退規則');
+    expect(w.presetResult!.account?.id, _firstActiveAccount(w.db).id, reason: 'S1.3 回退規則');
+  });
+
+  runner.on(r'預設帳戶為空（待帳戶建立）$', (p) {
+    expect(w.presetResult, isNotNull);
+    expect(w.presetResult!.account, isNull, reason: 'DBG-003：空帳本不崩潰，帳戶回退 null');
+  });
+
+  runner.on(r'預設分類為空（內建集隨首次設定落地）$', (p) {
+    expect(w.presetResult!.category, isNull, reason: '內建集 seeding 屬 F02（首次設定）');
   });
 
   runner.on(r'預設分類 = 「{name}」$', (p) {

@@ -67,3 +67,10 @@ Feature: 快速記帳領域邏輯（後端自動化）
   Scenario: 效能_儲存 < 300ms
     When 呼叫 SaveTransactionUseCase（帳戶「現金」、分類「餐飲」、金額 120、時間 2026/10/18 08:00）計時 100 次
     Then 效能：入庫耗時 299ms < 300ms（P95）
+
+  @P0 @FR-Q4
+  Scenario: 智慧預設_空帳本不崩潰
+    Given 帳本為全新空本（無帳戶/分類/交易）
+    When 呼叫 QuickEntryPresetService 計算預設
+    Then 預設帳戶為空（待帳戶建立）
+    And 預設分類為空（內建集隨首次設定落地）

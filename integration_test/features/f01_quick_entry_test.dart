@@ -39,7 +39,7 @@ Future<void> main() async {
         // 以明確排除處理。
         return tags.contains('@FE') && !tags.contains('@P1');
       });
-      expect(executed, 6, reason: 'F01-FE 應執行 6 個情境（@FE @P0；S1.11 @P1 M2 排除）');
+      expect(executed, 7, reason: 'F01-FE 應執行 7 個情境（@FE @P0 含 DBG-003 回歸；S1.11 @P1 M2 排除）');
       // ignore: avoid_print
       print(runner.log.join('\n'));
     } finally {
@@ -156,9 +156,19 @@ void _bind(GherkinRunner runner, _World w) {
     }
   });
 
+  // ── Given：空帳本（DBG-003 回歸）──────────────────────────
+  runner.on(r'帳本為全新空本（無帳戶/分類/交易）$', (p) async {
+    // 以全新空 DB 替換；情境內尚未 pump（背景僅建資料），_ensureApp 將以空本啟動。
+    final db = DbFixture.create();
+    w.dbs.add(db);
+    w.db = db;
+    w.pumped = false;
+    w.accounts.clear();
+    w.categories.clear();
+  });
+
   // ── Given：頁面與快記狀態 ──────────────────────────────────
-  runner.on(r'使用者位於{page}頁$', (p) async {
-    await _ensureApp(w);
+  runner.on(r'使用者位於{page}頁$', (p) async {    await _ensureApp(w);
     final page = _pageWidget(p['page']!);
     if (!w.tester.any(find.byType(page))) {
       // Given 語意：導航至該分頁（NavigationBar）。
@@ -252,6 +262,12 @@ void _bind(GherkinRunner runner, _World w) {
 
   runner.on(r'金額欄為空$', (p) async {
     expect(_amountEditableState(w).widget.controller.text, isEmpty, reason: '金額欄應為空');
+  });
+
+  runner.on(r'儲存按鈕為禁用狀態$', (p) async {
+    final btn =
+        w.tester.widget<FilledButton>(find.byKey(const Key('quick-entry-save')));
+    expect(btn.onPressed, isNull, reason: '儲存應為禁用（DSL §3.3：enabled=false）');
   });
 
   // ── Then：對話框與計時 ────────────────────────────────────
