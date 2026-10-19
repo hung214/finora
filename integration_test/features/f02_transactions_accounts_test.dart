@@ -3,10 +3,12 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:intl/intl.dart';
 import 'package:ledger_sync/application/providers.dart';
 import 'package:ledger_sync/core/clock.dart';
 import 'package:ledger_sync/data/sqlite/app_database.dart';
 import 'package:ledger_sync/presentation/app_shell.dart';
+import 'package:ledger_sync/presentation/screens/quick_entry/quick_entry_controller.dart';
 import 'package:ledger_sync/presentation/screens/quick_entry/quick_entry_page.dart';
 
 import '../../test/helpers/db_fixture.dart';
@@ -151,6 +153,46 @@ void _bind(GherkinRunner runner, _World w) {
         w.tester.widget<FilledButton>(find.byKey(const Key('quick-entry-save')));
     expect(btn.onPressed, isNotNull, reason: '「${p['text']}」應為可點擊（enabled）');
   });
+
+  // ── When：轉帳（F02-FE S2/S3）───────────────────────────
+  runner.on(r'建立轉帳「{from}」→「{to}」金額 {amt}$', (p) async =>
+      _saveTransfer(w, from: p['from']!, to: p['to']!, amount: p['amt']!));
+
+  // ── Then：明細與餘額（F02-FE S2/S3）──────────────────────
+  runner.on(r'明細頁即時顯示該 {n} 筆$', (p) async {
+    final n = int.parse(p['n']!);
+    var visible = 0;
+    for (final amt in w.sessionExpenses) {
+      if (w.tester.any(find.text('-$amt', skipOffstage: false))) visible++;
+    }
+    for (final amt in w.sessionTransfers) {
+      if (w.tester.any(find.text('$amt', skipOffstage: false))) visible++;
+    }
+    expect(visible, n, reason: '本次 session 應有 $n 筆即時顯示於明細');
+  });
+
+  runner.on(r'顯示「{label}」樣式（非支出圖示）$', (p) async {
+    expect(
+      w.tester.any(find.text(p['label']!, skipOffstage: false)),
+      isTrue,
+      reason: '應顯示「${p['label']}」樣式',
+    );
+    expect(
+      w.tester.any(find.byIcon(Icons.swap_horiz, skipOffstage: false)),
+      isTrue,
+      reason: '轉帳圖示（非支出圖示）',
+    );
+  });
+
+  runner.on(r'帳戶「{name}」餘額顯示為 {amount}$', (p) async {
+    await _ensureApp(w);
+    // 導航至總覽（NavigationBar；冪等——已作用中再點無副作用）。
+    await w.tester.tap(find.descendant(
+        of: find.byType(NavigationBar), matching: find.text('總覽')));
+    await w.tester.pumpAndSettle();
+    final fmt = NumberFormat('#,###').format(_amount(p['amount']!));
+    expect(find.text('餘額 $fmt'), findsOneWidget, reason: '總覽餘額卡（千分位）');
+  });
 }
 
 // ── 綁定輔助（沿 F01 模式）─────────────────────────────────
@@ -180,6 +222,27 @@ Future<void> _ensureQuickEntry(_World w) async {
   await w.tester.tap(find.byKey(const Key('fab-quick-entry')));
   await w.tester.pumpAndSettle();
   expect(w.tester.any(find.byType(QuickEntryPage)), isTrue, reason: '快記頁應已開啟');
+}
+
+/// 建立轉帳（S2/S3 共用）：切轉帳模式 → 選來源/目標 → 輸入 → 儲存 → 完成。
+Future<void> _saveTransfer(
+  _World w, {
+  required String from,
+  required String to,
+  required String amount,
+}) async {
+  await _ensureQuickEntry(w);
+  final ctrl = w.container!.read(quickEntryControllerProvider.notifier);
+  ctrl.setMode(QuickEntryMode.transfer);
+  ctrl.selectAccount(from);
+  ctrl.selectToAccount(to);
+  await w.tester.enterText(find.byKey(const Key('quick-entry-amount')), amount);
+  await w.tester.pump();
+  ctrl.save();
+  w.sessionTransfers.add(int.parse(amount));
+  await w.tester.pumpAndSettle(); // SavedDialog
+  await w.tester.tap(find.text('完成'));
+  await w.tester.pumpAndSettle(); // 返回主殼
 }
 
 int _amount(String s) => int.parse(s.trim().replaceAll(',', ''));

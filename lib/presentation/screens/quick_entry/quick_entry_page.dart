@@ -64,28 +64,53 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // F02 S2.3：模式切換（支出/轉帳）——轉帳不適用分類/商家（UI 隱藏）。
+            SegmentedButton<QuickEntryMode>(
+              key: const Key('quick-entry-mode'),
+              segments: const [
+                ButtonSegment(value: QuickEntryMode.expense, label: Text('支出')),
+                ButtonSegment(value: QuickEntryMode.transfer, label: Text('轉帳')),
+              ],
+              selected: {state.mode},
+              onSelectionChanged: (modes) => controller.setMode(modes.first),
+            ),
+            const SizedBox(height: 12),
             _pickerField(
               key: const Key('quick-entry-account'),
-              label: '帳戶',
+              label: state.mode == QuickEntryMode.transfer ? '來源帳戶' : '帳戶',
               text: state.account?.name ?? '選擇帳戶',
               entries: accounts.map((a) => (a.id, a.name)),
               onSelected: controller.selectAccountById,
             ),
             const SizedBox(height: 12),
-            _pickerField(
-              key: const Key('quick-entry-category'),
-              label: '分類',
-              text: state.category?.name ?? '選擇分類',
-              entries: categories.map((c) => (c.id, c.name)),
-              onSelected: controller.selectCategoryById,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              key: const Key('quick-entry-merchant'),
-              decoration: const InputDecoration(labelText: '商家'),
-              onChanged: controller.setMerchant,
-            ),
-            const SizedBox(height: 12),
+            if (state.mode == QuickEntryMode.transfer) ...[
+              _pickerField(
+                key: const Key('quick-entry-target'),
+                label: '目標帳戶',
+                text: state.toAccount?.name ?? '選擇目標帳戶',
+                // 同帳戶轉帳 UI 阻擋（S2.3 邊界）：目標選項排除來源帳戶。
+                entries: accounts
+                    .where((a) => a.id != state.account?.id)
+                    .map((a) => (a.id, a.name)),
+                onSelected: controller.selectToAccountById,
+              ),
+              const SizedBox(height: 12),
+            ] else ...[
+              _pickerField(
+                key: const Key('quick-entry-category'),
+                label: '分類',
+                text: state.category?.name ?? '選擇分類',
+                entries: categories.map((c) => (c.id, c.name)),
+                onSelected: controller.selectCategoryById,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const Key('quick-entry-merchant'),
+                decoration: const InputDecoration(labelText: '商家'),
+                onChanged: controller.setMerchant,
+              ),
+              const SizedBox(height: 12),
+            ],
             TextField(
               key: const Key('quick-entry-amount'),
               controller: _amountCtrl,
@@ -116,8 +141,11 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
             const SizedBox(height: 24),
             FilledButton(
               key: const Key('quick-entry-save'),
-              // F02 S2.1：金額必填且大於 0——空值或 0 皆禁用（即時切換，無延遲）。
-              onPressed: (int.tryParse(state.amount) ?? 0) <= 0 ? null : controller.save,
+              // F02 S2.1：金額必填且大於 0（空值/0 皆禁用）；轉帳另需目標帳戶。
+              onPressed: (int.tryParse(state.amount) ?? 0) <= 0 ||
+                      (state.mode == QuickEntryMode.transfer && state.toAccount == null)
+                  ? null
+                  : controller.save,
               child: const Text('儲存'),
             ),
           ],

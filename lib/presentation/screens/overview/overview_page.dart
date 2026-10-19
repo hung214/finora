@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../../application/providers.dart';
 import '../../../core/version.dart';
@@ -38,7 +39,8 @@ class OverviewPage extends ConsumerWidget {
                 leading: const Icon(Icons.account_balance_wallet_outlined),
                 title: Text(row.name),
                 trailing: Text(
-                  '餘額 ${calc.assetBalance(account: accountEntity(row), txs: txs)}',
+                  // F02-FE S2：餘額千分位顯示（10,400）。
+                  '餘額 ${NumberFormat('#,###').format(calc.assetBalance(account: accountEntity(row), txs: txs))}',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
