@@ -93,6 +93,7 @@
 | `Then 帳戶「{a}」重算餘額 = {amount}` | BalanceCalculator（衍生值斷言） |
 | `Then 帳戶「{card}」未繳合計 = {amount}（含還款抵扣）` | BalanceCalculator.creditUnpaidTotal（預扣−退款−還款抵扣，下限 0；M3 帳單引擎前骨架版） |
 | `Then 本月支出統計 = {amount}（不含轉帳）` | MonthlyStatsService（僅 kind=expense；AC-10 統計隔離） |
+| `Then 本月支出統計 = {amount}` | 同上（純值變體，S2.4/S2.6 用；匹配順序須後於「（不含轉帳）」變體） |
 | `Then 本月收入統計 = {amount}` | MonthlyStatsService（僅 kind=income） |
 | `Then 交易 kind = {kind}` | DB 讀取（最後一次 UseCase 建立之交易） |
 | `Then 交易 kind = {kind} 且無分類` | 同上＋category_id IS NULL（FR-T7 還款） |

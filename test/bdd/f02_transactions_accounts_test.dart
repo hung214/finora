@@ -191,12 +191,28 @@ void _bind(GherkinRunner runner, _World w) {
     );
   });
 
+  // 純值變體須後於「（不含轉帳）」變體登記（lazy match 前綴碰撞，同前教訓）。
+  runner.on(r'本月支出統計 = {amount}$', (p) {
+    expect(
+      MonthlyStatsService(w.db).expenseMinorThisMonth(),
+      _amount(p['amount']!),
+      reason: '轉帳/還款不計入支出統計（AC-10）',
+    );
+  });
+
   runner.on(r'本月收入統計 = {amount}$', (p) {
     expect(
       MonthlyStatsService(w.db).incomeMinorThisMonth(),
       _amount(p['amount']!),
       reason: 'AC-10：轉帳不計入收入統計',
     );
+  });
+
+  // ── Then：交易 kind（F02 S2.4/S2.6；「且無分類」變體於 C6 先於本句型登記）──
+  runner.on(r'交易 kind = {kind}$', (p) {
+    final id = w.lastCreatedTxId;
+    expect(id, isNotNull, reason: 'When 應已建立交易');
+    expect(w.db.transactionById(id!)!.kind, p['kind'], reason: '交易 kind（儲值/還款語意）');
   });
 
   // ── Then：餘額（dsl.md §2.3 既有句型）─────────────────────
