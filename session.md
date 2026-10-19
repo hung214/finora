@@ -21,21 +21,21 @@
 | 欄位 | 內容 |
 |---|---|
 | 更新時間 | 2026-10-19 |
-| 階段 | **M1-F01 情境開發完成**：T-F01-BE（8 情境）＋T-F01-FE（@P0 6 情境）全數 🔴→🟢；分支 `feature/F01-quick-entry`（14 commits）**未推送**。下一步：push＋PR 合併 → QA 走查 → M1 下一功能 F02 |
-| 當前分支 | feature/F01-quick-entry（base=main 6912b8e：opencode 修復＋TR-9 基建已先行於 main）；main = 6912b8e（3 commits 未推送） |
-| 當前任務 | 完成：T-F01-FE——App 主殼（MainShell 雙分頁＋快記 FAB）、QuickEntryPage（PopupMenu 全受控選擇器、autofocus、QuickDateTimePicker bottom sheet、SavedDialog 三動作）、QuickEntryController（SDD §5.1 狀態機：save/continueEntry/undoLast/lastSaveMs）、Ledger/Overview、providers（dbProvider 注入約定）；非 F01 之 2 commits 已拆分至 main（opencode 修復、TR-9） |
-| 紅綠燈狀態 | `dart analyze` = No issues；`flutter test` = **57 全綠**；`flutter test integration_test/features/f01_quick_entry_test.dart -d windows` = **6 情境全綠**（實跑 12s） |
-| 工作區 | 乾淨（本列更新後 commit） |
-| truth 對齊 | techstack v0.3.4（TR-9 自製 runner，已於 main）；data-spec v0.3.1；dsl.md §2/§3 F01 句型全數登記（BE＋FE，含 {field} 佔位對齊 runner） |
-| 環境筆記 | repo 於 `E:\opencode\finora`。**harness 三大教訓**（已入 commit 訊息）：①每情境 pumpWidget 須唯一 Key——const 同構 widget 複用 element → Navigator 路由/舊 container 殘留 → 假綠；②句型 regex 無 ^ 錨點會前綴誤配（不顯示 vs 顯示）；③檔級 @P0 併入情境標籤（@P1 須明確排除）。FE 測試：`flutter test integration_test/features/f01_quick_entry_test.dart -d windows`。opencode `command.*` 必填 `template`（已修於 main 62bd646） |
-| 阻塞／待決 | ①**path_provider 決策**：production main() 接真實 DB 路徑需此依賴（techstack 未列；FE 情境不需要；merge 前與 PM 確認）②SPEC FR-Q4「五段」vs acceptance S1.1「四段」矛盾（BE 依四段，待 PM）③v0.2.0 release 四平台確認 ④SP-1 SQLCipher EOL ⑤PM/QA 簽核 acceptance 手動情境 |
+| 階段 | **M1-F01 已合併 main＋v0.4.0 release 觸發**（ffadf09 合併、897255d bump → tag-on-main 自動建 v0.4.0 → release 四平台建置中）。下一步：確認 release 結果 → **M1-F02 交易帳戶** |
+| 當前分支 | main = 897255d（已推送）；feature/F01-quick-entry 已合併保留 |
+| 當前任務 | 完成：F01 合併（--no-ff，gh 未登入改本地合併——repo 狀態與 PR merge 相同）、版本升版 0.4.0+1、production 接線隨合併上 main（exe 即正式主殼：總覽/明細/快記＋檔案 DB Documents/ledger_sync/ledger.db） |
+| 紅綠燈狀態 | 合併前：`dart analyze` No issues、`flutter test` 57 綠、FE 6 情境 Windows 實跑綠；main push 觸發 CI＋release 工作流 |
+| 工作區 | 乾淨（文件回寫後 commit） |
+| truth 對齊 | techstack v0.3.5（path_provider 2.1.6，PM 定案）；data-spec v0.3.1；dsl.md §2/§3 F01 句型齊備 |
+| 環境筆記 | repo 於 `E:\opencode\finora`。gh CLI 已裝（scoop 2.102.0）**但尚未 gh auth login**——PR 流程待認證。本地包 `dist/LedgerSync-v0.2.0-windows-x64-local-test.zip` 檔名仍為 0.2.0（打包腳本讀 pubspec，下輪重打包即為 0.4.0） |
+| 阻塞／待決 | ①v0.4.0 release 四平台結果確認（Releases 頁）②v0.2.0 四平台結果補確認（歷史待辦）③SPEC FR-Q4「五段」vs acceptance S1.1「四段」矛盾待 PM ④SP-1 SQLCipher EOL（DB 明文過渡中）⑤gh auth login（PR 流程恢復） |
 
-## 3. 下一步（F01 收尾：PR 合併；下次開工照此執行）
+## 3. 下一步（M1-F02 交易帳戶；下次開工照此執行）
 
-1. **push**：`git push origin main`（main 有 3 個未推送 commit）＋ `git push -u origin feature/F01-quick-entry`。
-2. **PR**（tasks.md §4.0-5）：標題帶 FR/AC——`F01 快速記帳（FR-Q1~Q8、AC-01/02）`；描述附紅/綠證據（BE 8 情境 2618b13→51a34cd 紅→綠、FE 6 情境 c8c8515→593df0f 紅→綠＋Windows 實跑 12s 全綠）；`--no-ff` merge 回 main；acceptance 手動情境（S1.10 飛航模式實機等）留 QA 走查簽核。
-3. **與 PM 確認**（merge 前）：①path_provider（production main() 接真實 DB——若定案：techstack v0.3.5＋main() 切換 AppShell）②時段四段 vs 五段。
-4. **進 M1 下一功能**：依 tasks.md §4.2 排程 F02 交易帳戶（T-F02-BE 6 情境：金額驗證、轉帳守恆、儲值語意、軟刪除、還款、多幣別；truth 對齊項 tx_kind/settlement_status enum）。注意 S1.11（@P1 @desktop M2）與 FE 骨架打磨（實機主題/無障礙）不屬 F01 自動化範圍。
+1. **確認 release**：https://github.com/hung214/finora/actions 的 release 工作流（四平台）與 https://github.com/hung214/finora/releases 的 v0.4.0 產物。
+2. **讀規範**：acceptance `F02_transactions-accounts.md`＋`specs/plan/tests/backend/F02_transactions-accounts.feature`（6 情境：金額驗證、轉帳守恆、儲值語意、軟刪除、還款、多幣別）＋truth 對齊項（tx_kind/settlement_status enum——data-spec 已有，確認 schema v1 覆蓋）。
+3. **開分支** `feature/F02-transactions-accounts`，照 tasks.md §4.0：BE 情境逐條 🔴→🟢（每情境 ≥1 commit）→ FE（快記/明細擴充轉帳/收入/儲值/還款模式）。
+4. gh auth login 後恢復 PR 流程（gh 已裝 2.102.0）。
 5. 休息前照 §1 檢查清單更新本檔。
 
 ## 4. 恢復工作 SOP（下次開工照此執行）
@@ -50,6 +50,7 @@
 
 | 日期 | 摘要 | 分支 | 狀態 |
 |---|---|---|---|
+| 2026-10-19 | **F01 合併 main＋v0.4.0 release 觸發**：--no-ff 合併（ffadf09；gh 未登入改本地合併）；bump 0.4.0+1（897255d）→ tag-on-main 自動建 **v0.4.0** → release 四平台建置；production 接線（path_provider，冒煙驗證 DB 建立）隨合併上 main——exe 即正式主殼 | feature/F01-quick-entry → main | ✅（merge ffadf09 / tag v0.4.0） |
 | 2026-10-19 | **T-F01-FE 完成（@P0 6 情境 🔴→🟢）＋分支整理**：C8 紅（c8c8515：dsl §3 登記 8 句型＋App 骨架＋FE harness；feature 背景順序修正）→ C9-C14 綠：S1 預填（1115b52）、S2 對話框（46990a5）、S3 Sticky＋S4 返回（a47ae1d）、S5 時間選擇器（ee57ae0）、S6 復原（593df0f）；**Windows 實跑 6 情境全綠（12s）**；harness 三教訓（KeyedSubtree 隔離/^ 錨點/@P1 過濾）；非 F01 之 2 commits 拆分至 main（62bd646 opencode、6912b8e TR-9） | feature/F01-quick-entry | 🔵（情境全綠、待 PR 合併） |
 | 2026-10-18 | **T-F01-BE 完成（8 情境 🔴→🟢）**：C1 紅（2618b13：dsl 登記＋BDD harness＋stubs；Undo 期望修正 1880 對齊 acceptance S1.8；dbml v0.3.1 settings key）→ C2-C7 綠：S1 時段/上一筆（6ec94af）、S2 商家（58ad00b）、S3 回退（dce4e9a）、S4 固定預設（24255eb）、S5 儲存事務（d045e12；S7 離線/S8 效能同）、S6 Undo 墓標（51a34cd）；57 測試全綠；opencode.json 修復（0d98087） | feature/F01-quick-entry | 🔵（BE 綠、FE 待、未合併） |
 | 2026-10-18 | **遷移完成＋DBG-002-① 根治驗證**：repo 移至 `E:\opencode\finora`；還原誤刪 `opencode.json`；刪舊 junction；`flutter clean` 清舊 CMakeCache（含舊路徑絕對路徑）後 `dart analyze`／56 測試／Windows Release 建置（81.9s）全數直接通過；README §3.2、debug.md 回寫「已遷移／根治」 | main | ✅ |
