@@ -49,6 +49,7 @@
 | `Given 商家「{m}」過去 {n} 筆分類皆為「{c}」` | transactions（merchant=m，過去 n 日各 1 筆，20:00 時段避開上午統計） |
 | `Given 目前時段最常用分類為「{c}」` | 依 acceptance 時段表，於過去 3 日同時段各 1 筆該分類 |
 | `Given 帳本無任何交易` | 斷言交易為 0 筆（防背景污染） |
+| `Given 帳本為全新空本（無帳戶/分類/交易）` | 以全新 in-memory DB 替換（fixture 層；DBG-003 回歸用） |
 | `Given 設定 {key} = {value}` | settings upsert |
 | `Given 固定預設 = {account}/{category}` | `quick_entry.fixed_preset`（JSON：account_id/category_id） |
 | `Given 已儲存 {n} 筆（{amounts}）` | fixture 直寫 n 筆支出於第一個未封存帳戶（金額清單「、」分隔，依序遞減 1 分鐘） |
@@ -91,6 +92,8 @@
 | `Then 雲端 backups/ 保留 {n} 份` | fake adapter list |
 | `Then 效能：入庫耗時 {ms}ms < 300ms（P95）` | StopWatch P95（F01-BE NFR-01；{ms} 為計畫預記值，以實測 P95 < 300 斷言） |
 | `Then 預設帳戶 = 「{name}」` / `Then 預設帳戶 = 第一個未封存帳戶` | QuickEntryPreset 輸出（FR-Q4） |
+| `Then 預設帳戶為空（待帳戶建立）` | preset.account == null（DBG-003：空帳本不崩潰） |
+| `Then 預設分類為空（內建集隨首次設定落地）` | preset.category == null（內建集 seeding 屬 F02） |
 | `Then 預設分類 = 「{name}」` | QuickEntryPreset 輸出 |
 | `Then 預設時間 = {datetime}` | QuickEntryPreset 輸出（= 現在） |
 | `Then 交易已入庫且 settlement_status = {status}` | DB 讀取（最後一次 UseCase 儲存） |
@@ -119,6 +122,7 @@
 | `Given 快記頁已輸入金額 {amount}、帳戶={account}、分類={category}` | 開啟快記＋controller 狀態設定（金額/帳戶/分類） |
 | `Given 已儲存 {n} 筆（{account}/{category}/{merchant}）並於對話框按「繼續」` | 逐筆：設定→儲存→按「繼續」（Sticky 觸發；金額未標 → 120） |
 | `Given 已於本 session 儲存 {n} 筆` | 前 n-1 筆儲存後按「繼續」，第 n 筆儲存後**留於對話框**（復原入口） |
+| `Given 帳本為全新空本（無帳戶/分類/交易）` | 以全新 in-memory DB 替換（fixture 層；DBG-003 回歸用——App 未 pump 前生效） |
 | `Given 裝置處於飛航模式` | 連線模擬關閉 |
 | `Given 同步模式設定為「{mode}」` | settings 寫入 |
 
