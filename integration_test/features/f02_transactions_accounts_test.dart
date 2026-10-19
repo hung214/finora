@@ -26,7 +26,7 @@ Future<void> main() async {
   final doc = GherkinParser.parse(await rootBundle
       .loadString('integration_test/features/F02_transactions-accounts.feature'));
 
-  testWidgets('F02-FE：交易與帳戶 UI（4 情境：禁用態/轉帳樣式/儲值文案/最近刪除）',
+  testWidgets('F02-FE：交易與帳戶 UI（5 情境：禁用態/轉帳樣式/儲值文案/最近刪除/計算機）',
       (tester) async {
     final w = _World(tester);
     final runner = GherkinRunner();
@@ -36,7 +36,7 @@ Future<void> main() async {
         // 檔級標籤含 @P0（預設優先級）——情境級 @P1（拆分 @M2）以明確排除。
         return tags.contains('@FE') && !tags.contains('@P1');
       });
-      expect(executed, 4, reason: 'F02-FE 應執行 4 個情境（@FE @P0；拆分 @P1 @M2 排除）');
+      expect(executed, 5, reason: 'F02-FE 應執行 5 個情境（@FE @P0 含 S2.9 計算機；拆分 @P1 @M2 排除）');
       // ignore: avoid_print
       print(runner.log.join('\n'));
     } finally {
@@ -276,6 +276,35 @@ void _bind(GherkinRunner runner, _World w) {
     expect(w.tester.widgetList<Text>(rows).length, n,
         reason: '最近刪除應顯示 $n 筆（0＝空狀態；30 曆日窗口）');
   });
+
+  // ── Then／When：計算機鍵盤（F02-FE S2.9）─────────────────
+  runner.on(r'金額欄下方顯示常駐計算機鍵盤$', (p) async {
+    expect(
+      w.tester.any(find.byKey(const Key('amount-keypad'))),
+      isTrue,
+      reason: '金額欄下方應有常駐計算機鍵盤（S2.9：不彈系統鍵盤）',
+    );
+  });
+
+  runner.on(r'以計算機鍵盤計算 {expr}$', (p) async {
+    for (final ch in p['expr']!.split('')) {
+      await w.tester.tap(find.byKey(Key('keypad-${_keypadLabel(ch)}')));
+      await w.tester.pump();
+    }
+    await w.tester.tap(find.byKey(const Key('keypad-＝')));
+    await w.tester.pump();
+  });
+
+  runner.on(r'於計算機鍵盤按 {key}$', (p) async {
+    await w.tester.tap(find.byKey(Key('keypad-${p['key']}')));
+    await w.tester.pump();
+  });
+
+  runner.on(r'金額欄顯示 {value}$', (p) async {
+    final state = _amountEditableState(w);
+    expect(state.widget.controller.text, p['value'],
+        reason: '金額欄應顯示 ${p['value']}（＝ 求值；TWD 四捨五入整數元）');
+  });
 }
 
 // ── 綁定輔助（沿 F01 模式）─────────────────────────────────
@@ -346,6 +375,29 @@ Future<void> _openRecentDeletions(_World w) async {
 }
 
 int _amount(String s) => int.parse(s.trim().replaceAll(',', ''));
+
+/// ASCII 運算子 → 鍵面全寬標籤（dsl §3.2：`+ - * /` 映射 ＋－×÷）。
+String _keypadLabel(String ch) {
+  switch (ch) {
+    case '+':
+      return '＋';
+    case '-':
+      return '－';
+    case '*':
+      return '×';
+    case '/':
+      return '÷';
+    default:
+      return ch; // 0-9 與全寬運算子原樣
+  }
+}
+
+EditableTextState _amountEditableState(_World w) {
+  final finder = find.descendant(
+      of: find.byKey(const Key('quick-entry-amount')),
+      matching: find.byType(EditableText));
+  return w.tester.state<EditableTextState>(finder);
+}
 
 DateTime _dateTime(String s) {
   final m = RegExp(r'^(\d{4})/(\d{2})/(\d{2})(?: (\d{1,2}):(\d{2}))?$').firstMatch(s.trim());

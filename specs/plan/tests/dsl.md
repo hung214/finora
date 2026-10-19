@@ -153,6 +153,8 @@
 | `When 開啟快速記帳頁並連續記錄 {n} 筆後按下「完成」` | 開快記→連存 n 筆（每筆按繼續，末筆按完成）→返回原分頁（S1.9） |
 | `When 輸入金額 {amount}` | 鍵盤輸入 |
 | `When 開啟支出記錄` | 開啟快記（預設支出模式；F02-FE S1 同「開啟快速記帳頁」） |
+| `When 以計算機鍵盤計算 {expr}` | 逐鈕點按（數字逐位＋運算子＋＝；`+ - * /` 映射鍵面 ＋－×÷）；＝求值寫入金額欄（左至右、TWD 四捨五入至整數元；F02-FE S2.9） |
+| `When 於計算機鍵盤按 {key}` | 單鈕點按（C 清空／⌫ 退位；F02-FE S2.9） |
 | `When 建立轉帳「{from}」→「{to}」金額 {amt}` | 快記轉帳模式：開快記→切轉帳→選來源/目標→輸入→儲存→完成（F02-FE S2） |
 | `When 建立「儲值」交易 {to} 金額 {amt} 來源={from}` | 同轉帳（目標=票證卡；F02-FE S3） |
 | `When 刪除該筆交易` | 明細列 → 刪除動作（bottom sheet「刪除」；軟刪除，F02-FE S4） |
@@ -177,6 +179,8 @@
 | `Then 明細頁即時顯示該 {n} 筆` | 清單斷言 |
 | `Then 顯示「{text}」` / `Then 不顯示「{text}」` | 文字存在性（「日期時間選擇器」綁定 find.byType(QuickDateTimePicker)） |
 | `Then 顯示「{text}」且為可點擊` | 文字存在＋對應按鈕 enabled（F02-FE S1 儲存鈕啟用） |
+| `Then 金額欄下方顯示常駐計算機鍵盤` | find.byKey(amount-keypad)；金額欄 readOnly 不彈系統鍵盤（F02-FE S2.9） |
+| `Then 金額欄顯示 {value}` | 金額欄 text == value（＝ 求值結果；TWD 四捨五入整數元） |
 | `Then 顯示「{label}」樣式（非支出圖示）` | 明細列樣式：textContaining({label})＋轉帳圖示 swap_horiz（F02-FE S2） |
 | `Then 顯示「{text}」（不顯示「{other}」）` | 組合斷言：儲值文案出現且支出字樣不出現（F02-FE S3） |
 | `Then 帳戶「{name}」餘額顯示為 {amount}` | 總覽餘額卡（千分位格式；導航至總覽分頁後 find.text，F02-FE S2） |

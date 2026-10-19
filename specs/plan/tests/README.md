@@ -24,7 +24,7 @@
 | Feature | 前端檔 | 後端檔 | 涵蓋 AC |
 |---|---|---|---|
 | F01 快速記帳 | `frontend/F01_quick-entry.feature`（7） | `backend/F01_quick-entry.feature`（8） | AC-01、02 |
-| F02 交易與帳戶 | `frontend/F02_transactions-accounts.feature`（5） | `backend/F02_transactions-accounts.feature`（6） | AC-10 |
+| F02 交易與帳戶 | `frontend/F02_transactions-accounts.feature`（6） | `backend/F02_transactions-accounts.feature`（6） | AC-10 |
 | F03 發票掃描 | `frontend/F03_receipt-scan.feature`（6） | `backend/F03_receipt-scan.feature`（7） | AC-03 |
 | F04 信用卡帳單 | `frontend/F04_credit-card-billing.feature`（5） | `backend/F04_credit-card-billing.feature`（10） | AC-04、11 |
 | F05 預算收入目標 | `frontend/F05_budget-income-goal.feature`（5） | `backend/F05_budget-income-goal.feature`（5） | AC-05、13 |
