@@ -6,6 +6,15 @@ import '../../core/clock.dart';
 import '../../core/hlc.dart';
 import '../../data/sqlite/app_database.dart';
 
+/// 交易驗證失敗（[message] 為 FE 顯示契約；BE BDD 斷言同一訊息，F02 S2.1）。
+class TransactionValidationException implements Exception {
+  const TransactionValidationException(this.message);
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
 /// 儲存結果：回傳入庫交易 id（FE 對話框/Undo 用）。
 class SaveTransactionResult {
   const SaveTransactionResult(this.transactionId);
@@ -40,7 +49,8 @@ class SaveTransactionUseCase {
     String? note,
   }) {
     if (amountMinor <= 0) {
-      throw ArgumentError.value(amountMinor, 'amountMinor', '金額須為正整數 minor units');
+      // F02 S2.1：金額必填且大於 0（0 或空值皆不得入庫；訊息為 FE 顯示契約）。
+      throw const TransactionValidationException('驗證失敗：金額必須大於 0');
     }
     final now = Clock.now();
     final row = TxRow(

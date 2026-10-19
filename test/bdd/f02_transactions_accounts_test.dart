@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ledger_sync/application/quick_entry/save_transaction_use_case.dart';
 import 'package:ledger_sync/core/clock.dart';
 import 'package:ledger_sync/data/sqlite/app_database.dart';
 import 'package:ledger_sync/domain/entities/account.dart';
@@ -43,6 +44,7 @@ void main() {
 class _World {
   final List<AppDatabase> dbs = [];
   late AppDatabase db;
+  late SaveTransactionUseCase save;
 
   /// 名稱 → id 對映（Background 建立時登記）。
   final accounts = <String, String>{};
@@ -53,6 +55,12 @@ class _World {
 
   /// When 步驟前的 oplog 數（「oplog 新增 N 筆」之 delta 基準）。
   int opBaseline = 0;
+
+  /// When 步驟前的交易筆數（「且不入庫」之 delta 基準）。
+  int txCountBaseline = 0;
+
+  /// 最近一次驗證失敗訊息（未拋例外為 null）。
+  String? validationError;
 }
 
 void _bind(GherkinRunner runner, _World w) {
@@ -65,6 +73,9 @@ void _bind(GherkinRunner runner, _World w) {
     w.categories.clear();
     w.txIdByAmount.clear();
     w.opBaseline = 0;
+    w.txCountBaseline = 0;
+    w.validationError = null;
+    w.save = SaveTransactionUseCase(db);
   });
 
   runner.on(r'已建立帳戶「{name}」類型 {type} 期初 {amount}$', (p) {
@@ -96,6 +107,37 @@ void _bind(GherkinRunner runner, _World w) {
         name: name,
       );
       w.categories[name] = id;
+    }
+  });
+
+  // ── When：儲存驗證（F02 S2.1）────────────────────────────
+  runner.on(r'呼叫 SaveTransactionUseCase（金額 {amt}）$', (p) {
+    w.opBaseline = w.db.allOps().length;
+    w.txCountBaseline = w.db.allTransactions().length;
+    try {
+      w.save.execute(
+        accountId: w.accounts['現金']!,
+        amountMinor: _amount(p['amt']!),
+        occurredAt: Clock.now(),
+      );
+      w.validationError = null;
+    } on TransactionValidationException catch (e) {
+      w.validationError = e.message;
+    }
+  });
+
+  // ── Then：驗證輸出（F02 S2.1）────────────────────────────
+  runner.on(r'顯示「{message}」且不入庫$', (p) {
+    expect(w.validationError, p['message'], reason: '驗證失敗訊息（FE 顯示契約）');
+    expect(w.db.allTransactions().length, w.txCountBaseline, reason: '驗證失敗不得入庫');
+  });
+
+  runner.on(r'oplog 新增 {n} 筆且皆未打包$', (p) {
+    final ops = w.db.allOps();
+    final added = ops.skip(w.opBaseline).toList();
+    expect(added.length, int.parse(p['n']!), reason: 'oplog 新增筆數');
+    for (final op in added) {
+      expect(op.packedSeq, isNull, reason: '未打包（待 SyncCoordinator，F07）');
     }
   });
 }
