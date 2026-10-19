@@ -10,10 +10,8 @@ permissions:
 jobs:
   # 步驟 1：讀 pubspec 版本 → 標籤不存在則建立；Release 不存在則串接四平台建置。
   # ⚠️ 架構決策（2026-10-19）：GITHUB_TOKEN 推送的標籤**不會**觸發下游工作流
-  #   （GitHub 防遞迴規則）——原「tag-on-main 打標籤 → release.yml 聞 tag 而建」
-  #   的鏈式設計從未生效（v0.1.0~v0.4.0 皆無 Release）。改由本工作流直接串接
-  #   建置與發佈；release.yml 保留為「手動推標籤」的後備路徑。
-  #   冪等性：Release 已存在 → 建置全跳過（下次 main push 自檢自癒）。
+  #   （GitHub 防遞迴規則）——故本工作流直接串接建置與發佈；release.yml 保留為
+  #   「手動推標籤」的後備路徑。冪等性：Release 已存在 → 建置全跳過（自癒）。
   tag:
     runs-on: ubuntu-latest
     outputs:
@@ -57,8 +55,9 @@ jobs:
             echo "Release $TAG 已存在（HTTP $STATUS）→ 跳過建置"
           fi
 
-  # ── 四平台建置（僅當 Release 缺失；checkout 對準標籤版本） ──
-  # 說明：iOS 為無簽名（--no-codesign）；macOS 打包未公證（MSIX/DMG notarization 屬 M7／SP-7）。
+  # ── 四平台建置（僅當 Release 缺失；checkout 對準標籤版本；產物檔名含版本號）──
+  # 說明：iOS 為未簽名 IPA（Apple Developer 簽名屬 M7）；macOS DMG 未公證（M7）。
+  # Windows 安裝檔 = Inno Setup per-user exe（免管理員/免憑證；MSIX 撤回，Store 屬 SP-7）。
   # P0 測試把關由同 push 的 CI 工作流負責（analyze＋test）。
 
   build-android:
@@ -69,18 +68,20 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: v${{ needs.tag.outputs.version }}
+      - name: 讀取版本號
+        run: echo "VER=$(grep -m1 '^version:' pubspec.yaml | sed 's/version: //; s/+.*//' | tr -d ' \r')" >> "$GITHUB_ENV"
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
       - run: flutter pub get
-      - run: flutter build apk --release
-      - name: 重新命名 APK
-        run: mv build/app/outputs/flutter-apk/app-release.apk LedgerSync-android.apk
+      - run: flutter build apk --release --dart-define=APP_VERSION=$VER
+      - name: 重新命名 APK（含版本號）
+        run: mv build/app/outputs/flutter-apk/app-release.apk "LedgerSync-android-$VER.apk"
       - uses: actions/upload-artifact@v4
         with:
           name: android-apk
-          path: LedgerSync-android.apk
+          path: LedgerSync-android-*.apk
 
   build-windows:
     needs: tag
@@ -90,20 +91,31 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: v${{ needs.tag.outputs.version }}
+      - name: 讀取版本號
+        shell: pwsh
+        run: |
+          $ver = (Select-String -Path pubspec.yaml -Pattern '^version: ').Line -replace 'version: ','' -replace '\+.*',''
+          "VER=$ver" >> $env:GITHUB_ENV
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
       - run: flutter pub get
-      - run: flutter build windows --release
-      # ⚠ 必須打包「整個 Release 資料夾」——缺 data/（icudtl.dat、flutter_assets）
-      #   則 exe 無法啟動（v0.4.0 即此缺陷：僅上傳鬆散 exe/dll）。
-      - name: 打包完整資料夾為 zip（含 data/）
-        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath LedgerSync-windows-x64.zip
+      - run: flutter build windows --release --dart-define=APP_VERSION=$env:VER
+      # ⚠ 可攜 zip 必須含整個 Release 資料夾（缺 data/ 則 exe 無法啟動＝v0.4.0 缺陷）。
+      - name: 打包可攜 zip（含版本號、含 data/）
+        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath "LedgerSync-windows-x64-$env:VER.zip"
+      - name: 編譯 Inno Setup 安裝檔（per-user exe，含版本號）
+        shell: pwsh
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAPP_VERSION="$env:VER" tool\setup_windows.iss
+          Move-Item tool\Output\LedgerSync-setup-*.exe LedgerSync-setup-$env:VER.exe
       - uses: actions/upload-artifact@v4
         with:
           name: windows-x64
-          path: LedgerSync-windows-x64.zip
+          path: |
+            LedgerSync-setup-*.exe
+            LedgerSync-windows-x64-*.zip
 
   build-macos:
     needs: tag
@@ -113,20 +125,21 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: v${{ needs.tag.outputs.version }}
+      - name: 讀取版本號
+        run: echo "VER=$(grep -m1 '^version:' pubspec.yaml | sed 's/version: //; s/+.*//' | tr -d ' \r')" >> "$GITHUB_ENV"
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
       - run: flutter pub get
-      - run: flutter build macos --release
-      - name: 打包 .app 為 zip
+      - run: flutter build macos --release --dart-define=APP_VERSION=$VER
+      - name: 打包 .app 為 DMG（macOS 標準安裝映像；notarization 屬 M7）
         run: |
-          cd build/macos/Build/Products/Release
-          ditto -c -k --keepParent ledger_sync.app LedgerSync-macos.zip
+          hdiutil create -volname LedgerSync -srcfolder build/macos/Build/Products/Release/ledger_sync.app -ov -format UDZO "LedgerSync-macos-$VER.dmg"
       - uses: actions/upload-artifact@v4
         with:
           name: macos-app
-          path: build/macos/Build/Products/Release/LedgerSync-macos.zip
+          path: LedgerSync-macos-*.dmg
 
   build-ios:
     needs: tag
@@ -136,22 +149,24 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: v${{ needs.tag.outputs.version }}
+      - name: 讀取版本號
+        run: echo "VER=$(grep -m1 '^version:' pubspec.yaml | sed 's/version: //; s/+.*//' | tr -d ' \r')" >> "$GITHUB_ENV"
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
       - run: flutter pub get
-      - run: flutter build ios --release --no-codesign
-      - name: 打包無簽名 IPA（Payload）
+      - run: flutter build ios --release --no-codesign --dart-define=APP_VERSION=$VER
+      - name: 打包 IPA（未簽名——Apple Developer 簽名屬 M7）
         run: |
           mkdir -p build/ios/Payload
           cp -r build/ios/iphoneos/Runner.app build/ios/Payload/
           cd build/ios
-          zip -qry LedgerSync-ios-unsigned.zip Payload
+          zip -qry "LedgerSync-ios-$VER.ipa" Payload
       - uses: actions/upload-artifact@v4
         with:
-          name: ios-unsigned
-          path: build/ios/LedgerSync-ios-unsigned.zip
+          name: ios-ipa
+          path: build/ios/LedgerSync-ios-*.ipa
 
   # 步驟 2：發佈 GitHub Release（四平台產物；全建置成功才發——任一失敗不發半套，
   # 下次 main push 自動重試）。
@@ -164,15 +179,16 @@ jobs:
         with:
           merge-multiple: true
           path: dist
-      - name: 發佈 GitHub Release（四平台產物）
+      - name: 發佈 GitHub Release（四平台產物，檔名含版本號）
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.tag.outputs.version }}
           files: |
-            dist/LedgerSync-android.apk
-            dist/LedgerSync-windows-x64.zip
-            dist/LedgerSync-macos.zip
-            dist/LedgerSync-ios-unsigned.zip
+            dist/LedgerSync-android-*.apk
+            dist/LedgerSync-setup-*.exe
+            dist/LedgerSync-windows-x64-*.zip
+            dist/LedgerSync-macos-*.dmg
+            dist/LedgerSync-ios-*.ipa
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../application/providers.dart';
+import '../../../core/version.dart';
 import '../../../domain/services/balance_calculator.dart';
 import '../../screens/demo/demo_gallery_page.dart';
 
@@ -42,6 +43,13 @@ class OverviewPage extends ConsumerWidget {
                 ),
               ),
             ),
+          const SizedBox(height: 24),
+          Center(
+            child: Text(
+              'LedgerSync v$appVersion',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
         ],
       ),
     );

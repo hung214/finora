@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../core/version.dart';
 import 'screens/main_shell_page.dart';
 
-/// M1 主殼 App（真實介面；M0 之 LedgerSyncApp 骨架入口暫保留於 main.dart，
-/// production 切換待 path_provider 決策——見 session.md 阻塞清單）。
+/// M1 主殼 App（真實介面）。
 ///
+/// 視窗標題帶版本號（PM 要求：軟體內可見版本；main.dart 以
+/// --dart-define=APP_VERSION 注入，本機顯示 dev）。
 /// 測試以 `UncontrolledProviderScope(overrides: [dbProvider...])` 包裹注入。
 class AppShell extends StatelessWidget {
   const AppShell({super.key});
@@ -12,7 +14,7 @@ class AppShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'LedgerSync',
+      title: appVersion == 'dev' ? 'LedgerSync' : 'LedgerSync v$appVersion',
       theme: ThemeData(
         useMaterial3: true,
         colorSchemeSeed: const Color(0xFF0B7A75),

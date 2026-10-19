@@ -2,7 +2,7 @@
 
 | 項目 | 內容 |
 |---|---|
-| 文件版本 | v0.3.5（path_provider 定案：production DB 路徑） |
+| 文件版本 | v0.3.6（發佈格式定案：版本化檔名＋Inno Setup exe＋DMG＋IPA＋軟體內版本顯示） |
 | 日期 | 2026-10-18 |
 | 性質 | **原始碼技術棧的唯一事實來源**。SDD §3 為設計說明；本檔記錄「將寫進程式碼」的定案（含版本）。兩者不一致時以本檔為準並回修 SDD |
 | 變更規則 | 僅能經 PR 變更；新增/升級依賴需通過授權審查（research.md D14）+ 全測試綠燈；每次變更記錄於 §8 變更記錄 |
@@ -74,7 +74,7 @@
 | 雲端 | googleapis + oauth2（loopback flow） | Windows/macOS | 🔬 SP-4 | SDD §6 |
 | 雲端 | flutter_cloud_kit（或自寫 channel） | iOS/macOS | 🔬 SP-5 評估後定 | SDD §6 |
 | 搜尋 | SQLite FTS5 + 中文 bigram 影子欄位 | 全平台 | 🔬 SP-1 | FR-R3 |
-| 打包 | MSIX（Windows）／DMG+notarization（macOS） | 桌面 | 🔬 SP-7 | SDD §11 風險 |
+| 打包 | Windows 安裝檔 = **Inno Setup 6 per-user exe**（免管理員/免憑證；`tool/setup_windows.iss`）＋可攜 zip；macOS = **DMG**；iOS = **未簽名 IPA**；Android = APK。檔名一律含版本號；軟體內版本以 `--dart-define=APP_VERSION` 注入（視窗標題＋總覽頁尾）。**MSIX 撤回**（PM 裁決 2026-10-19：自簽側載摩擦大；Store 上架屬 M7/SP-7 評估）。notarization／Apple Developer 簽名屬 M7 | SDD §11 |
 
 ### 2.4 開發與測試工具
 
@@ -152,3 +152,4 @@
 | 2026-10-18 | v0.3.3 | TR-8：flutter_secure_storage_windows 需 VS C++ ATL 元件（atlstr.h 缺）→ 與 local_auth 一起移出 pubspec 至 M2 回歸；新增 §2.4 release 工作流實測（本地 Windows 建置） | — |
 | 2026-10-18 | v0.3.4 | TR-9：flutter_gherkin 3.x 執行期與 Dart 3.13.5 工具鏈摩擦（smoke 三輪編譯錯誤，同 TR-7 型態）→ BDD FE 綁定改 T-H7 自製 runner + integration_test（integration_test 入 pubspec dev_deps，屬 §2.4 測試列既有項） | — |
 | 2026-10-19 | v0.3.5 | path_provider 2.1.6 定案（PM 簽核）：production main() 以文件目錄開檔案 DB；M1 過渡期 DB 為明文 SQLite（加密屬 SP-1） | — |
+| 2026-10-19 | v0.3.6 | 發佈格式定案（PM）：產物檔名含版本號；Windows 改 Inno Setup per-user exe 安裝檔（撤回 MSIX——自簽側載需管理員匯入憑證，摩擦過大；Store 屬 M7）；macOS 改 DMG；iOS 未簽名 IPA（Apple Developer 簽名屬 M7）；軟體內版本以 --dart-define=APP_VERSION 注入（視窗標題＋總覽頁尾，零依賴） | — |
