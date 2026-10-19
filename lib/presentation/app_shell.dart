@@ -17,6 +17,11 @@ class AppShell extends StatelessWidget {
         useMaterial3: true,
         colorSchemeSeed: const Color(0xFF0B7A75),
       ),
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        colorSchemeSeed: const Color(0xFF0B7A75),
+        brightness: Brightness.dark,
+      ),
       home: const MainShellPage(),
     );
   }

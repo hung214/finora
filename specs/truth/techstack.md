@@ -2,7 +2,7 @@
 
 | 項目 | 內容 |
 |---|---|
-| 文件版本 | v0.3.4（TR-9：BDD FE 綁定改自製 runner） |
+| 文件版本 | v0.3.5（path_provider 定案：production DB 路徑） |
 | 日期 | 2026-10-18 |
 | 性質 | **原始碼技術棧的唯一事實來源**。SDD §3 為設計說明；本檔記錄「將寫進程式碼」的定案（含版本）。兩者不一致時以本檔為準並回修 SDD |
 | 變更規則 | 僅能經 PR 變更；新增/升級依賴需通過授權審查（research.md D14）+ 全測試綠燈；每次變更記錄於 §8 變更記錄 |
@@ -56,6 +56,7 @@
 | core | flutter_secure_storage | ⚠ TR-8 暫緩（移出 pubspec 至 M2：Windows 建置需 VS C++ ATL 元件 atlstr.h；M2 前安裝元件或改 DPAPI 直呼） | DB 金鑰/OAuth token | SDD §7.1 |
 | core | local_auth | ⚠ TR-8 暫緩（隨 flutter_secure_storage 同步於 M2 回歸） | 生物辨識 App 鎖 | SDD §7.2 |
 | data | sqlite3_flutter_libs | 0.5.42 | 四平台 SQLite 原生庫 | — |
+| data | path_provider | 2.1.6 | 應用文件目錄（production DB 檔案位置 `<documents>/ledger_sync/ledger.db`；PM 定案 2026-10-19） | SDD §7 |
 | data | sqlcipher_flutter_libs | 0.7.0+eol（⚠ 套件已標 EOL → SP-1 強化評估） | DB 加密（FR-X2，D2） | SDD §7 |
 | data | cryptography | 2.9.0 | AES-256-GCM（D8；Argon2id 僅備份檔密碼用，效能見 research TR-4） | SDD §7 |
 | core | local_auth | ⚠ TR-8 暫緩（隨 flutter_secure_storage 同步於 M2 回歸） | 生物辨識 App 鎖（FR-X1） | SDD §7.2 |
@@ -150,3 +151,4 @@
 | 2026-10-18 | v0.3.2 | TR-7：drift/build_runner 與 Dart 3.13.5 工具鏈不相容（analyzer 7.x dot-shorthand、dart_style 3.1.13+ 需 fe types、2.16.x cache 損壞）→ T-S1 改 **sqlite3 2.9.4 直連**過渡；新增 tag-on-main/release 工作流登記（§2.4） | — |
 | 2026-10-18 | v0.3.3 | TR-8：flutter_secure_storage_windows 需 VS C++ ATL 元件（atlstr.h 缺）→ 與 local_auth 一起移出 pubspec 至 M2 回歸；新增 §2.4 release 工作流實測（本地 Windows 建置） | — |
 | 2026-10-18 | v0.3.4 | TR-9：flutter_gherkin 3.x 執行期與 Dart 3.13.5 工具鏈摩擦（smoke 三輪編譯錯誤，同 TR-7 型態）→ BDD FE 綁定改 T-H7 自製 runner + integration_test（integration_test 入 pubspec dev_deps，屬 §2.4 測試列既有項） | — |
+| 2026-10-19 | v0.3.5 | path_provider 2.1.6 定案（PM 簽核）：production main() 以文件目錄開檔案 DB；M1 過渡期 DB 為明文 SQLite（加密屬 SP-1） | — |

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../application/providers.dart';
 import '../../../domain/services/balance_calculator.dart';
+import '../../screens/demo/demo_gallery_page.dart';
 
 /// 總覽頁（M1 精簡）：帳戶與衍生餘額（SDD 原則 2：餘額一律由交易重算）。
 class OverviewPage extends ConsumerWidget {
@@ -15,7 +16,18 @@ class OverviewPage extends ConsumerWidget {
     const calc = BalanceCalculator();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('總覽')),
+      appBar: AppBar(
+        title: const Text('總覽'),
+        actions: [
+          IconButton(
+            tooltip: 'UI Demo（設計參考）',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const DemoGalleryPage()),
+            ),
+            icon: const Icon(Icons.palette_outlined),
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(12),
         children: [
