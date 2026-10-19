@@ -53,6 +53,8 @@
 | `Given 設定 {key} = {value}` | settings upsert |
 | `Given 固定預設 = {account}/{category}` | `quick_entry.fixed_preset`（JSON：account_id/category_id） |
 | `Given 已儲存 {n} 筆（{amounts}）` | fixture 直寫 n 筆支出於第一個未封存帳戶（金額清單「、」分隔，依序遞減 1 分鐘） |
+| `Given 本月已支出 {expense}、收入 {income}` | fixture 直寫本月支出/收入各 1 筆於票證卡（本月統計基準線；不得落於該情境有餘額斷言之帳戶，F02 S2.3） |
+| `Given 已存在一筆支出 {amount} 元` | fixture 直寫 1 筆支出於第一個未封存帳戶並登記 id（刪除情境目標，F02 S2.5） |
 | `And 連線已關閉` | in-memory adapter 進入 failing 態（模擬離線） |
 
 ### 2.2 When（動作）
@@ -68,6 +70,12 @@
 | `When 執行 RepayStatementUseCase（帳單 {period}、金額 {amt}）` | 繳款 |
 | `When 以「{card}」記錄支出 {amt}` | SaveTransactionUseCase（信用卡語意） |
 | `When 建立轉帳「{from}」→「{to}」金額 {amt}` | transfer |
+| `When 建立轉帳「{from}」→「{to}」金額 {amt}（儲值）` | 同上（儲值語意註記；kind=transfer，FR-A5） |
+| `When 建立還款交易 來源={from} 目標={to} 金額 {amt}` | repayment（無分類；FR-T7） |
+| `When 呼叫 SaveTransactionUseCase（金額 {amt}）` | 最小參數驗證（F02 S2.1：金額規則） |
+| `When 刪除該筆交易` | DeleteTransactionUseCase（軟刪除+oplog 墓標，FR-T3） |
+| `When 模擬時間快轉 {days} 天並執行清除工作` | Clock 快轉＋TombstonePurgeService（30 天保留期，FR-T3） |
+| `When 呼叫 SaveTransactionUseCase（帳戶「{a}」、金額 {amount} {currency}、匯率 {rate}）` | **M2**（F02 S2.8 多幣別 @P1；M1 不綁定） |
 | `When 解析左側 QR 字串 "..." 與右側 QR 字串 "..."` | InvoiceQrParser 純函數 |
 | `When 對 OCR 文字 fixture 執行欄位抽取` | ReceiptPipeline heuristics |
 | `When 執行 SyncCoordinator.pull 與 push` | 同步 |
@@ -83,6 +91,15 @@
 |---|---|
 | `Then 交易 {id} 的 settlement_status = {status}` | DB 讀取 |
 | `Then 帳戶「{a}」重算餘額 = {amount}` | BalanceCalculator（衍生值斷言） |
+| `Then 帳戶「{card}」未繳合計 = {amount}（含還款抵扣）` | BalanceCalculator.creditUnpaidTotal（預扣−退款−還款抵扣，下限 0；M3 帳單引擎前骨架版） |
+| `Then 本月支出統計 = {amount}（不含轉帳）` | MonthlyStatsService（僅 kind=expense；AC-10 統計隔離） |
+| `Then 本月收入統計 = {amount}` | MonthlyStatsService（僅 kind=income） |
+| `Then 交易 kind = {kind}` | DB 讀取（最後一次 UseCase 建立之交易） |
+| `Then 交易 kind = {kind} 且無分類` | 同上＋category_id IS NULL（FR-T7 還款） |
+| `Then 顯示「{message}」且不入庫` | UseCase 驗證例外訊息＋交易/oplog 零新增（F02 S2.1） |
+| `Then 該筆墓標已物理清除（無法還原）` | transactionById 為 null（FR-T3 保留期屆滿；oplog 墓標保留，GC 屬 F07） |
+| `Then 交易保存原幣 {amount} 與 fx_rate {rate}` | **M2**（F02 S2.8；amount_minor 存原幣 minor units＋fx_rate REAL） |
+| `And 金額運算無浮點誤差（Money VO 斷言）` | **M2**（F02 S2.8；Money 整數 minor units 換算斷言） |
 | `Then 產生帳單 {period}、應繳 {amount}、繳款日 {date}` | statements |
 | `Then 帳單狀態 = {status}、已繳 {amount}、剩餘 {amount}` | statements |
 | `Then oplog 新增 {n} 筆且皆未打包` | oplog |
