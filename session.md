@@ -10,25 +10,25 @@
 ## 1. 休息前檢查清單（離開前逐項確認）
 
 - [x] 當前情境的紅/綠燈狀態已記錄（§2 快照表）
-- [x] `tasks.md` §6 對應任務狀態已回寫（本次：T-F01-BE ✅、T-F01-FE ✅、F01 PR 待辦 🔵）
-- [x] 工作區已 commit（`git status` 乾淨）
-- [x] truth 對齊：techstack v0.3.4（TR-9）；data-spec v0.3.1；T-H9 對齊測試（57 綠內）持續把關
-- [x] 「下一步」精確到：push/PR 指令、與 PM 確認事項、F02 接續情境
-- [x] 若有進行中 Debug：`specs/plan/debug.md` 條目狀態已更新（無進行中條目——FE 三項均為測試基建修正，非產品缺陷，教訓已入 §2 環境筆記與 commit 訊息）
+- [x] `tasks.md` §6 對應任務狀態已回寫（本次：首次啟動播種 ✅、發佈格式定案 v0.3.6、DBG-003/004 結案、設定頁按原計畫屬 F07）
+- [x] 工作區已 commit（`git status` 乾淨）；交接快照已推 `session/handoff` 分支（跨電腦接手）
+- [x] truth 對齊：techstack v0.3.6；data-spec v0.3.1；T-H9 對齊測試（60 綠內）持續把關
+- [x] 「下一步」精確到：F02 規範檔案、情境清單、分支名（§3）
+- [x] 若有進行中 Debug：`specs/plan/debug.md` 條目狀態已更新（DBG-003/004 均 ✅ 結案）
 
 ## 2. 目前快照（每次休息前更新此表）
 
 | 欄位 | 內容 |
 |---|---|
 | 更新時間 | 2026-10-19 |
-| 階段 | **M1-F01 已合併 main＋v0.4.0 release 觸發**（ffadf09 合併、897255d bump → tag-on-main 自動建 v0.4.0 → release 四平台建置中）。下一步：確認 release 結果 → **M1-F02 交易帳戶** |
-| 當前分支 | main = 897255d（已推送）；feature/F01-quick-entry 已合併保留 |
-| 當前任務 | 完成：F01 合併（--no-ff，gh 未登入改本地合併——repo 狀態與 PR merge 相同）、版本升版 0.4.0+1、production 接線隨合併上 main（exe 即正式主殼：總覽/明細/快記＋檔案 DB Documents/ledger_sync/ledger.db） |
-| 紅綠燈狀態 | 合併前：`dart analyze` No issues、`flutter test` 57 綠、FE 6 情境 Windows 實跑綠；main push 觸發 CI＋release 工作流 |
+| 階段 | **M1-F01 完成＋四輪部署/缺陷修復＋首次啟動播種落地**（v0.4.4 發佈中）。App 本機與 Release 皆可預覽：總覽/明細/快記全流程可用（現金＋內建分類自動就緒）。下一步：**M1-F02 交易帳戶**（帳戶/分類管理 UI） |
+| 當前分支 | main = e20c856（已推送）；v0.4.4 tag/release 管線進行中 |
+| 當前任務 | 本輪：①DBG-003 空帳本灰屏修復（preset.account 可空）②DBG-004 檔案 DB 二次啟動崩潰（_migrate 冪等化：user_version 閘＋既有表偵測）③release 流水線重構（單工作流串接＋Release 冪等自癒）④發佈格式定案（版本化檔名＋Inno Setup per-user exe／DMG／未簽名 IPA；MSIX 撤回；軟體內版本 dart-define）⑤首次啟動播種（內建集＋現金，oplog 同交易契約）。**60 測試全綠** |
+| 紅綠燈狀態 | `dart analyze` No issues；`flutter test` **60 全綠**；本機 exe 雙重啟動實測通過、DB 播種驗證通過（現金＋支出 4＋薪資） |
 | 工作區 | 乾淨（文件回寫後 commit） |
-| truth 對齊 | techstack v0.3.5（path_provider 2.1.6，PM 定案）；data-spec v0.3.1；dsl.md §2/§3 F01 句型齊備 |
-| 環境筆記 | repo 於 `E:\opencode\finora`。**Release 流水線教訓（2026-10-19 修復）**：GITHUB_TOKEN 推的標籤不會觸發下游工作流（GitHub 防遞迴）→ 原鏈式 tag→release 設計從未生效、v0.1.0~v0.4.0 均無 Release；已改為 tag-on-main 單一工作流串接（Release 已存在則冪等跳過、自癒）。gh CLI 已裝（scoop 2.102.0）**但尚未 gh auth login** |
-| 阻塞／待決 | ①v0.4.0 release 四平台建置結果確認（修復推送後自動補建——Releases/Actions 頁）②v0.1.0/v0.2.0 歷史版本無 Release（如需：手動重推標籤走 release.yml 後備路徑）③SPEC FR-Q4「五段」vs acceptance「四段」待 PM ④SP-1 SQLCipher EOL ⑤gh auth login |
+| truth 對齊 | techstack v0.3.6（發佈格式定案；MSIX 撤回）；data-spec v0.3.1；debug.md DBG-003/004 結案；dsl.md BE 9＋FE 7 情境 |
+| 環境筆記 | **Release 教訓**：①GITHUB_TOKEN 推標籤不觸發下游工作流→主徑改單工作流串接（Release 冪等自癒）②build job checkout 標籤——**標籤內容必須含打包腳本修復**（v0.4.2 標籤滯後→Inno 舊路徑錯誤；未發佈標籤已重打到 28565fc）③release.yml 後備（手動推標籤）亦未觸發——**main push 為唯一可靠觸發路徑**。**Inno 本機除錯**：`~\tools\innosetup671\ISCC.exe`（同 CI 6.7.1）＋`~\tools\innosetup7`（7.1.0）。FE 測試：`flutter test integration_test/features/f01_quick_entry_test.dart -d windows`（7 情境）。gh 已裝未登入 |
+| 阻塞／待決 | ①v0.4.4 release 確認 ②v0.4.0/v0.4.2 壞包待刪（Releases 頁手動；gh auth 後可 CLI）③gh auth login ④SPEC FR-Q4 五段 vs 四段待 PM ⑤SP-1 SQLCipher（DB 明文）⑥F02 落地後檢視播種策略（保留/範例帳本）⑦**設定頁按原計畫屬 F07（M5-M6）**——FR-Q4 固定預設目前僅 BE 覆蓋無 UI，F07 設定頁補 |
 
 ## 3. 下一步（M1-F02 交易帳戶；下次開工照此執行）
 
@@ -50,8 +50,7 @@
 
 | 日期 | 摘要 | 分支 | 狀態 |
 |---|---|---|---|
-| 2026-10-19 | **Release 流水線修復**：使用者回報 release 未建——API 查證 Releases 全空（v0.1.0~v0.4.0 從未執行）。根因：tag-on-main 以 GITHUB_TOKEN 推標籤，GitHub 防遞迴規則使下游 release.yml 永不觸發。修法：四平台建置併入 tag-on-main 單一工作流＋Release 存在冪等檢查（缺失自癒）＋checkout 對準標籤版本；release.yml 保留為手動推標籤後備；tasks §0.1 Tag 列回寫。修復推送即自動補建 v0.4.0 | main | 🔄（建置驗證中） |
-| 2026-10-19 | **F01 合併 main＋v0.4.0 release 觸發**：--no-ff 合併（ffadf09；gh 未登入改本地合併）；bump 0.4.0+1（897255d）→ tag-on-main 自動建 **v0.4.0** → release 四平台建置；production 接線（path_provider，冒煙驗證 DB 建立）隨合併上 main——exe 即正式主殼 | feature/F01-quick-entry → main | ✅（merge ffadf09 / tag v0.4.0） |
+| 2026-10-19 | **部署實測回饋修復×3＋播種＋發佈格式定案**：DBG-003 空帳本灰屏（preset 可空＋FE 顯示選擇帳戶/儲存禁用）；DBG-004 檔案 DB 二次啟動崩潰（_migrate 冪等化：user_version 閘＋既有表偵測）；Release 流水線重構（單工作流串接＋冪等自癒——GITHUB_TOKEN 鏈式觸發失效為根因）；發佈格式（PM）：版本化檔名＋Inno Setup per-user exe（MSIX 撤回）＋DMG＋未簽名 IPA＋軟體內版本 dart-define；首次啟動播種（內建集＋現金，oplog 契約，PM 定案）；設定頁按原計畫屬 F07（PM）。60 測試全綠；v0.4.3/v0.4.4 發佈；本機 exe 預覽可用 | main | ✅（多 commit，v0.4.4 發佈中） |
 | 2026-10-19 | **T-F01-FE 完成（@P0 6 情境 🔴→🟢）＋分支整理**：C8 紅（c8c8515：dsl §3 登記 8 句型＋App 骨架＋FE harness；feature 背景順序修正）→ C9-C14 綠：S1 預填（1115b52）、S2 對話框（46990a5）、S3 Sticky＋S4 返回（a47ae1d）、S5 時間選擇器（ee57ae0）、S6 復原（593df0f）；**Windows 實跑 6 情境全綠（12s）**；harness 三教訓（KeyedSubtree 隔離/^ 錨點/@P1 過濾）；非 F01 之 2 commits 拆分至 main（62bd646 opencode、6912b8e TR-9） | feature/F01-quick-entry | 🔵（情境全綠、待 PR 合併） |
 | 2026-10-18 | **T-F01-BE 完成（8 情境 🔴→🟢）**：C1 紅（2618b13：dsl 登記＋BDD harness＋stubs；Undo 期望修正 1880 對齊 acceptance S1.8；dbml v0.3.1 settings key）→ C2-C7 綠：S1 時段/上一筆（6ec94af）、S2 商家（58ad00b）、S3 回退（dce4e9a）、S4 固定預設（24255eb）、S5 儲存事務（d045e12；S7 離線/S8 效能同）、S6 Undo 墓標（51a34cd）；57 測試全綠；opencode.json 修復（0d98087） | feature/F01-quick-entry | 🔵（BE 綠、FE 待、未合併） |
 | 2026-10-18 | **遷移完成＋DBG-002-① 根治驗證**：repo 移至 `E:\opencode\finora`；還原誤刪 `opencode.json`；刪舊 junction；`flutter clean` 清舊 CMakeCache（含舊路徑絕對路徑）後 `dart analyze`／56 測試／Windows Release 建置（81.9s）全數直接通過；README §3.2、debug.md 回寫「已遷移／根治」 | main | ✅ |

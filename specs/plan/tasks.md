@@ -181,8 +181,9 @@ S11-12：T-F08 → T-F09 → 效能複測（NFR-01~03）→ 上架
 | Feature | T-F01-BE（8 情境：智慧預設×4／儲存事務／Undo／離線／效能——🔴→🟢 完成，每情境一 commit） | ✅（合併 ffadf09） |
 | Feature | T-F01-FE（@P0 6 情境：預填／對話框／Sticky／完成／時間選擇器／復原——🔴→🟢 Windows 實跑全綠；App 主殼+快記頁+明細+總覽落地）＋production 接線（path_provider，techstack v0.3.5 PM 定案） | ✅（S1.11 @P1 @desktop 屬 M2；acceptance 手動情境留 QA 走查） |
 | Feature | T-F02~F10（BE+FE） | ☐ |
+| Feature | 首次啟動播種（內建分類集＋預設現金帳戶；M1 過渡——帳戶/分類管理 UI 屬 F02；oplog 同交易契約） | ✅（8545bc5） |
 | 對齊 | §5 清單自動化（pubspec/schema ✓ 已上 CI）；PR review 項人工 | 🟢 |
-| 發佈 | v0.1.0（骨架+Demo+T-H1/2）、v0.2.0（S0 完成）、**v0.4.0（M1-F01 完成＋production 接線）**自動標籤＋Release | ✅ |
+| 發佈 | v0.1.0、v0.2.0（自動標籤；**Release 產物從未成功**——流水線鏈式缺陷）；**v0.4.3（DBG-004）／v0.4.4（首次啟動播種＋發佈格式定案：版本化檔名＋Inno Setup per-user exe／DMG／未簽名 IPA／軟體內版本）** | ✅（v0.4.0~0.4.2 為修復迭代，v0.4.2/v0.4.0 壞包待刪） |
 
 - 狀態更新規則：🔴/🟢 由 CI 與 PR 自動可推導；🔵 與 ✅ 由開發者於 PR 描述更新；每 Sprint 結束回寫本表（對應 research §2.2 出口條件）。
 
