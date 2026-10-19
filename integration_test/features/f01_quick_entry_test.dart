@@ -65,6 +65,10 @@ class _World {
   /// 名稱 → id（Background 建立時登記）。
   final accounts = <String, String>{};
   final categories = <String, String>{};
+
+  /// 本次 session 儲存過的金額（「明細即時顯示該 N 筆」以可見 session 筆數斷言，
+  /// 背景歷史交易不計——綁定以金額文字識別，故情境金額須避開背景 120/30）。
+  final sessionAmounts = <int>[];
 }
 
 void _bind(GherkinRunner runner, _World w) {
@@ -76,6 +80,7 @@ void _bind(GherkinRunner runner, _World w) {
     w.pumped = false;
     w.accounts.clear();
     w.categories.clear();
+    w.sessionAmounts.clear();
     // M1 無引導頁：啟動即主殼；帳戶/分類/歷史由後續 Given 直寫。
   });
 
@@ -204,7 +209,7 @@ void _bind(GherkinRunner runner, _World w) {
     await w.tester.tap(find.byKey(const Key('fab-quick-entry')));
     await w.tester.pumpAndSettle();
     final n = int.parse(p['n']!);
-    const amounts = ['120', '80', '60'];
+    const amounts = ['101', '102', '103']; // 避開背景歷史金額（120/30）供識別
     for (var i = 0; i < n; i++) {
       await _fillAndSave(w, amount: amounts[i < 3 ? i : 2]);
       if (i < n - 1) {
@@ -277,13 +282,13 @@ void _bind(GherkinRunner runner, _World w) {
   // ── Then：分頁與明細 ──────────────────────────────────────
   runner.on(r'明細頁即時顯示該 {n} 筆$', (p) async {
     final n = int.parse(p['n']!);
-    // IndexedStack/推入路由下明細可能非作用中 → skipOffstage:false 仍應存在。
-    expect(
-      w.tester.widgetList(find.byType(TxTile, skipOffstage: false)),
-      hasLength(n),
-      reason: '明細應即時顯示 $n 筆',
-    );
-    expect(w.container!.read(ledgerProvider), hasLength(n), reason: 'ledgerProvider 狀態');
+    // 「該 N 筆」= 本次 session 所記且未被復原者（背景歷史不計）；
+    // IndexedStack/推入路由下明細可能非作用中 → skipOffstage:false。
+    var visible = 0;
+    for (final amt in w.sessionAmounts) {
+      if (w.tester.any(find.text('-$amt', skipOffstage: false))) visible++;
+    }
+    expect(visible, n, reason: '本次 session 應有 $n 筆即時顯示於明細');
   });
 }
 
@@ -296,8 +301,13 @@ Future<void> _ensureApp(_World w) async {
   ]);
   w.containers.add(container);
   w.container = container;
+  // 每情境以唯一 Key 強制重建整棵樹——否則 const AppShell 會複用 element，
+  // Navigator 路由堆疊（前情境的快記頁/對話框）殘留並掛著舊 container/DB。
   await w.tester.pumpWidget(
-    UncontrolledProviderScope(container: container, child: const AppShell()),
+    KeyedSubtree(
+      key: ValueKey('app-shell-${w.dbs.length}'),
+      child: UncontrolledProviderScope(container: container, child: const AppShell()),
+    ),
   );
   await w.tester.pumpAndSettle();
   w.pumped = true;
@@ -328,6 +338,7 @@ Future<void> _fillAndSave(
   if (category != null) ctrl.selectCategory(category);
   await w.tester.pump();
   ctrl.save();
+  w.sessionAmounts.add(int.parse(amount));
   await w.tester.pumpAndSettle();
 }
 

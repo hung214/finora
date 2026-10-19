@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../application/providers.dart';
+import '../../../core/clock.dart';
 import '../../../data/sqlite/app_database.dart';
 
 /// 快記狀態機階段（SDD §5.1）。
@@ -158,9 +159,15 @@ class QuickEntryController extends AutoDisposeNotifier<QuickEntryState> {
     ref.invalidate(ledgerProvider);
   }
 
-  /// 繼續（FR-Q2/Q5）：Sticky 保留帳戶/分類/商家；金額清空（FE 欄位）、
-  /// 時間重設為現在（FR-Q5）。
-  void continueEntry() => throw UnimplementedError('T-F01-FE 紅燈階段');
+  /// 繼續（FR-Q2/Q5）：Sticky 保留帳戶/分類/商家；時間重設為現在（FR-Q5）。
+  /// 金額清空由 FE 欄位於相位轉移時處理（SavedDialog→Inputting）。
+  void continueEntry() {
+    state = state.copyWith(
+      phase: QuickEntryPhase.inputting,
+      amount: '',
+      occurredAt: Clock.now(),
+    );
+  }
 
   /// 復原上一筆（FR-Q3）：軟刪除墓標＋oplog；計數減一。
   void undoLast() => throw UnimplementedError('T-F01-FE 紅燈階段');
