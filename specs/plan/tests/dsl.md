@@ -28,7 +28,7 @@
 
 ## 2. 後端 DSL（@BE，綁定純 Dart）
 
-**環境與掛鉤**：記憶體 Drift DB（每 Scenario 重建）、fake clock、in-memory CloudStorageAdapter、notification spy、StopWatch 效能計測。
+**環境與掛鉤**：記憶體 SQLite DB（每 Scenario 重建；TR-7 過渡 sqlite3 直連）、fake clock、in-memory CloudStorageAdapter、notification spy、StopWatch 效能計測。
 
 ### 2.1 Given（前置）
 
@@ -44,12 +44,24 @@
 | `Given 預算「{cat}」金額 {amount}、起始日 {day}` | budgets |
 | `Given 收入目標 {amount}` | income_goals |
 | `Given 定期交易「{name}」每月 {day} 日金額 {amount}` | recurring_transactions + next_due |
+| `Given 已建立分類{names}` | categories（連續「名稱」緊接，如「餐飲」「交通」；「其他」為內建 is_system） |
+| `Given 歷史: {desc}` | 分號分隔段落：①`昨日 HH:MM 帳戶/分類 金額`（單筆支出）②`本週{時段}帳戶/分類 N 筆`（本週前 N 日同時段各 1 筆）→ transactions + oplog |
+| `Given 商家「{m}」過去 {n} 筆分類皆為「{c}」` | transactions（merchant=m，過去 n 日各 1 筆，20:00 時段避開上午統計） |
+| `Given 目前時段最常用分類為「{c}」` | 依 acceptance 時段表，於過去 3 日同時段各 1 筆該分類 |
+| `Given 帳本無任何交易` | 斷言交易為 0 筆（防背景污染） |
+| `Given 設定 {key} = {value}` | settings upsert |
+| `Given 固定預設 = {account}/{category}` | `quick_entry.fixed_preset`（JSON：account_id/category_id） |
+| `Given 已儲存 {n} 筆（{amounts}）` | fixture 直寫 n 筆支出於第一個未封存帳戶（金額清單「、」分隔，依序遞減 1 分鐘） |
+| `And 連線已關閉` | in-memory adapter 進入 failing 態（模擬離線） |
 
 ### 2.2 When（動作）
 
 | 句型 | 綁定行為 |
 |---|---|
 | `When 呼叫 SaveTransactionUseCase（帳戶「{a}」、分類「{c}」、金額 {amt}、時間 {t}）` | UseCase 呼叫（計時） |
+| `When 呼叫 SaveTransactionUseCase（帳戶「{a}」、分類「{c}」、金額 {amt}、時間 {t}）計時 {n} 次` | NFR-01：n 次計時取 P95 |
+| `When 呼叫 QuickEntryPresetService 計算預設` | FR-Q4 智慧／固定預設計算（不含商家） |
+| `When 呼叫 QuickEntryPresetService 計算預設（商家={m}）` | 同上＋商家歷史分類優先 |
 | `When 呼叫 UndoLastTransaction` | 軟刪除+oplog |
 | `When 執行 BillingCycleService.run（「{card}」）` | 結帳引擎 |
 | `When 執行 RepayStatementUseCase（帳單 {period}、金額 {amt}）` | 繳款 |
@@ -77,7 +89,14 @@
 | `Then 裝置 {a} 與裝置 {b} 的重算餘額一致` | 跨 fixture 比對 |
 | `Then 衝突事件 1 筆，被覆蓋內容為 "{text}"` | sync_events |
 | `Then 雲端 backups/ 保留 {n} 份` | fake adapter list |
-| `Then 效能：入庫耗時 {ms}ms < 300ms` | StopWatch |
+| `Then 效能：入庫耗時 {ms}ms < 300ms（P95）` | StopWatch P95（F01-BE NFR-01；{ms} 為計畫預記值，以實測 P95 < 300 斷言） |
+| `Then 預設帳戶 = 「{name}」` / `Then 預設帳戶 = 第一個未封存帳戶` | QuickEntryPreset 輸出（FR-Q4） |
+| `Then 預設分類 = 「{name}」` | QuickEntryPreset 輸出 |
+| `Then 預設時間 = {datetime}` | QuickEntryPreset 輸出（= 現在） |
+| `Then 交易已入庫且 settlement_status = {status}` | DB 讀取（最後一次 UseCase 儲存） |
+| `And oplog 與交易位於同一 DB transaction（中斷模擬不產生孤兒）` | beforeOplog 注入拋錯 → rollback，兩表皆無孤兒（SDD §5.1） |
+| `Then 交易 {amount} 為軟刪除（deleted_at 非 null）` | 以金額對映 Given 已儲存之最近一筆 |
+| `And oplog 新增 {n} 筆（墓標）` | delta=n 且新 oplog payload=NULL |
 | `Then 解析結果：商家="{m}"、總額={amt}、日期={date}` | parser 輸出 |
 | `Then 搜尋 "{kw}" 命中 {n} 筆` | FTS5 bigram |
 
@@ -92,10 +111,14 @@
 | 句型 | 綁定行為 |
 |---|---|
 | `Given App 已完成首次設定` | 啟動至總覽（略過引導） |
-| `Given 使用者位於{page}頁` | 導航至該分頁 |
-| `Given 已建立帳戶「{name}」(餘額 {amount})` | fixture API（同 BE 語意） |
-| `Given 歷史交易: {描述}` | fixture API |
-| `Given 模擬系統時間為 {datetime}` | fake clock |
+| `Given 使用者位於{page}頁` | 導航至該分頁（NavigationBar 點選；同句型之 Then 用法見 §3.3） |
+| `Given 已建立帳戶「{name}」(餘額 {amount})` | fixture API（同 BE 語意；未標類型 → cash，FE 情境不涉類型語意） |
+| `Given 已建立分類{names}` | categories（連續「名稱」緊接；「其他」為內建 is_system；同 BE 語意） |
+| `Given 歷史交易: {描述}` | fixture API。段型：①`昨日 HH:MM 帳戶/分類/商家 金額 元`（單筆支出）②`本週{時段}帳戶/分類 N 筆`（前 N 日同時段各 1 筆）——**須在「模擬系統時間」之後**（相對日以凍結時間為基準） |
+| `Given 模擬系統時間為 {datetime}` | fake clock 凍結 |
+| `Given 快記頁已輸入金額 {amount}、帳戶={account}、分類={category}` | 開啟快記＋controller 狀態設定（金額/帳戶/分類） |
+| `Given 已儲存 {n} 筆（{account}/{category}/{merchant}）並於對話框按「繼續」` | 逐筆：設定→儲存→按「繼續」（Sticky 觸發；金額未標 → 120） |
+| `Given 已於本 session 儲存 {n} 筆` | 前 n-1 筆儲存後按「繼續」，第 n 筆儲存後**留於對話框**（復原入口） |
 | `Given 裝置處於飛航模式` | 連線模擬關閉 |
 | `Given 同步模式設定為「{mode}」` | settings 寫入 |
 
@@ -104,6 +127,7 @@
 | 句型 | 綁定行為 |
 |---|---|
 | `When 開啟快速記帳頁` / `When 按下 Ctrl+N（macOS 為 ⌘N）` | 快記入口 |
+| `When 開啟快速記帳頁並連續記錄 {n} 筆後按下「完成」` | 開快記→連存 n 筆（每筆按繼續，末筆按完成）→返回原分頁（S1.9） |
 | `When 輸入金額 {amount}` | 鍵盤輸入 |
 | `When 按下「{label}」` | 點擊可見文字按鈕 |
 | `When 點擊時間欄位` | 時間選擇器 |
@@ -117,11 +141,14 @@
 
 | 句型 | 綁定行為 |
 |---|---|
-| `Then {欄位}預填為「{value}」` | widget 斷言 |
+| `Then {field}預填為「{value}」` | widget 斷言（field=帳戶/分類/商家：find.text 於快記頁內；field=時間：value="現在" → 格式化 Clock.now()，否則解析 {value} 比對） |
+| `Then 金額欄為空且鍵盤已聚焦` | 金額 TextField text 為空＋EditableText focusNode.hasFocus |
+| `Then 金額欄為空` | 金額 TextField text 為空 |
+| `Then 使用者位於{page}頁` | 分頁斷言（與 §3.1 同句型：綁定以該頁是否已作用中區分——未作用中=導航（Given），已作用中=斷言（Then）） |
 | `Then 彈出對話框「{text}」且提供「{a}」「{b}」「{c}」三個動作` | dialog |
 | `Then 儲存按鈕為禁用狀態` | enabled=false |
 | `Then 明細頁即時顯示該 {n} 筆` | 清單斷言 |
-| `Then 顯示「{text}」` / `Then 不顯示「{text}」` | 文字存在性 |
+| `Then 顯示「{text}」` / `Then 不顯示「{text}」` | 文字存在性（「日期時間選擇器」綁定 find.byType(QuickDateTimePicker)） |
 | `Then 進度條為警示色（{color}）` | 樣式斷言 + 截圖 |
 | `Then 金額全部顯示為 ●●●●` | 遮蔽 |
 | `Then 出現鎖定畫面` | lock screen |

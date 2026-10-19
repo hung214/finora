@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:ledger_sync/data/sqlite/app_database.dart';
 
 /// T-H1：記憶體 DB fixture（每個 Scenario 重建；測試環境不啟用 SQLCipher）。
@@ -67,30 +69,39 @@ class DbFixture {
     required String accountId,
     String? toAccountId,
     String? category,
+    String? merchant,
     required int occurredAt,
     String source = 'manual',
     String settlementStatus = 'none',
   }) async {
     final now = DateTime.now().millisecondsSinceEpoch;
+    final row = TxRow(
+      id: id,
+      kind: kind,
+      amountMinor: amountMinor,
+      currency: 'TWD',
+      accountId: accountId,
+      toAccountId: toAccountId,
+      categoryId: category,
+      merchant: merchant,
+      note: null,
+      occurredAt: occurredAt,
+      source: source,
+      settlementStatus: settlementStatus,
+      createdAt: now,
+      updatedAt: now,
+      hlc: _hlc,
+    );
+    // payload = 整列快照（SDD §5.5.4）；NULL 僅用於刪除墓標。
     db.saveTransactionWithOplog(
-      TxRow(
-        id: id,
-        kind: kind,
-        amountMinor: amountMinor,
-        currency: 'TWD',
-        accountId: accountId,
-        toAccountId: toAccountId,
-        categoryId: category,
-        merchant: null,
-        note: null,
-        occurredAt: occurredAt,
-        source: source,
-        settlementStatus: settlementStatus,
-        createdAt: now,
-        updatedAt: now,
+      row,
+      OplogRow(
+        entity: 'transactions',
+        entityId: id,
         hlc: _hlc,
+        payload: jsonEncode(row.toSnapshot()),
+        packedSeq: null,
       ),
-      OplogRow(entity: 'transactions', entityId: id, hlc: _hlc, payload: null, packedSeq: null),
     );
   }
 

@@ -1,61 +1,28 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
 
-import 'presentation/screens/demo/demo_gallery_page.dart';
+import 'application/providers.dart';
+import 'data/sqlite/app_database.dart';
+import 'presentation/app_shell.dart';
 
-/// LedgerSync — 本地優先記帳 App（入口）。
-/// UI 資訊架構依 SDD §8；畫面雛型見 specs/plan/ui/；正式分頁架構於 M1（F01）實作。
-void main() => runApp(const LedgerSyncApp());
-
-class LedgerSyncApp extends StatelessWidget {
-  const LedgerSyncApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'LedgerSync',
-      theme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: const Color(0xFF0B7A75),
-      ),
-      darkTheme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: const Color(0xFF0B7A75),
-        brightness: Brightness.dark,
-      ),
-      home: const BootstrapPage(),
-    );
-  }
-}
-
-/// M0 骨架頁：確認四平台可啟動；M1 起由 F01（總覽/明細/快記/預算/設定）取代。
-class BootstrapPage extends StatelessWidget {
-  const BootstrapPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('LedgerSync')),
-      body: Builder(
-        builder: (context) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text('📒 LedgerSync',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              const Text('骨架就緒（M0）— 開發計畫見 specs/plan/tasks.md'),
-              const SizedBox(height: 20),
-              FilledButton.icon(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const DemoGalleryPage()),
-                ),
-                icon: const Icon(Icons.palette_outlined),
-                label: const Text('🎨 開啟 UI Demo（7 畫面 · 深色/淺色切換）'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+/// LedgerSync — 本地優先記帳 App（production 入口）。
+///
+/// 啟動流程：文件目錄開檔案 DB（`<documents>/ledger_sync/ledger.db`，
+/// path_provider，techstack v0.3.5）→ dbProvider 注入 → [AppShell] 主殼。
+/// M1 過渡期 DB 為明文 SQLite（SQLCipher 屬 SP-1，research §3）。
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final docs = await getApplicationDocumentsDirectory();
+  final dbDir = Directory('${docs.path}${Platform.pathSeparator}ledger_sync');
+  await dbDir.create(recursive: true);
+  final db = AppDatabase.open('${dbDir.path}${Platform.pathSeparator}ledger.db');
+  runApp(
+    ProviderScope(
+      overrides: [dbProvider.overrideWithValue(db)],
+      child: const AppShell(),
+    ),
+  );
 }

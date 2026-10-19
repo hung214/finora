@@ -52,7 +52,7 @@ Feature: 快速記帳領域邏輯（後端自動化）
     Given 已儲存 2 筆（120、80）
     When 呼叫 UndoLastTransaction
     Then 交易 80 為軟刪除（deleted_at 非 null）
-    And 帳戶「現金」重算餘額 = 2000
+    And 帳戶「現金」重算餘額 = 1880
     And oplog 新增 1 筆（墓標）
 
   @P0 @FR-Q6 @offline
