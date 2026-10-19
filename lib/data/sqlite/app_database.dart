@@ -246,6 +246,31 @@ class AppDatabase {
     }
   }
 
+  /// 實體清除 deleted_at <= cutoffMs 之墓標列（FR-T3 保留期屆滿，F02 S2.5）。
+  /// oplog 墓標保留（同步日誌完整性，GC 屬 F07）。回傳清除筆數；冪等（無候選回 0）。
+  int purgeTransactionsDeletedBefore(int cutoffMs) {
+    _db.execute('BEGIN');
+    try {
+      final count = _db
+          .select(
+              'SELECT COUNT(*) AS c FROM transactions'
+              ' WHERE deleted_at IS NOT NULL AND deleted_at <= ?',
+              [cutoffMs])
+          .first['c'] as int;
+      if (count > 0) {
+        _db.execute(
+          'DELETE FROM transactions WHERE deleted_at IS NOT NULL AND deleted_at <= ?',
+          [cutoffMs],
+        );
+      }
+      _db.execute('COMMIT');
+      return count;
+    } catch (_) {
+      _db.execute('ROLLBACK');
+      rethrow;
+    }
+  }
+
   // ── 設定（key-value；device.* 為 per-device 不入 oplog） ──
 
   void setSetting(String key, String value) => _db.execute(

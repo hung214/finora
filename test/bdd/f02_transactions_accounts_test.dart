@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_sync/application/quick_entry/save_transaction_use_case.dart';
 import 'package:ledger_sync/application/stats/monthly_stats_service.dart';
+import 'package:ledger_sync/application/transactions/delete_transaction_use_case.dart';
+import 'package:ledger_sync/application/transactions/tombstone_purge_service.dart';
 import 'package:ledger_sync/core/clock.dart';
 import 'package:ledger_sync/data/sqlite/app_database.dart';
 import 'package:ledger_sync/domain/entities/account.dart';
@@ -46,6 +48,7 @@ class _World {
   final List<AppDatabase> dbs = [];
   late AppDatabase db;
   late SaveTransactionUseCase save;
+  late DeleteTransactionUseCase delete;
 
   /// 名稱 → id 對映（Background 建立時登記）。
   final accounts = <String, String>{};
@@ -65,6 +68,12 @@ class _World {
 
   /// 最近一次成功建立之交易 id（kind 斷言用，F02 S2.4/S2.6）。
   String? lastCreatedTxId;
+
+  /// 最近一次 Given 種下之交易 id（刪除情境目標，F02 S2.5）。
+  String? lastSeededTxId;
+
+  /// 最近一次清除工作之清除筆數（診斷用）。
+  int? lastPurgedCount;
 }
 
 void _bind(GherkinRunner runner, _World w) {
@@ -79,7 +88,10 @@ void _bind(GherkinRunner runner, _World w) {
     w.opBaseline = 0;
     w.txCountBaseline = 0;
     w.validationError = null;
+    w.lastCreatedTxId = null;
+    w.lastSeededTxId = null;
     w.save = SaveTransactionUseCase(db);
+    w.delete = DeleteTransactionUseCase(db);
   });
 
   runner.on(r'已建立帳戶「{name}」類型 {type} 期初 {amount}$', (p) {
@@ -206,6 +218,50 @@ void _bind(GherkinRunner runner, _World w) {
       _amount(p['amount']!),
       reason: 'AC-10：轉帳不計入收入統計',
     );
+  });
+
+  // ── Given：刪除目標（F02 S2.5 測試資料）──────────────────
+  runner.on(r'已存在一筆支出 {amount} 元$', (p) {
+    final amount = _amount(p['amount']!);
+    const id = 'tx-del-1';
+    DbFixture.seedTx(
+      w.db,
+      id: id,
+      kind: 'expense',
+      amountMinor: amount,
+      accountId: w.accounts['現金']!,
+      category: w.categories['餐飲'],
+      occurredAt: Clock.now().millisecondsSinceEpoch,
+    );
+    w.txIdByAmount[amount] = id; // 「交易 {amt} 為軟刪除」斷言用（F01 同契約）
+    w.lastSeededTxId = id; // 「刪除該筆交易」目標
+  });
+
+  // ── When：刪除＋清除（F02 S2.5）──────────────────────────
+  runner.on(r'刪除該筆交易$', (p) {
+    final id = w.lastSeededTxId;
+    expect(id, isNotNull, reason: 'Given 應已種下目標交易');
+    w.opBaseline = w.db.allOps().length;
+    w.delete.execute(id!);
+  });
+
+  runner.on(r'模擬時間快轉 {days} 天並執行清除工作$', (p) {
+    final days = int.parse(p['days']!);
+    Clock.freeze(Clock.now().add(Duration(days: days)));
+    w.lastPurgedCount = TombstonePurgeService(w.db).purge();
+  });
+
+  // ── Then：軟刪除墓標（dsl.md §2.3 既有句型，F01 同契約）─────
+  runner.on(r'交易 {amount} 為軟刪除（deleted_at 非 null）$', (p) {
+    final id = w.txIdByAmount[_amount(p['amount']!)];
+    expect(id, isNotNull, reason: 'Given 已儲存應登記金額 → id');
+    expect(w.db.transactionById(id!)!.deletedAt, isNotNull, reason: '墓標軟刪除（SDD 原則 5）');
+  });
+
+  // ── Then：保留期屆滿（F02 S2.5）──────────────────────────
+  runner.on(r'該筆墓標已物理清除（無法還原）$', (p) {
+    expect(w.db.transactionById(w.lastSeededTxId!), isNull,
+        reason: 'FR-T3：保留期屆滿實體清除（oplog 墓標保留，GC 屬 F07）');
   });
 
   // ── Then：交易 kind（F02 S2.4/S2.6；「且無分類」變體於 C6 先於本句型登記）──
