@@ -7,9 +7,11 @@ import '../../data/sqlite/app_database.dart';
 class QuickEntryPreset {
   const QuickEntryPreset({required this.account, this.category, required this.time});
 
-  final AccountRow account;
+  /// 預設帳戶；**空帳本（零帳戶）時為 null**（DBG-003：不得拋錯——
+  /// FE 顯示「選擇帳戶」且儲存禁用，帳戶建立 UI 屬 F02）。
+  final AccountRow? account;
 
-  /// 預設分類；查無推薦時為 null（回退規則見 C4/S1.3）。
+  /// 預設分類；查無推薦時為 null（回退規則見 S1.3）。
   final CategoryRow? category;
   final DateTime time;
 }
@@ -49,6 +51,7 @@ class QuickEntryPresetService {
     }
 
     // FR-Q4①：帳戶預設 = 上一筆交易所用帳戶；封存 → 第一個未封存（S1.1 邊界）。
+    // 空帳本 → null（DBG-003：呼叫端不得假設有帳戶）。
     final last = _db.lastTransaction();
     AccountRow? account;
     if (last != null) {
@@ -82,8 +85,9 @@ class QuickEntryPresetService {
   }
 
   /// 固定預設帳戶（S1.4）：JSON `{"account_id": ...}`；缺失/已封存/已刪除
-  /// → 回退第一個未封存帳戶並由 FE 提示一次（acceptance S1.4 邊界）。
-  AccountRow _fixedAccount() {
+  /// → 回退第一個未封存帳戶並由 FE 提示一次（acceptance S1.4 邊界）；
+  /// 空帳本 → null（DBG-003）。
+  AccountRow? _fixedAccount() {
     final preset = _readFixedPreset();
     if (preset != null) {
       final id = preset['account_id'] as String?;
@@ -188,13 +192,14 @@ class QuickEntryPresetService {
   }
 
   /// 第一個未封存帳戶（依建立順序；S1.3/S1.1 邊界回退規則）。
-  AccountRow _firstActiveAccount() {
+  /// 空帳本 → null（DBG-003：不得對空清單取 .first）。
+  AccountRow? _firstActiveAccount() {
     final active = _db.allAccounts().where((a) => !a.archived).toList()
       ..sort((a, b) {
         final byTime = a.createdAt.compareTo(b.createdAt);
         return byTime != 0 ? byTime : a.id.compareTo(b.id);
       });
-    return active.first;
+    return active.isEmpty ? null : active.first;
   }
 }
 
