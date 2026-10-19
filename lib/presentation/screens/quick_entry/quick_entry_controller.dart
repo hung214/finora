@@ -170,7 +170,13 @@ class QuickEntryController extends AutoDisposeNotifier<QuickEntryState> {
   }
 
   /// 復原上一筆（FR-Q3）：軟刪除墓標＋oplog；計數減一。
-  void undoLast() => throw UnimplementedError('T-F01-FE 紅燈階段');
+  /// 信用卡預扣交易同步回沖「本期應付」——衍生值即時重算（SDD 原則 2）。
+  void undoLast() {
+    final result = ref.read(undoLastTransactionProvider).execute();
+    if (result == null) return; // 無可復原（如全部已撤）
+    state = state.copyWith(sessionCount: state.sessionCount - 1);
+    ref.invalidate(ledgerProvider);
+  }
 }
 
 final quickEntryControllerProvider =

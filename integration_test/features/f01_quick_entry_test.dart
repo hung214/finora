@@ -34,9 +34,12 @@ Future<void> main() async {
     final runner = GherkinRunner();
     _bind(runner, w);
     try {
-      final executed = await runner
-          .run(doc, tagFilter: (tags) => tags.contains('@FE') && tags.contains('@P0'));
-      expect(executed, 6, reason: 'F01-FE 應執行 6 個情境（@FE @P0）');
+      final executed = await runner.run(doc, tagFilter: (tags) {
+        // 檔級標籤含 @P0（預設優先級）——情境級 @P1（S1.11 桌面快捷鍵，M2）
+        // 以明確排除處理。
+        return tags.contains('@FE') && !tags.contains('@P1');
+      });
+      expect(executed, 6, reason: 'F01-FE 應執行 6 個情境（@FE @P0；S1.11 @P1 M2 排除）');
       // ignore: avoid_print
       print(runner.log.join('\n'));
     } finally {
@@ -265,7 +268,7 @@ void _bind(GherkinRunner runner, _World w) {
     expect(state.lastSaveMs!, lessThan(300), reason: 'NFR-01：入庫耗時 < 300ms');
   });
 
-  runner.on(r'顯示「{text}」$', (p) async {
+  runner.on(r'^顯示「{text}」$', (p) async {
     final text = p['text']!;
     if (text == '日期時間選擇器') {
       expect(find.byType(QuickDateTimePicker), findsOneWidget,
@@ -275,7 +278,7 @@ void _bind(GherkinRunner runner, _World w) {
     }
   });
 
-  runner.on(r'不顯示「{text}」$', (p) async {
+  runner.on(r'^不顯示「{text}」$', (p) async {
     expect(find.text(p['text']!), findsNothing, reason: '不應顯示「${p['text']}」');
   });
 
