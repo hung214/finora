@@ -158,6 +158,9 @@ void _bind(GherkinRunner runner, _World w) {
   runner.on(r'建立轉帳「{from}」→「{to}」金額 {amt}$', (p) async =>
       _saveTransfer(w, from: p['from']!, to: p['to']!, amount: p['amt']!));
 
+  runner.on(r'建立「儲值」交易 {to} 金額 {amt} 來源={from}$', (p) async =>
+      _saveTransfer(w, from: p['from']!, to: p['to']!, amount: p['amt']!));
+
   // ── Then：明細與餘額（F02-FE S2/S3）──────────────────────
   runner.on(r'明細頁即時顯示該 {n} 筆$', (p) async {
     final n = int.parse(p['n']!);
@@ -181,6 +184,19 @@ void _bind(GherkinRunner runner, _World w) {
       w.tester.any(find.byIcon(Icons.swap_horiz, skipOffstage: false)),
       isTrue,
       reason: '轉帳圖示（非支出圖示）',
+    );
+  });
+
+  runner.on(r'顯示「{text}」（不顯示「{other}」）$', (p) async {
+    expect(
+      w.tester.any(find.text(p['text']!, skipOffstage: false)),
+      isTrue,
+      reason: '應顯示「${p['text']}」（F02 S2.4 儲值語意）',
+    );
+    expect(
+      find.text(p['other']!, skipOffstage: false),
+      findsNothing,
+      reason: '不應顯示「${p['other']}」',
     );
   });
 
