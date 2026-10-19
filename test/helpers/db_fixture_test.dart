@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_sync/data/sqlite/app_database.dart';
 
@@ -95,5 +97,19 @@ void main() {
     await DbFixture.setSetting(db, key: 'device.sync.mode', value: '"per-tx"');
     expect(db.getSetting('device.sync.mode'), '"per-tx"');
     expect(db.getSetting('nope'), isNull);
+  });
+
+  test('DBG-004：既有檔案 DB 重新開啟不崩潰且資料延續', () async {
+    final tmp = await Directory.systemTemp.createTemp('dbg004');
+    final path = '${tmp.path}${Platform.pathSeparator}ledger.db';
+    final db1 = AppDatabase.open(path);
+    await DbFixture.seedAccount(db1, id: 'a1', type: 'cash', name: '現金', opening: 100);
+    db1.close();
+    // 修復前：第二次 open 重跑 CREATE TABLE → StateError（already exists）
+    final db2 = AppDatabase.open(path);
+    expect(db2.allAccounts().map((a) => a.name), contains('現金'), reason: '資料應延續');
+    expect(db2.schemaVersion, 1);
+    db2.close();
+    await tmp.delete(recursive: true);
   });
 }

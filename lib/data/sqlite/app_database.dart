@@ -37,6 +37,20 @@ class AppDatabase {
   int get schemaVersion => SchemaV1.version;
 
   void _migrate() {
+    // DBG-004：遷移必須冪等——
+    // ① `PRAGMA user_version` 版本閘：已遷移之 DB 直接跳過（第二啟動不再重跑 DDL）。
+    // ② 既有表偵測：修補 user_version 未標記的舊版 DB（v0.4.x 期間建立者）——
+    //    DDL 於交易內全有全無，accounts 存在 ⇒ 六表齊備。
+    // DDL 字串維持原樣（T-H9 truth 對齊 regex 相容）；多版本遷移器隨 T-S2 落地。
+    final current = _db.select('PRAGMA user_version').first.values.first as int;
+    if (current >= SchemaV1.version) return;
+    final tablesExist = _db
+        .select("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'accounts'")
+        .isNotEmpty;
+    if (tablesExist) {
+      _db.execute('PRAGMA user_version = ${SchemaV1.version}');
+      return;
+    }
     _db.execute('BEGIN');
     try {
       for (final s in SchemaV1.statements) {
@@ -45,6 +59,7 @@ class AppDatabase {
       for (final s in SchemaV1.indexes) {
         _db.execute(s);
       }
+      _db.execute('PRAGMA user_version = ${SchemaV1.version}');
       _db.execute('COMMIT');
     } catch (_) {
       _db.execute('ROLLBACK');
