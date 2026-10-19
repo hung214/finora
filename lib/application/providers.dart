@@ -66,6 +66,27 @@ class LedgerNotifier extends Notifier<List<TxRow>> {
   void refresh() => ref.invalidateSelf();
 }
 
+/// 最近刪除（墓標，deleted_at 降冪；F02-FE「最近刪除」頁）。
+final recentDeletionsProvider =
+    NotifierProvider<RecentDeletionsNotifier, List<TxRow>>(
+        RecentDeletionsNotifier.new);
+
+class RecentDeletionsNotifier extends Notifier<List<TxRow>> {
+  @override
+  List<TxRow> build() {
+    final txs = ref
+        .watch(dbProvider)
+        .allTransactions()
+        .where((t) => t.deletedAt != null)
+        .toList()
+      ..sort((a, b) => b.deletedAt!.compareTo(a.deletedAt!));
+    return txs;
+  }
+
+  /// 刪除/還原後刷新。
+  void refresh() => ref.invalidateSelf();
+}
+
 // ── Row → 領域實體對映（BalanceCalculator 介面對齊） ──────────
 
 Account accountEntity(AccountRow r) => Account(

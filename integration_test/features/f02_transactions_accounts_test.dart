@@ -8,6 +8,7 @@ import 'package:ledger_sync/application/providers.dart';
 import 'package:ledger_sync/core/clock.dart';
 import 'package:ledger_sync/data/sqlite/app_database.dart';
 import 'package:ledger_sync/presentation/app_shell.dart';
+import 'package:ledger_sync/presentation/screens/ledger/recent_deletions_page.dart';
 import 'package:ledger_sync/presentation/screens/quick_entry/quick_entry_controller.dart';
 import 'package:ledger_sync/presentation/screens/quick_entry/quick_entry_page.dart';
 
@@ -209,6 +210,72 @@ void _bind(GherkinRunner runner, _World w) {
     final fmt = NumberFormat('#,###').format(_amount(p['amount']!));
     expect(find.text('餘額 $fmt'), findsOneWidget, reason: '總覽餘額卡（千分位）');
   });
+
+  // ── Given：刪除目標（F02-FE S4；dsl §3.1 基準日凍結）─────
+  runner.on(r'已存在一筆支出 {amount} 元$', (p) async {
+    // 基準日凍結：對齊情境日期算術（刪除日 2026/10/19 → 2026/11/18 = +30 曆日）。
+    Clock.freeze(DateTime(2026, 10, 19, 12));
+    final amount = _amount(p['amount']!);
+    const id = 'tx-del-1';
+    await DbFixture.seedTx(
+      w.db!,
+      id: id,
+      kind: 'expense',
+      amountMinor: amount,
+      accountId: w.accounts['現金']!,
+      category: w.categories['交通'],
+      occurredAt: Clock.now().millisecondsSinceEpoch,
+    );
+    w.sessionExpenses.add(amount); // 「明細即時顯示（已移除）」斷言用
+  });
+
+  // ── When：刪除與時間（F02-FE S4）────────────────────────
+  runner.on(r'刪除該筆交易$', (p) async {
+    await _ensureApp(w);
+    await w.tester.tap(find.descendant(
+        of: find.byType(NavigationBar), matching: find.text('明細')));
+    await w.tester.pumpAndSettle();
+    // 點該筆（session 最後一筆支出）→ bottom sheet「刪除」。
+    final amt = w.sessionExpenses.last;
+    await w.tester.tap(find.text('-$amt'));
+    await w.tester.pumpAndSettle();
+    await w.tester.tap(find.byKey(const Key('tx-delete')));
+    await w.tester.pumpAndSettle();
+  });
+
+  runner.on(r'模擬系統時間為 {dt}$', (p) async => Clock.freeze(_dateTime(p['dt']!)));
+
+  // ── Then：軟刪除即時反映（F02-FE S4）─────────────────────
+  runner.on(r'明細頁即時顯示該 {n} 筆（已移除）$', (p) async {
+    final n = int.parse(p['n']!);
+    var removed = 0;
+    for (final amt in w.sessionExpenses) {
+      if (!w.tester.any(find.text('-$amt', skipOffstage: false))) removed++;
+    }
+    expect(removed, n, reason: '該 $n 筆應已自明細移除（軟刪除即時反映）');
+  });
+
+  runner.on(r'設定→「最近刪除」顯示 {n} 筆（剩餘 {days} 天）$', (p) async {
+    await _openRecentDeletions(w);
+    final n = int.parse(p['n']!);
+    final rows = find.textContaining('剩餘', skipOffstage: false);
+    expect(w.tester.widgetList<Text>(rows).length, n, reason: '最近刪除應顯示 $n 筆');
+    if (n > 0) {
+      expect(
+        w.tester.any(find.text('剩餘 ${p['days']!} 天')),
+        isTrue,
+        reason: '剩餘天數應為 ${p['days']}（曆日計）',
+      );
+    }
+  });
+
+  runner.on(r'設定→「最近刪除」顯示 {n} 筆$', (p) async {
+    await _openRecentDeletions(w);
+    final n = int.parse(p['n']!);
+    final rows = find.textContaining('剩餘', skipOffstage: false);
+    expect(w.tester.widgetList<Text>(rows).length, n,
+        reason: '最近刪除應顯示 $n 筆（0＝空狀態；30 曆日窗口）');
+  });
 }
 
 // ── 綁定輔助（沿 F01 模式）─────────────────────────────────
@@ -261,4 +328,33 @@ Future<void> _saveTransfer(
   await w.tester.pumpAndSettle(); // 返回主殼
 }
 
+/// 開啟「最近刪除」（F02-FE S4）：入口＝明細 AppBar（M1 無設定頁，F07）。
+/// 已在頁內則先返回——凍結時間後需重新進入以重算窗口（Clock 不觸發 rebuild）。
+Future<void> _openRecentDeletions(_World w) async {
+  await _ensureApp(w);
+  if (w.tester.any(find.byType(RecentDeletionsPage))) {
+    await w.tester.pageBack();
+    await w.tester.pumpAndSettle();
+  }
+  await w.tester.tap(find.descendant(
+      of: find.byType(NavigationBar), matching: find.text('明細')));
+  await w.tester.pumpAndSettle();
+  await w.tester.tap(find.byKey(const Key('ledger-recent-deletions')));
+  await w.tester.pumpAndSettle();
+  expect(w.tester.any(find.byType(RecentDeletionsPage)), isTrue,
+      reason: '最近刪除頁應已開啟');
+}
+
 int _amount(String s) => int.parse(s.trim().replaceAll(',', ''));
+
+DateTime _dateTime(String s) {
+  final m = RegExp(r'^(\d{4})/(\d{2})/(\d{2})(?: (\d{1,2}):(\d{2}))?$').firstMatch(s.trim());
+  if (m == null) throw FormatException('日期時間格式未支援：$s（dsl.md §1-3）');
+  return DateTime(
+    int.parse(m.group(1)!),
+    int.parse(m.group(2)!),
+    int.parse(m.group(3)!),
+    m.group(4) == null ? 0 : int.parse(m.group(4)!),
+    m.group(5) == null ? 0 : int.parse(m.group(5)!),
+  );
+}
