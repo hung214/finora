@@ -271,6 +271,37 @@ class AppDatabase {
     }
   }
 
+  /// 還原墓標（FR-T3 30 天內，acceptance F02 S2.5 步驟 3）：deleted_at → NULL
+  /// + oplog **整列快照**（非墓標——還原是 UPDATE，同步端以快照覆蓋）於
+  /// **同一 transaction**（鏡像 [softDeleteTransactionWithOplog] 契約）。
+  /// 未刪除/不存在者拋 StateError（防還原幻影）。
+  void restoreTransactionWithOplog(
+    String id,
+    OplogRow o, {
+    required int restoredAt,
+    required String hlc,
+  }) {
+    final tx = transactionById(id);
+    if (tx == null) {
+      throw StateError('還原失敗：交易不存在 $id');
+    }
+    if (tx.deletedAt == null) {
+      throw StateError('還原失敗：交易未刪除 $id');
+    }
+    _db.execute('BEGIN');
+    try {
+      _db.execute(
+        'UPDATE transactions SET deleted_at = NULL, updated_at = ?, hlc = ? WHERE id = ?',
+        [restoredAt, hlc, id],
+      );
+      appendOp(o);
+      _db.execute('COMMIT');
+    } catch (_) {
+      _db.execute('ROLLBACK');
+      rethrow;
+    }
+  }
+
   // ── 設定（key-value；device.* 為 per-device 不入 oplog） ──
 
   void setSetting(String key, String value) => _db.execute(
