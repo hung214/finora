@@ -30,13 +30,18 @@ class SaveTransactionResult {
 /// - oplog payload 為整列快照、packed_seq = null（待 SyncCoordinator 打包，F07）——
 ///   離線時僅落地本地（local-first，S1.10），上線後補同步。
 /// - 金額一律整數 minor units 且為正（方向由 kind 決定，SDD §4.2）。
+/// - [afterSave]：入庫成功後之**警示同步鉤子**（FR-B4 冪等 sync 點；
+///   F05 BudgetAlertService——通知 spy/正式通知皆 fire-and-forget）。
 class SaveTransactionUseCase {
-  SaveTransactionUseCase(this._db, {this.deviceId = 'device-local'});
+  SaveTransactionUseCase(this._db, {this.deviceId = 'device-local', this.afterSave});
 
   final AppDatabase _db;
 
   /// HLC 裝置 id（M1 本地單機；F07 多裝置時由裝置註冊提供）。
   final String deviceId;
+
+  /// 入庫成功後呼叫（可為 null——F01/F02 純情境不接警示）。
+  final void Function()? afterSave;
 
   /// 記一筆（F02 擴充：kind 預設支出；transfer/repayment 須 [toAccountId]）。
   ///
@@ -54,6 +59,7 @@ class SaveTransactionUseCase {
     String? note,
     TxKind kind = TxKind.expense,
     String? toAccountId,
+    String settlementStatus = 'none',
   }) {
     if (amountMinor <= 0) {
       // F02 S2.1：金額必填且大於 0（0 或空值皆不得入庫；訊息為 FE 顯示契約）。
@@ -76,7 +82,8 @@ class SaveTransactionUseCase {
       note: note,
       occurredAt: occurredAt.millisecondsSinceEpoch,
       source: 'manual',
-      settlementStatus: 'none', // 快記資產帳戶；信用卡預扣語意屬 F04
+      // F05 S5.3：信用卡預扣（pending）——預算「承諾支出」口徑；完整帳單語意屬 F04。
+      settlementStatus: settlementStatus,
       createdAt: now.millisecondsSinceEpoch,
       updatedAt: now.millisecondsSinceEpoch,
       hlc: Hlc.now(deviceId).toString(),
@@ -91,6 +98,8 @@ class SaveTransactionUseCase {
         packedSeq: null,
       ),
     );
+    // FR-B4：入庫後冪等同步預算警示（sync 點①；F05）。
+    afterSave?.call();
     return SaveTransactionResult(row.id);
   }
 }

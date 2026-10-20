@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>10 新增資料（快記 v2）：金額輸入＋計算機鍵盤＋轉帳模式 — LedgerSync UI 雛型</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI","Noto Sans TC",system-ui,sans-serif}
+body{background:#e8ecef;display:flex;gap:300px;padding:40px;align-items:flex-start}
+.frame{position:relative;flex:none}
+.phone{width:390px;height:844px;background:#12312F;border-radius:40px;border:10px solid #1c1f22;position:relative;overflow:hidden}
+.notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:120px;height:24px;background:#1c1f22;border-radius:0 0 16px 16px;z-index:9}
+.screen{position:absolute;inset:0;padding:48px 16px 20px;overflow-y:auto;display:flex;flex-direction:column}
+.note{position:absolute;left:410px;width:250px;background:#FFF7C2;border-left:4px solid #E6B800;padding:10px 12px;font-size:12px;border-radius:6px;box-shadow:2px 2px 6px rgba(0,0,0,.15);line-height:1.5}
+.note b{display:block;margin-bottom:4px;color:#8a6d00}
+.top{display:flex;justify-content:space-between;color:#9fd4d0;font-size:13px;margin-bottom:14px}
+.top .t{background:rgba(255,255,255,.12);padding:6px 12px;border-radius:12px}
+.modes{display:flex;gap:6px;margin-bottom:12px}
+.mode{flex:1;text-align:center;padding:10px 0;border-radius:12px;font-size:14px;font-weight:700;color:#9fd4d0;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
+.mode.on{background:#F5C86B;color:#12312F;border-color:#F5C86B}
+.expr{color:#fff;text-align:right;font-size:34px;font-weight:800;letter-spacing:1px;margin:6px 0 2px;min-height:44px}
+.expr small{display:block;font-size:13px;color:#9fd4d0;font-weight:400;text-align:center;letter-spacing:0}
+.field{display:flex;gap:8px;margin-bottom:8px}
+.f{flex:1;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:12px;color:#d9e8e7;font-size:13px;padding:9px 12px}
+.f b{color:#fff}
+.f small{display:block;font-size:10px;color:#9fd4d0;margin-bottom:2px}
+.calc{margin-top:8px}
+.calc .row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px}
+.key{background:rgba(255,255,255,.07);color:#e7f2f1;border:1px solid rgba(255,255,255,.1);border-radius:14px;text-align:center;padding:13px 0;font-size:19px}
+.key.op{color:#F5C86B;font-weight:700}
+.key.fn{color:#9fd4d0;font-size:16px}
+.key.eq{grid-column:span 4;background:#F5C86B;color:#12312F;font-weight:800;font-size:20px;padding:12px 0}
+.save{background:#F5C86B;color:#12312F;font-size:18px;font-weight:800;border-radius:16px;padding:14px;text-align:center;margin-top:10px}
+.save.off{background:rgba(255,255,255,.14);color:rgba(217,232,231,.5)}
+.time{color:#9fd4d0;text-align:center;font-size:13px;margin-top:8px}
+</style>
+</head>
+<body>
+
+<!-- 手機 A：支出模式（金額輸入＋計算機鍵盤，運算式已完成 165） -->
+<div class="frame">
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="screen">
+      <div class="top"><span class="t">快速記帳</span><span class="t">2026/10/20 09:30</span></div>
+      <div class="modes">
+        <div class="mode on">支出</div>
+        <div class="mode">轉帳</div>
+        <div class="mode">收入</div>
+        <div class="mode">還款</div>
+      </div>
+      <div class="expr">165<small>金額（TWD・整數元）</small></div>
+      <div class="field"><div class="f"><small>帳戶</small><b>現金</b></div><div class="f"><small>分類</small><b>餐飲</b></div></div>
+      <div class="field"><div class="f"><small>商家</small><b>晨光早餐店</b></div></div>
+      <div class="calc">
+        <div class="row">
+          <div class="key">7</div><div class="key">8</div><div class="key">9</div><div class="key op">÷</div>
+        </div>
+        <div class="row">
+          <div class="key">4</div><div class="key">5</div><div class="key">6</div><div class="key op">×</div>
+        </div>
+        <div class="row">
+          <div class="key">1</div><div class="key">2</div><div class="key">3</div><div class="key op">－</div>
+        </div>
+        <div class="row">
+          <div class="key fn">C</div><div class="key">0</div><div class="key fn">⌫</div><div class="key op">＋</div>
+        </div>
+        <div class="row"><div class="key eq">＝</div></div>
+      </div>
+      <div class="time">時間 2026/10/20 09:30（點擊修改，不離開頁）</div>
+      <div class="save">儲存</div>
+    </div>
+  </div>
+  <div class="note" style="top:60px"><b>S2.9 金額計算機鍵盤（2026-10-20 PM 增補）</b>常駐四則運算：0-9／＋－×÷／＝／C／⌫；＝ 左至右求值、四捨五入至整數元（TWD 無小數點，依幣別 exponent）；連按運算子＝取代；÷0 → ＝ 無效（保留原式，儲存禁用）。</div>
+  <div class="note" style="top:300px"><b>金額欄（唯讀顯示）</b>系統鍵盤不彈出（TextInputType.none）——輸入一律經常駐鍵盤；運算式未完成（如 120＋）→ 儲存禁用；＝ 求值 165 → 儲存啟用（S2.1 金額必填＞0 即時切換）。</div>
+  <div class="note" style="top:560px"><b>FR-Q1~Q5 既有語意不變</b>大金額鍵盤＋分類快捷格（見 03 雛型）；Sticky：繼續後金額清空、時間重設、帳戶/分類/商家保留。</div>
+</div>
+
+<!-- 手機 B：轉帳模式（F02：目標帳戶＋儲值語意） -->
+<div class="frame">
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="screen">
+      <div class="top"><span class="t">快速記帳</span><span class="t">2026/10/20 09:31</span></div>
+      <div class="modes">
+        <div class="mode">支出</div>
+        <div class="mode on">轉帳</div>
+        <div class="mode">收入</div>
+        <div class="mode">還款</div>
+      </div>
+      <div class="expr">500<small>金額（TWD・整數元）</small></div>
+      <div class="field"><div class="f"><small>來源帳戶</small><b>銀行</b></div><div class="f"><small>目標帳戶</small><b>票證卡</b></div></div>
+      <div class="field"><div class="f" style="opacity:.55"><small>分類／商家</small><b>不適用（轉帳語意）</b></div></div>
+      <div class="time">時間 2026/10/20 09:31</div>
+      <div class="save">儲存</div>
+      <div style="margin-top:10px;color:#9fd4d0;font-size:11px;line-height:1.6">轉帳不計入收支統計（AC-10）；目標為電子票證 → 明細顯示「儲值」（FR-A5）；同帳戶轉帳 → UI 阻擋（目標選項排除來源）。</div>
+    </div>
+  </div>
+  <div class="note" style="top:60px"><b>F02 轉帳模式</b>來源帳戶＋目標帳戶（同帳戶轉帳 UI 阻擋）；分類/商家隱藏（BE 強制無分類）；轉帳守恆——現金 600／銀行 10,400，統計不變。</div>
+  <div class="note" style="top:330px"><b>S2.4 儲值語意</b>來源=銀行、目標=票證卡 → 建立 transfer；明細顯示「儲值」而非「支出」（收入模式/還款模式 UI 隨對應 Sprint 情境擴充，BE 已支援）。</div>
+  <div class="note" style="top:590px"><b>桌面殼（08 雛型）</b>同內容元件於寬版重排：左側導航欄＋右側快記常駐面板；金額鍵盤與計算機共用（RWD 單碼庫）。</div>
+</div>
+
+</body>
+</html>

@@ -124,6 +124,103 @@ class DbFixture {
     db.setSetting(key, value);
   }
 
+  /// 預算重設語意（F05 S5.6 同分類重設）：先清除同 scope（fixture 層實體清除）
+  /// 再寫入＋oplog（budgets 屬 sync_entity）。
+  static Future<void> seedBudget(
+    AppDatabase db, {
+    required String id,
+    String? categoryId,
+    required int amountMinor,
+    int periodStartDay = 1,
+    bool rollover = false,
+  }) async {
+    db.deleteBudgetsByCategory(categoryId);
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final row = BudgetRow(
+      id: id,
+      categoryId: categoryId,
+      amountMinor: amountMinor,
+      periodStartDay: periodStartDay,
+      rollover: rollover,
+      createdAt: now,
+      updatedAt: now,
+      hlc: _hlc,
+    );
+    db.insertBudgetWithOplog(
+      row,
+      OplogRow(
+        entity: 'budgets',
+        entityId: id,
+        hlc: _hlc,
+        payload: jsonEncode(row.toSnapshot()),
+        packedSeq: null,
+      ),
+    );
+  }
+
+  /// 收入目標（單一目標模型）：replace 語意＋oplog。
+  static Future<void> seedIncomeGoal(
+    AppDatabase db, {
+    required String id,
+    required int amountMinor,
+    int periodStartDay = 1,
+  }) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final row = IncomeGoalRow(
+      id: id,
+      amountMinor: amountMinor,
+      periodStartDay: periodStartDay,
+      createdAt: now,
+      updatedAt: now,
+      hlc: _hlc,
+    );
+    db.replaceIncomeGoal(
+      row,
+      OplogRow(
+        entity: 'budgets', // income_goals 同屬預算域（dbml sync_entity 由 budgets 覆蓋語意）
+        entityId: id,
+        hlc: _hlc,
+        payload: jsonEncode(row.toSnapshot()),
+        packedSeq: null,
+      ),
+    );
+  }
+
+  /// NFR-01 效能測資：批次直寫當月 N 筆（略 oplog/FTS——聚合僅讀 transactions）。
+  static Future<void> seedBulkTransactions(
+    AppDatabase db, {
+    required int count,
+    String? accountId,
+  }) async {
+    final now = DateTime.now();
+    final acct = accountId ?? 'a-bulk';
+    if (db.allAccounts().every((a) => a.id != acct)) {
+      await seedAccount(db, id: acct, type: 'cash', name: '效能現金');
+    }
+    final rows = <TxRow>[];
+    for (var i = 0; i < count; i++) {
+      final at = DateTime(now.year, now.month, (i % 28) + 1, 12);
+      rows.add(TxRow(
+        id: 'tx-bulk-$i',
+        kind: 'expense',
+        amountMinor: 100 + (i % 50),
+        currency: 'TWD',
+        accountId: acct,
+        toAccountId: null,
+        categoryId: 'c-bulk-${i % 4}',
+        merchant: null,
+        note: null,
+        occurredAt: at.millisecondsSinceEpoch,
+        source: 'manual',
+        settlementStatus: 'none',
+        createdAt: now.millisecondsSinceEpoch,
+        updatedAt: now.millisecondsSinceEpoch,
+        hlc: '${now.millisecondsSinceEpoch}.$i.bulk',
+      ));
+    }
+    db.insertTransactionsBulk(rows);
+  }
+
   /// T-H5：標準劇例資料集（acceptance 背景資料）。
   /// 帳戶 4（現金 1,000／銀行 10,000／票證卡 0／示例卡 0）＋分類 5＋交易 3（→oplog 3）。
   static Future<void> seedStandardScenario(AppDatabase db) async {
