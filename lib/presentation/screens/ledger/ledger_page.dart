@@ -28,6 +28,8 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
 
   @override
   Widget build(BuildContext context) {
+    // 訂閱交易變化（儲存/復原/刪除後即時刷新 AC-02——快記 controller 會 invalidate）。
+    ref.watch(ledgerProvider);
     final db = ref.watch(dbProvider);
     final search = SearchService(db);
     final range = _periodRange(_periodMonth);
