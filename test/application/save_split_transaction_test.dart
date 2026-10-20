@@ -28,9 +28,12 @@ void main() {
     // 同群組
     expect(rows[0].splitGroupId, isNotNull);
     expect(rows[0].splitGroupId, rows[1].splitGroupId, reason: 'FR-T6：子交易共享群組');
-    // 金額與分類
-    expect(rows[0].amountMinor, 600);
-    expect(rows[1].amountMinor, 400);
+    // 金額與分類——**順序無關**（DBG-005：allTransactions 之 ORDER BY
+    // occurred_at, id 在兩筆同 occurredAt 時由 UUIDv7 字典序決定；系統時鐘
+    // 微回退（NTP slew）可使後生成者 id 較小 → 陳列順序翻轉。拆分子交易的
+    // 順序非契約，斷言以集合驗兩筆金額皆在。）
+    expect(rows.map((r) => r.amountMinor).toSet(), {600, 400});
+    expect(rows.map((r) => r.categoryId).toSet(), {'c-food', 'c-shop'});
     // oplog 逐筆（SDD §5.1：同一 transaction，中斷不產生孤兒）
     final ops = db.allOps();
     expect(ops, hasLength(2));
