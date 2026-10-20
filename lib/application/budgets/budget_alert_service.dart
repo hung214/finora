@@ -30,7 +30,11 @@ class BudgetAlertService {
   static const BudgetPeriodService _period = BudgetPeriodService();
 
   /// 冪等同步：評估全部預算 → 補發未發級別。
+  ///
+  /// `budget.notify_enabled = off` 時**僅跳過推播**（FR-O2/S5.7：in-App 視覺
+  /// 警示不受影響——視覺由 BudgetEvaluator 直讀，不經通知）。
   void sync() {
+    final notifyEnabled = _db.getSetting('budget.notify_enabled') != 'off';
     for (final budget in _db.allBudgets()) {
       final name = budget.categoryId == null
           ? '總預算'
@@ -51,8 +55,10 @@ class BudgetAlertService {
       final sent = _sentLevels(stateKey);
       for (final level in levels) {
         if (sent.contains(level)) continue;
-        // fire-and-forget：本機通知非關鍵路徑（spy 同步記錄）。
-        _notifier.notify(_call(level, name, usage, amount));
+        if (notifyEnabled) {
+          // fire-and-forget：本機通知非關鍵路徑（spy 同步記錄）。
+          _notifier.notify(_call(level, name, usage, amount));
+        }
         sent.add(level);
       }
       _saveSentLevels(stateKey, sent);

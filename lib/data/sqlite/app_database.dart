@@ -160,6 +160,12 @@ class AppDatabase {
       .map(CategoryRow.fromRow)
       .toList();
 
+  /// 分類名稱（警示文案用；不存在回 null）。
+  String? categoryName(String id) {
+    final rows = _db.select('SELECT name FROM categories WHERE id = ?', [id]);
+    return rows.isEmpty ? null : rows.first['name'] as String;
+  }
+
   // ── 預算／收入目標（FR-B，schema v2；budgets/income_goals 屬 sync_entity） ──
 
   void insertBudget(BudgetRow b) => _db.execute(
