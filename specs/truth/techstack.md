@@ -2,7 +2,7 @@
 
 | 項目 | 內容 |
 |---|---|
-| 文件版本 | v0.3.6（發佈格式定案：版本化檔名＋Inno Setup exe＋DMG＋IPA＋軟體內版本顯示） |
+| 文件版本 | v0.3.7（附件壓縮定案：image＋crypto——FR-S4 純 Dart 壓縮與 sha256 內容定址） |
 | 日期 | 2026-10-18 |
 | 性質 | **原始碼技術棧的唯一事實來源**。SDD §3 為設計說明；本檔記錄「將寫進程式碼」的定案（含版本）。兩者不一致時以本檔為準並回修 SDD |
 | 變更規則 | 僅能經 PR 變更；新增/升級依賴需通過授權審查（research.md D14）+ 全測試綠燈；每次變更記錄於 §8 變更記錄 |
@@ -51,6 +51,8 @@
 | domain | freezed / json_serializable | 2.5.8 | 實體/OpBundle 模型 | SDD §4 |
 | domain | intl | 0.20.3 | 多語系/幣別格式 | FR-O1 |
 | domain | uuid | 4.6.0 | UUIDv7（交易/實體 ID） | SDD §4.2 |
+| domain | image | 4.x（lock 為準） | 附件壓縮：原圖縮至最長邊 1600px＋JPEG q70（FR-S4，SDD §5.4 附件儲存）。**選純 Dart 之關鍵**：跨平台 JPEG 位元組一致 → 同張照片各裝置壓縮後 sha256 相同 → 雲端 blobs/ 內容定址去重成立（§5.5.6）；平台 codec 各產位元組不同會破壞去重。PM 簽核 2026-10-21 | SDD §5.4/§5.5.6 |
+| domain | crypto | 3.0.0 | sha256 內容定址（blobs/{sha256} 檔名；附件中繼資 attachments.sha256 同源）——Dart 官方維護、零傳遞依賴。PM 簽核 2026-10-21 | SDD §5.5.6 |
 | data | sqlite3 | 2.9.4 | **T-S1 過渡**：本地 DB 直連（lib/data/sqlite/，schema 對齊 data-spec.dbml） | SDD §4.2 |
 | data | drift / drift_dev | 2.35.2（⚠ TR-7 暫緩：與 Dart 3.13.5 工具鏈不相容，M1 前於 CI 重試回歸；屆時 sqlite 直連層 API 不變僅換底層） | SQLite ORM + Reactive Streams + migration（D2） | SDD §4.2 |
 | core | flutter_secure_storage | ⚠ TR-8 暫緩（移出 pubspec 至 M2：Windows 建置需 VS C++ ATL 元件 atlstr.h；M2 前安裝元件或改 DPAPI 直呼） | DB 金鑰/OAuth token | SDD §7.1 |
@@ -153,3 +155,4 @@
 | 2026-10-18 | v0.3.4 | TR-9：flutter_gherkin 3.x 執行期與 Dart 3.13.5 工具鏈摩擦（smoke 三輪編譯錯誤，同 TR-7 型態）→ BDD FE 綁定改 T-H7 自製 runner + integration_test（integration_test 入 pubspec dev_deps，屬 §2.4 測試列既有項） | — |
 | 2026-10-19 | v0.3.5 | path_provider 2.1.6 定案（PM 簽核）：production main() 以文件目錄開檔案 DB；M1 過渡期 DB 為明文 SQLite（加密屬 SP-1） | — |
 | 2026-10-19 | v0.3.6 | 發佈格式定案（PM）：產物檔名含版本號；Windows 改 Inno Setup per-user exe 安裝檔（撤回 MSIX——自簽側載需管理員匯入憑證，摩擦過大；Store 屬 M7）；macOS 改 DMG；iOS 未簽名 IPA（Apple Developer 簽名屬 M7）；軟體內版本以 --dart-define=APP_VERSION 注入（視窗標題＋總覽頁尾，零依賴） | — |
+| 2026-10-21 | v0.3.7 | 附件壓縮定案（PM 簽核 2026-10-21）：新增 image 4.x（縮圖最長邊 1600px＋JPEG q70——純 Dart 跨平台位元組一致，內容定址去重前提）＋crypto 3.0.0（sha256）——F03-BE S5（FR-S4）前置 | feature/F03-receipt-scan |
