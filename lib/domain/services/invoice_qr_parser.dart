@@ -106,7 +106,4 @@ class InvoiceQrParser {
         sellerTaxId: base.sellerTaxId,
         invoiceNo: base.invoiceNo,
       );
-
-  /// 右 QR 明細解碼（測資產生回程對稱；InvoiceDetailCodec）。
-  static String decodeDetail(String rightQr) => InvoiceDetailCodec.decode(rightQr);
 }

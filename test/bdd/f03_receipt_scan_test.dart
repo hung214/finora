@@ -41,6 +41,13 @@ void main() {
       for (final db in w.dbs) {
         db.close();
       }
+      // 測試衛生：清本輪各情境之 blobs 暫存目錄（忽略已不存在）。
+      for (final dir in w.blobDirs) {
+        // ignore: avoid_catches_without_on_clauses
+        try {
+          dir.deleteSync(recursive: true);
+        } catch (_) {}
+      }
     }
   });
 }
@@ -52,6 +59,7 @@ class _World {
   final accounts = <String, String>{};
   late SaveTransactionUseCase save;
   late Directory blobsDir;
+  final blobDirs = <Directory>[]; // tearDown 清理用
   final InMemoryCloudAdapter cloud = InMemoryCloudAdapter();
   bool offline = false;
 
@@ -93,6 +101,7 @@ void _bind(GherkinRunner runner, _World w) {
     w.lastElapsed = Duration.zero;
     w.save = SaveTransactionUseCase(db);
     w.blobsDir = await Directory.systemTemp.createTemp('ledger_blobs');
+    w.blobDirs.add(w.blobsDir);
   });
 
   runner.on(r'已建立帳戶「{name}」類型 {type} 期初 {amount}$', (p) {
