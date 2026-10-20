@@ -4,6 +4,7 @@ import '../data/sqlite/app_database.dart';
 import '../domain/entities/account.dart';
 import '../domain/entities/transaction.dart';
 import 'budgets/budget_alert_service.dart';
+import 'credit_card/repay_statement_use_case.dart';
 import 'notifications/notification_service.dart';
 import 'quick_entry/quick_entry_preset_service.dart';
 import 'quick_entry/save_transaction_use_case.dart';
@@ -58,6 +59,10 @@ final undoLastTransactionProvider =
 /// 刪除交易（FR-T3：明細列刪除入口，F02-FE）。
 final deleteTransactionProvider =
     Provider((ref) => DeleteTransactionUseCase(ref.watch(dbProvider)));
+
+/// 帳單繳款（FR-C4；F04-FE）。
+final repayStatementProvider = Provider(
+    (ref) => RepayStatementUseCase(ref.watch(dbProvider), ref.watch(notificationProvider)));
 
 /// 還原交易（FR-T3：「最近刪除」還原，F02-FE）。
 final restoreTransactionProvider =

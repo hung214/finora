@@ -257,6 +257,15 @@
 | `When 清除全部篩選` | 「清除篩選」按鈕（還原完整清單） |
 | `Then 顯示全部 {n} 筆` | TxTile 計數（全部月份） |
 | `Given 篩選生效（期間={period}）` | 明細頁期間篩選設定（F10-FE S3） |
+| `And 已建立帳戶「{name}」(餘額 {amount})（結帳日 {day} 號、歸屬={rule}）` | seedCreditCard（rule：當天算本期=include；F04-FE） |
+| `Given 已有 {n} 筆預扣交易於「{card}」共 {amount}（上一期）` | fixture 直寫上一期 pending（相對凍結時間之已關閉週期；F04-FE） |
+| `And 執行 BillingCycleService.run（「{card}」）（經 fixture 觸發）` | BE 服務直接呼叫（結帳觸發點前置，F04-FE） |
+| `When 開啟信用卡頁` | 總覽信用卡卡點擊 → CreditCardPage（F04-FE） |
+| `When 開啟信用卡頁並按下「{label}」` | 開頁＋繳款對話框開啟（F04-FE） |
+| `When 按下「繳款」→「自訂金額」輸入 {amount} 並確認` | 自訂金額繳款流程（F04-FE S3） |
+| `When 開啟卡片設定頁` | CardSettingsPage（歸屬規則呈現，F04-FE S4） |
+| `Then 顯示「{text}」徽章` | 狀態徽章（key badge-{text}；F04-FE） |
+| `And 顯示「{text}」徽章（頁首）` | 頁首徽章（逾期標示，F04-FE S5） |
 | `When 建立拆分交易 總額 {total}（{cat1} {a1} + {cat2} {a2}）` | 快記拆分模式：雙子項（分類＋金額）→ executeSplit（總額守恆；F02-FE S2.7 @M2） |
 | `And 顯示「{label}」樣式（同一群組）` | 拆分樣式：兩列同群組＋call_split 圖示（F02-FE S2.7） |
 | `When 開啟總覽頁` | 導航至總覽分頁（NavigationBar；F05-FE S5.4/S5.5） |

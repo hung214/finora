@@ -7,6 +7,7 @@ import '../../../application/providers.dart';
 import '../../../core/version.dart';
 import '../../../domain/services/balance_calculator.dart';
 import '../../screens/budget/budget_page.dart';
+import '../../screens/credit_card/credit_card_page.dart';
 import '../../screens/demo/demo_gallery_page.dart';
 
 /// 總覽頁（M1 精簡）：帳戶餘額＋收入目標卡＋預算進度（SDD 原則 2：衍生值重算）。
@@ -42,6 +43,12 @@ class OverviewPage extends ConsumerWidget {
           for (final row in accounts)
             Card(
               child: ListTile(
+                onTap: row.type == 'credit'
+                    ? () => Navigator.of(context).push(MaterialPageRoute<void>(
+                          builder: (_) =>
+                              CreditCardPage(cardAccountId: row.id),
+                        ))
+                    : null,
                 leading: const Icon(Icons.account_balance_wallet_outlined),
                 title: Text(row.name),
                 trailing: Text(
