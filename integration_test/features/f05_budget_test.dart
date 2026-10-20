@@ -179,6 +179,11 @@ void _bind(GherkinRunner runner, _World w) {
         reason: '應顯示「${p['text']}」');
   });
 
+  runner.on(r'顯示「{text}」標籤$', (p) async {
+    expect(w.tester.any(find.text(p['text']!, skipOffstage: false)), isTrue,
+        reason: '應顯示「${p['text']}」標籤（FR-B5 預扣分量）');
+  });
+
   runner.on(r'顯示「{text}」且為可點擊$', (p) async {
     expect(find.text(p['text']!), findsOneWidget, reason: '應顯示「${p['text']}」');
     final btn =
@@ -187,8 +192,9 @@ void _bind(GherkinRunner runner, _World w) {
   });
 
   runner.on(r'進度條為警示色（{color}）$', (p) async {
+    // 總覽橫幅與預算頁皆有同名進度條（同資料同色）——取第一個。
     final bar = w.tester.widget<LinearProgressIndicator>(
-        find.byKey(const Key('budget-progress-餐飲'), skipOffstage: false));
+        find.byKey(const Key('budget-progress-餐飲'), skipOffstage: false).first);
     final expected = switch (p['color']) {
       'orange' => Colors.orange,
       'red' => Colors.red,
