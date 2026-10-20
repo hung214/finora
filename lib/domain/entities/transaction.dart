@@ -31,6 +31,9 @@ class Tx {
     this.occurredAt = 0,
     this.source = TxSource.manual,
     this.settlementStatus = SettlementStatus.none,
+    this.splitGroupId,
+    this.currency = 'TWD',
+    this.fxRate,
     this.deleted = false,
     this.hlc,
   });
@@ -39,7 +42,16 @@ class Tx {
   final TxKind kind;
 
   /// 正數；方向由 [kind] 與帳戶語意決定（SDD §4.2）。
+  ///
+  /// 幣別語意（FR-T4）：[currency] 為原幣（非本位幣時 [fxRate] 必填）；
+  /// 餘額/統計換算為本位幣（TWD）——BalanceCalculator。
   final int amountMinor;
+
+  /// 交易幣別（原幣；預設本位幣 TWD）。
+  final String currency;
+
+  /// 匯率（原幣 1 單位兌本位幣；null＝本位幣）。
+  final double? fxRate;
   final String accountId;
 
   /// transfer / repayment 的對方帳戶。
@@ -52,6 +64,9 @@ class Tx {
   final int occurredAt;
   final TxSource source;
   final SettlementStatus settlementStatus;
+
+  /// 拆分群組（FR-T6；同群組子交易共享；null＝非拆分）。
+  final String? splitGroupId;
 
   /// 墓標軟刪除（SDD 原則 5）。
   final bool deleted;

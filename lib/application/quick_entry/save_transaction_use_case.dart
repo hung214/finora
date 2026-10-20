@@ -60,7 +60,13 @@ class SaveTransactionUseCase {
     TxKind kind = TxKind.expense,
     String? toAccountId,
     String settlementStatus = 'none',
+    String currency = 'TWD',
+    double? fxRate,
   }) {
+    // FR-T4：非本位幣須有匯率（不猜測，S10.2 邊界）。
+    if (currency != 'TWD' && fxRate == null) {
+      throw const TransactionValidationException('驗證失敗：請輸入匯率');
+    }
     if (amountMinor <= 0) {
       // F02 S2.1：金額必填且大於 0（0 或空值皆不得入庫；訊息為 FE 顯示契約）。
       throw const TransactionValidationException('驗證失敗：金額必須大於 0');
@@ -74,7 +80,8 @@ class SaveTransactionUseCase {
       id: const Uuid().v7(),
       kind: kind.name,
       amountMinor: amountMinor,
-      currency: 'TWD',
+      currency: currency,
+      fxRate: fxRate,
       accountId: accountId,
       toAccountId: isCrossAccount ? toAccountId : null,
       categoryId: isCrossAccount ? null : categoryId,
