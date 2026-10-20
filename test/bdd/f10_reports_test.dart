@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ledger_sync/application/reports/report_service.dart';
 import 'package:ledger_sync/application/reports/search_service.dart';
 import 'package:ledger_sync/core/clock.dart';
 import 'package:ledger_sync/data/sqlite/app_database.dart';
@@ -155,6 +156,34 @@ void _bind(GherkinRunner runner, _World w) {
     final rows = w.searchResults ?? const <TxRow>[];
     expect(rows, hasLength(int.parse(p['n']!)), reason: 'FTS5 bigram 搜尋「${p['kw']}」');
   });
+
+  // ── When／Then：報表聚合（F10 S10.1；FR-R2）───────────────
+  runner.on(r'執行報表聚合（期間={period}）$', (p) {
+    final (year, month) = _parsePeriod(p['period']!);
+    w.report = ReportService(w.db).aggregate(year, month);
+  });
+
+  runner.on(r'{cat}占比 = {pct}%（{expr}）$', (p) {
+    final report = w.report as ReportAggregate?;
+    expect(report, isNotNull, reason: '應已執行報表聚合');
+    final share = report!.shareOf(p['cat']!);
+    expect(share, isNotNull, reason: '${p['cat']} 應有占比（FR-R2）');
+    expect(share!.percentText, p['pct'],
+        reason: '${p['cat']} 占比四捨五入至 0.1%（${p['expr']}）');
+  });
+
+  runner.on(r'合計 = {amt}（{note}）$', (p) {
+    final report = w.report as ReportAggregate?;
+    expect(report!.totalMinor, _amount(p['amt']!),
+        reason: '期間 expense 合計（${p['note']}）');
+  });
+}
+
+/// `2026/06` → (2026, 6)。
+(int, int) _parsePeriod(String period) {
+  final m = RegExp(r'^(\d{4})/(\d{1,2})$').firstMatch(period.trim());
+  if (m == null) throw FormatException('期間格式未支援：$period（dsl.md §2.2）');
+  return (int.parse(m.group(1)!), int.parse(m.group(2)!));
 }
 
 /// 帳戶隱式建立（F10 Background 無帳戶 Given）。
