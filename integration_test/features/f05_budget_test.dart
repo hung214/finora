@@ -162,6 +162,13 @@ void _bind(GherkinRunner runner, _World w) {
     await w.tester.pumpAndSettle();
   });
 
+  runner.on(r'開啟總覽頁$', (p) async {
+    await _ensureApp(w);
+    await w.tester.tap(find.descendant(
+        of: find.byType(NavigationBar), matching: find.text('總覽')));
+    await w.tester.pumpAndSettle();
+  });
+
   runner.on(r'開啟快速記帳頁$', (p) async {
     await _ensureApp(w);
     await w.tester.tap(find.byKey(const Key('fab-quick-entry')));

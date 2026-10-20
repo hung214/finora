@@ -199,6 +199,7 @@
 | `Given 收入目標 {goal} 且本月已入帳 {achieved}` | income_goals＋fixture 直寫本月 income（F05-FE S5.4） |
 | `Given 設定→通知→「預算警示」= {state}` | settings `budget.notify_enabled`（on/off；off 僅關推播，in-App 視覺不受影響——FR-O2/S5.7） |
 | `When 開啟預算頁` | 導航至預算分頁（M2 主殼第三分頁，SDD §8 IA） |
+| `When 開啟總覽頁` | 導航至總覽分頁（NavigationBar；F05-FE S5.4/S5.5） |
 | `Then 金額欄下方顯示常駐計算機鍵盤` | find.byKey(amount-keypad)；金額欄 readOnly 不彈系統鍵盤（F02-FE S2.9） |
 | `Then 金額欄顯示 {value}` | 金額欄 text == value（＝ 求值結果；TWD 四捨五入整數元） |
 | `Then 顯示「{label}」樣式（非支出圖示）` | 明細列樣式：textContaining({label})＋轉帳圖示 swap_horiz（F02-FE S2） |

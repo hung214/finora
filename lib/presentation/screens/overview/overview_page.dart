@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../application/budgets/budget_evaluator.dart';
 import '../../../application/providers.dart';
 import '../../../core/version.dart';
 import '../../../domain/services/balance_calculator.dart';
+import '../../screens/budget/budget_page.dart';
 import '../../screens/demo/demo_gallery_page.dart';
 
-/// 總覽頁（M1 精簡）：帳戶與衍生餘額（SDD 原則 2：餘額一律由交易重算）。
+/// 總覽頁（M1 精簡）：帳戶餘額＋收入目標卡＋預算進度（SDD 原則 2：衍生值重算）。
 class OverviewPage extends ConsumerWidget {
   const OverviewPage({super.key});
 
@@ -16,6 +18,10 @@ class OverviewPage extends ConsumerWidget {
     final accounts = ref.watch(activeAccountsProvider);
     final txs = ref.watch(ledgerProvider).map(txEntity).toList();
     const calc = BalanceCalculator();
+    final db = ref.watch(dbProvider);
+    final evaluator = BudgetEvaluator(db);
+    final goal = evaluator.incomeGoalStatus();
+    final fmt = NumberFormat('#,###');
 
     return Scaffold(
       appBar: AppBar(
@@ -45,6 +51,33 @@ class OverviewPage extends ConsumerWidget {
                 ),
               ),
             ),
+          // 收入目標卡（FR-B6；S5.4 達標率不封頂；未設定顯示引導）。
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.flag_outlined),
+              title: goal == null
+                  ? const Text('收入目標 未設定')
+                  : Text(goal.achieved
+                      ? '已達成 ${goal.ratePercent}%'
+                      : '進行中 ${goal.ratePercent}%'),
+              subtitle: goal == null
+                  ? null
+                  : Text(
+                      '${fmt.format(goal.achievedMinor)} / 目標 ${fmt.format(goal.goalMinor)}'),
+            ),
+          ),
+          // 預算進度（FR-B4 呈現；<80% 主色、≥80% 橙、≥100% 紅——AC-05）。
+          for (final b in db.allBudgets())
+            if (b.categoryId != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: BudgetProgressBar(
+                  name: db.categoryName(b.categoryId!) ?? '分類預算',
+                  usageMinor:
+                      evaluator.categoryUsage(b.categoryId!)?.totalMinor ?? 0,
+                  amountMinor: b.amountMinor,
+                ),
+              ),
           const SizedBox(height: 24),
           Center(
             child: Text(
