@@ -21,7 +21,7 @@
 | 欄位 | 內容 |
 |---|---|
 | 更新時間 | 2026-10-20（M3 完成併入 main 後交接） |
-| 階段 | **M3 完成**：F04 信用卡帳單引擎（BE 12＋FE 5）已併入 main（`c1b52b0`），**tag v0.4.7 自動建立→四平台 release 建置中**。M3 部署驗證通過（Release 47.4MB＋兩次啟動冒煙＋二次啟動無崩潰＋版本 0.4.7）。下一步：**確認 v0.4.7 產物→M4 掃描**（T-S4 schema v4→T-F03 BE 7＋FE 6） |
+| 階段 | **M3 完成**：F04 信用卡帳單引擎（BE 12＋FE 5）已併入 main（`c1b52b0`），**tag v0.4.7 已發佈**（五產物齊全：apk 54.5MB／ipa 7.6MB／dmg 21.3MB／exe 10.8MB／zip 12.6MB）。M3 部署驗證通過（Release 47.4MB＋兩次啟動冒煙＋二次啟動無崩潰＋版本 0.4.7）。下一步：**M4 掃描**（T-S4 schema v4→T-F03 BE 7＋FE 6） |
 | 當前分支 | **main**（c1b52b0 已 push；feature/F04-credit-card-billing 已刪除——合併後清理慣例） |
 | 當前任務 | 本輪：①T-S2 schema v2 ②F05-BE/FE 🔴→🟢（10 情境；冪等 sync 點警示／預算分頁／總覽卡）③F10-BE 🔴→🟢 5 情境（TextIndex bigram＋AppDatabase FTS 維護（save 鉤子）＋SearchService（FTS 優先 LIKE 降級＋AND）＋ReportService（占比 0.1%）＋CsvExporter（UTF-8 BOM）＋insertTransactionsBulk 效能測資；規格修正：CSV 5 筆／金額區間 400~800／效能句型） |
 | 紅綠燈狀態 | main 上 `dart analyze` No issues＋unit **82 全綠**；**FE 回歸全綠**（F01 6＋F02 5＋F05 5＋F10 3＋F04 5，macOS 實跑）；M3 部署驗證 ✅ |
@@ -32,7 +32,7 @@
 
 ## 3. 下一步（M4 掃描；下次開工照此執行）
 
-1. **確認 v0.4.7 release**：tag 已建立（`8d6491b`→c1b52b0），四平台建置約 20-30 分——確認 GitHub Release 產物齊全（apk/ipa/dmg/exe＋zip；壞包 v0.4.0/0.4.2 待 gh 安裝後刪除）。
+1. ~~確認 v0.4.7 release~~ ✅ **已發佈**（五產物齊全；壞包 v0.4.0/0.4.2 仍待 gh 安裝後刪除）。
 2. **T-S4 schema v4**（M4 前置，truth 循環外紅燈）：attachments 表＋blobs 目錄約定（`data-spec.dbml` v0.3 已預定義→code 對齊）；migration 鏈 v3→v4＋回歸測試（模式照 T-S2/T-S3：全新直達 v4／v3 舊檔升級資料完整／file 冪等）。
 3. **T-F03-BE 7 情境**（@BE @M4 @FR-S）：QR 解析（77 碼左）、明細合併、回退、OCR 信賴度、附件定址（sha256）、離線、效能——先 feature 檔＋dsl 紅燈；**測資用 T-H6 fixtures**（左 QR 字串／右 QR deflate+Base32 產生器／OCR 文字圖片——S0 已備）。
 4. **T-F03-FE 6 情境**：入口、權限、確認清單、高亮、連拍、桌面匯入。
