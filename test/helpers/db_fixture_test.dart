@@ -33,8 +33,8 @@ void main() {
     }
   });
 
-  test('T-S3 schemaVersion = 3（v1 基線＋v2 預算/FTS＋v3 信用卡/帳單/分期）', () {
-    expect(db.schemaVersion, 3);
+  test('T-S4 schemaVersion = 4（v1 基線＋v2 預算/FTS＋v3 信用卡/帳單/分期＋v4 附件）', () {
+    expect(db.schemaVersion, 4);
   });
 
   test('寫入/讀取帳戶：預設值對齊 data-spec（currency=TWD、archived=false、opening=0）',
@@ -108,7 +108,7 @@ void main() {
     // 修復前：第二次 open 重跑 CREATE TABLE → StateError（already exists）
     final db2 = AppDatabase.open(path);
     expect(db2.allAccounts().map((a) => a.name), contains('現金'), reason: '資料應延續');
-    expect(db2.schemaVersion, 3);
+    expect(db2.schemaVersion, 4);
     db2.close();
     await tmp.delete(recursive: true);
   });
