@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ledger_sync/application/reports/search_service.dart';
 import 'package:ledger_sync/core/clock.dart';
 import 'package:ledger_sync/data/sqlite/app_database.dart';
 
@@ -49,8 +50,8 @@ class _World {
   /// 最近一次聚合結果（C3 接 ReportAggregate）。
   Object? report;
 
-  /// 最近一次搜尋／篩選結果（C2/C5 接 SearchService）。
-  Object? searchResults;
+  /// 最近一次搜尋／篩選結果（C2 接 SearchService）。
+  List<TxRow>? searchResults;
 
   /// 複合篩選狀態（AND 條件累積）。
   String? filterPeriod;
@@ -117,6 +118,42 @@ void _bind(GherkinRunner runner, _World w) {
         w.seededIdsByMonth.putIfAbsent(month, () => []).add(id);
       }
     }
+  });
+
+  /// `其中 1 筆 6 月餐飲備註含「陽光超商」`
+  runner.on(r'其中 {n} 筆 {month} 月{cat}備註含「{kw}」$', (p) {
+    final month = int.parse(p['month']!);
+    final ids = w.seededIdsByMonth[month] ?? const [];
+    final catId = w.categories[p['cat']!];
+    final n = int.parse(p['n']!);
+    var updated = 0;
+    for (final id in ids) {
+      if (updated >= n) break;
+      final row = w.db.transactionById(id);
+      if (row == null || row.categoryId != catId) continue;
+      w.db.setTransactionNote(id, p['kw']);
+      updated++;
+    }
+    expect(updated, n, reason: '備註句型應命中 $n 筆（fixture 追蹤）');
+  });
+
+  // ── When：搜尋（F10 S10.2；FR-R3）────────────────────────
+  runner.on(r'搜尋 "{kw}"$', (p) {
+    w.searchResults = SearchService(w.db).search(keyword: p['kw']);
+  });
+
+  // ── Then：搜尋結果（F10 S10.2）───────────────────────────
+  runner.on(r'搜尋 "{kw}" 命中 {n} 筆（命中「{hit}」）$', (p) {
+    final rows = w.searchResults ?? const <TxRow>[];
+    expect(rows, hasLength(int.parse(p['n']!)), reason: 'FTS5 bigram 搜尋「${p['kw']}」');
+    final hit = rows.any((r) =>
+        (r.note ?? '').contains(p['hit']!) || (r.merchant ?? '').contains(p['hit']!));
+    expect(hit, isTrue, reason: '命中應含「${p['hit']}」');
+  });
+
+  runner.on(r'搜尋 "{kw}" 命中 {n} 筆$', (p) {
+    final rows = w.searchResults ?? const <TxRow>[];
+    expect(rows, hasLength(int.parse(p['n']!)), reason: 'FTS5 bigram 搜尋「${p['kw']}」');
   });
 }
 

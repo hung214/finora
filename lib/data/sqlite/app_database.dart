@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:sqlite3/open.dart';
 import 'package:sqlite3/sqlite3.dart';
 
+import '../../core/text_index.dart';
 import 'schema.dart';
 
 /// Windows 測試環境：系統內建 winsqlite3.dll（App 執行時由 sqlite3_flutter_libs
@@ -276,6 +277,70 @@ class AppDatabase {
       .map(TxRow.fromRow)
       .toList();
 
+  // ── FTS5（FR-R3；schema v2 transactions_fts） ─────────────
+
+  /// FTS5 影子表是否可用（環境缺模組時 false——搜尋降級 LIKE，F10）。
+  bool get ftsAvailable => tableNames().contains('transactions_fts');
+
+  /// FTS5 MATCH 查詢 → transactions.rowid 清單；表不可用回 null（呼叫端降級）。
+  List<int>? ftsSearch(String matchQuery) {
+    if (!ftsAvailable) return null;
+    try {
+      return _db
+          .select('SELECT rowid_ref FROM transactions_fts WHERE transactions_fts MATCH ?',
+              [matchQuery])
+          .map((r) => r['rowid_ref'] as int)
+          .toList();
+    } catch (_) {
+      return null; // 查詢語法異常等——降級 LIKE
+    }
+  }
+
+  /// 依 rowid 載入交易（FTS 命中後取列；rowid 為原生索引）。
+  List<TxRow> transactionsByRowids(List<int> rowids) {
+    if (rowids.isEmpty) return const [];
+    final placeholders = List.filled(rowids.length, '?').join(',');
+    return _db
+        .select('SELECT * FROM transactions WHERE rowid IN ($placeholders)',
+            rowids)
+        .map(TxRow.fromRow)
+        .toList();
+  }
+
+  /// 備註更新＋FTS 重索引（測試資料輔助／未來編輯功能之基礎；oplog 由編輯
+  /// feature 落地時補齊）。
+  void setTransactionNote(String id, String? note) {
+    _db.execute('UPDATE transactions SET note = ? WHERE id = ?', [note, id]);
+    final row = transactionById(id);
+    if (row != null) _ftsReindex(row);
+  }
+
+  /// FTS 重索引：以 id 反查 rowid，刪舊插新（冪等）。
+  void _ftsReindex(TxRow t) {
+    if (!ftsAvailable) return;
+    final rowids = _db.select('SELECT rowid FROM transactions WHERE id = ?', [t.id]);
+    if (rowids.isEmpty) return;
+    final rowid = rowids.first['rowid'] as int;
+    _db.execute('DELETE FROM transactions_fts WHERE rowid_ref = ?', [rowid]);
+    _db.execute(
+      'INSERT INTO transactions_fts (merchant_bigram, note_bigram, rowid_ref) VALUES (?, ?, ?)',
+      [TextIndex.bigram(t.merchant), TextIndex.bigram(t.note), rowid],
+    );
+  }
+
+  /// 備註/商家含關鍵字（FTS5 不可用時之降級路徑；LIKE 樣式由呼叫端帶入）。
+  List<TxRow> transactionsContaining(String keyword) {
+    final like = '%${keyword.replaceAll('%', r'\%').replaceAll('_', r'\_')}%';
+    return _db
+        .select(
+            "SELECT * FROM transactions WHERE deleted_at IS NULL"
+            " AND (note LIKE ? ESCAPE '\\' OR merchant LIKE ? ESCAPE '\\')"
+            " ORDER BY occurred_at DESC, id DESC",
+            [like, like])
+        .map(TxRow.fromRow)
+        .toList();
+  }
+
   // ── 同步日誌（SDD §5.5） ──────────────────────────────────
 
   void appendOp(OplogRow o) => _db.execute(
@@ -294,6 +359,7 @@ class AppDatabase {
     _db.execute('BEGIN');
     try {
       insertTransaction(t);
+      _ftsReindex(t); // FR-R3：FTS5 影子索引隨寫入維護（環境缺模組時為 no-op）
       beforeOplog?.call(t);
       appendOp(o);
       _db.execute('COMMIT');
