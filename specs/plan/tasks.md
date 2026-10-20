@@ -121,7 +121,7 @@
 | F02 交易帳戶 | T-F02-BE（6：金額驗證、轉帳守恆、儲值語意、軟刪除、還款、多幣別）——**M1 5/6 ✅**（多幣別 @P1 @M2 deferred，PM 確認 2026-10-19） | T-F02-FE（6：禁用態、轉帳樣式、儲值文案、最近刪除、拆分＋**S2.9 計算機鍵盤**〔PM 2026-10-20 增補〕）——**M1 5/6 ✅**（拆分 @P1 @M2 deferred） | tx_kind/settlement_status enum（✅ schema v1 已覆蓋） | M1/M2 | ✅（M1 完成；M2 項目：拆分／多幣別） |
 | F03 掃描 | T-F03-BE（7：QR 解析、明細合併、回退、OCR 信賴度、附件定址、離線、效能） | T-F03-FE（6：入口、權限、確認清單、高亮、連拍、桌面匯入） | attachments.sha256（blobs 約定）；測資 fixture=T-H6 | M4 | ☐ |
 | F04 信用卡 | T-F04-BE（10：預扣、補算、歸屬 outline、clamp、繳款×2、提醒、逾期、分期、退款、生效日） | T-F04-FE（5：帳單呈現、繳款流程、部分繳、設定顯示、逾期標示） | **schema v3**（T-S3 先行）；boundary_rule enum | M3 | ☐ |
-| F05 預算 | T-F05-BE（5：閾值×2、含預扣、達標率、起始日） | T-F05-FE（5：警示色、超支、預扣標籤、達成、通知開關） | **schema v2**（T-S2 先行）；budgets/income_goals | M2 | ☐ |
+| F05 預算 | T-F05-BE（5：閾值×2、含預扣、達標率、起始日）——**5/5 ✅**（BudgetAlertService 冪等 sync 點＋notif_state 去重） | T-F05-FE（5：警示色、超支、預扣標籤、達成、通知開關）——**5/5 ✅**（預算分頁＋總覽卡；FE 基線自洽修正 S1 7000/S2 8320） | **schema v2**（T-S2 ✅）；budgets/income_goals | M2 | ✅ |
 | F06 定期交易 | T-F06-BE（5：到期提醒、確認不回寫、跳過、刪除、逾期暫停） | T-F06-FE（4：badge、清單、確認 UI、暫停標示） | **schema v5**（T-S5 先行） | M6 | ☐ |
 | F07 雲端同步 | T-F07-BE（8：補同步、LWW、每筆模式、批次、附件分流、bootstrap、GC、備份密碼） | T-F07-FE（6：連結、立即同步、啟動同步、還原、異帳號、衝突檢視） | api-spec.yaml（P2 僅對照，不改）；oplog packed_seq | M5/M6 | ☐ |
 | F08 App 鎖 | T-F08-BE（4：門檻邊界、退場狀態機、重設路徑×2） | T-F08-FE（5：鎖定畫面、10 秒、退 PIN、忘記 PIN、遮蔽） | lock.timeout key（settings） | M7 | ☐ |
@@ -182,6 +182,8 @@ S11-12：T-F08 → T-F09 → 效能複測（NFR-01~03）→ 上架
 | Feature | T-F01-FE（@P0 6 情境：預填／對話框／Sticky／完成／時間選擇器／復原——🔴→🟢 Windows 實跑全綠；App 主殼+快記頁+明細+總覽落地）＋production 接線（path_provider，techstack v0.3.5 PM 定案） | ✅（S1.11 @P1 @desktop 屬 M2；acceptance 手動情境留 QA 走查） |
 | Feature | T-F02-BE（@BE @P0 5 情境 🔴→🟢：金額驗證／轉帳守恆＋MonthlyStatsService／儲值 transfer 語意／軟刪除＋TombstonePurgeService 30 天／還款＋creditUnpaidTotal；多幣別 @P1 @M2 deferred PM 確認） | ✅（7ef56da） |
 | Feature | T-F02-FE（@FE @P0 5 情境 🔴→🟢 macOS 實跑全綠：金額驗證禁用態／快記轉帳模式＋明細樣式／儲值文案／最近刪除 30 天還原 UI（RestoreTransactionUseCase 補口＋unit test）／**S2.9 金額計算機鍵盤**（PM 增補：常駐四則運算、＝ 四捨五入整數元、macOS 視窗 800×760）；feature 檔 rootBundle 資產載入（桌面 CWD 修復，F01 同修）；69 unit＋F01-FE 回歸全綠；M1 部署驗證通過（Release 46.9MB＋檔案 DB 二次啟動） | ✅（c46df19；拆分 @P1 @M2） |
+| Feature | T-F05-BE（@BE @P0 5 情境 🔴→🟢：閾值 N-1 冪等／N-2/N-3 分級＋預算用量含 pending 預扣分量／收入達標率不封頂／自訂起始日跨月週期——BudgetPeriodService＋BudgetEvaluator＋BudgetAlertService 冪等 sync 點（settings notif_state per period）＋SaveTransactionUseCase settlementStatus＋afterSave 鉤子；S5.3 規格補漏 Given 6500） | ✅（3181aab） |
+| Feature | T-F05-FE（@FE @P0 5 情境 🔴→🟢 macOS 實跑全綠：進度條警示色 orange/red／超支不封鎖記帳／預扣標籤／收入目標已達成卡／通知開關閘 budget.notify_enabled——預算分頁（M2 IA 第三分頁）＋總覽收入目標卡＋共用 BudgetProgressBar；FE 情境基線自洽修正 S1 7000/S2 8320 對齊 acceptance 敘述） | ✅（b23aca1） |
 | Feature | T-F02~F10（BE+FE） | ☐ |
 | Feature | 首次啟動播種（內建分類集＋預設現金帳戶；M1 過渡——帳戶/分類管理 UI 屬 F02；oplog 同交易契約） | ✅（8545bc5） |
 | 對齊 | §5 清單自動化（pubspec/schema ✓ 已上 CI）；PR review 項人工 | 🟢 |
