@@ -41,7 +41,7 @@ class TransactionDraft {
   factory TransactionDraft.blank(DateTime now) => TransactionDraft(
         merchant: const DraftField.none(),
         totalMinor: const DraftField.none(),
-        date: DraftField(now, 1.0),
+        date: DraftField(DateTime(now.year, now.month, now.day), 1.0),
         isFallback: true,
       );
 

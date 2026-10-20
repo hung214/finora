@@ -1,3 +1,4 @@
+import '../../domain/entities/invoice_line_item.dart';
 import '../../domain/entities/transaction_draft.dart';
 import '../../domain/services/invoice_detail_codec.dart';
 
@@ -60,8 +61,51 @@ class InvoiceQrParser {
   /// 解析左＋右 QR（雙張合併：商家/明細來自右 QR）。
   /// 右 QR 無法解碼時明細留空、僅以左 QR 欄位建草稿（單 QR 舊式發票邊界，
   /// acceptance S3.2）。左 QR 無法辨識回 null。
-  static TransactionDraft? parse(String leftQr, String rightQr) =>
-      throw UnimplementedError('F03-BE 紅燈 stub：parse');
+  static TransactionDraft? parse(String leftQr, String rightQr) {
+    final base = parseLeft(leftQr);
+    if (base == null) return null;
+    try {
+      // 右 QR：deflate(raw)＋Base32 →「賣方名稱**品名**數量**單價**金額…」。
+      final parts = InvoiceDetailCodec.decode(rightQr).split('**');
+      final n = parts.length - 1;
+      if (parts.length < 5 || n % 4 != 0) return _withLeftOnly(base);
+      final merchant = parts[0].trim();
+      final items = <InvoiceLineItem>[];
+      for (var i = 1; i < parts.length; i += 4) {
+        final quantity = int.tryParse(parts[i + 1]);
+        final unitPrice = int.tryParse(parts[i + 2]);
+        final amount = int.tryParse(parts[i + 3]);
+        if (quantity == null || unitPrice == null || amount == null) {
+          return _withLeftOnly(base); // 明細數值不可解析——視同無明細
+        }
+        items.add(InvoiceLineItem(
+          name: parts[i].trim(),
+          quantity: quantity,
+          unitPrice: unitPrice,
+          amount: amount,
+        ));
+      }
+      return TransactionDraft(
+        merchant: DraftField(merchant, 1.0),
+        totalMinor: base.totalMinor,
+        date: base.date,
+        sellerTaxId: base.sellerTaxId,
+        invoiceNo: base.invoiceNo,
+        lineItems: items,
+      );
+    } on FormatException {
+      return _withLeftOnly(base); // Base32/deflate 解碼失敗——明細留空
+    }
+  }
+
+  /// 僅左 QR 欄位之草稿（商家/明細留空）。
+  static TransactionDraft _withLeftOnly(TransactionDraft base) => TransactionDraft(
+        merchant: const DraftField.none(),
+        totalMinor: base.totalMinor,
+        date: base.date,
+        sellerTaxId: base.sellerTaxId,
+        invoiceNo: base.invoiceNo,
+      );
 
   /// 右 QR 明細解碼（測資產生回程對稱；InvoiceDetailCodec）。
   static String decodeDetail(String rightQr) => InvoiceDetailCodec.decode(rightQr);

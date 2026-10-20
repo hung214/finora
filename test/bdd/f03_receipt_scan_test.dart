@@ -319,5 +319,7 @@ DateTime _date(String s) {
   }
   final short = RegExp(r'^(.+?) (\d+)$').firstMatch(text);
   expect(short, isNotNull, reason: '明細項格式無法解析：$text');
-  return (name: short!.group(1)!, quantity: 1, unitPrice: 0, amount: int.parse(short.group(2)!));
+  // 短式「品名 金額」＝數量 1、單價＝金額（acceptance「茶葉蛋 5」＝1 顆 5 元）。
+  final amount = int.parse(short!.group(2)!);
+  return (name: short.group(1)!, quantity: 1, unitPrice: amount, amount: amount);
 }
