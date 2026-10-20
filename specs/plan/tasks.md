@@ -178,7 +178,7 @@ S11-12：T-F08 → T-F09 → 效能複測（NFR-01~03）→ 上架
 | Helper | T-H3 雲端 adapter（雙裝置拓撲模擬）＋T-H4 通知 spy＋T-H5 標準資料集＋T-H6 發票測資＋編碼器 | ✅（39be197 紅/f803eb2 綠） |
 | Helper | T-H7 Gherkin runner（BE）＋T-H8 FE 掛鉤（驗證延至 M1 FE 首跑）＋T-H9 truth 對齊測試 | ✅（f803eb2） |
 | Migration | T-S1 schema v1（建表＋建表回歸＋truth 對齊基線，隨 T-H1 完成） | ✅ |
-| Migration | T-S2~T-S5（v2~v5，M2~M6 隨各 feature）——T-S2 ✅（81 綠）｜T-S3 ✅（信用卡/帳單/退款/分期；81 綠）｜T-S4/T-S5 ☐ |
+| Migration | T-S2~T-S5（v2~v5，M2~M6 隨各 feature）——T-S2 ✅（81 綠）｜T-S3 ✅（信用卡/帳單/退款/分期；81 綠）｜T-S4 ✅（attachments＋遷移鏈 v3→v4＋T-H9 擴充；85 綠；merge 6501051）｜T-S5 ☐ |
 | Feature | T-F01-BE（8 情境：智慧預設×4／儲存事務／Undo／離線／效能——🔴→🟢 完成，每情境一 commit） | ✅（合併 ffadf09） |
 | Feature | T-F01-FE（@P0 6 情境：預填／對話框／Sticky／完成／時間選擇器／復原——🔴→🟢 Windows 實跑全綠；App 主殼+快記頁+明細+總覽落地）＋production 接線（path_provider，techstack v0.3.5 PM 定案） | ✅（S1.11 @P1 @desktop 屬 M2；acceptance 手動情境留 QA 走查） |
 | Feature | T-F02-BE（@BE @P0 5 情境 🔴→🟢：金額驗證／轉帳守恆＋MonthlyStatsService／儲值 transfer 語意／軟刪除＋TombstonePurgeService 30 天／還款＋creditUnpaidTotal；多幣別 @P1 @M2 deferred PM 確認） | ✅（7ef56da） |
