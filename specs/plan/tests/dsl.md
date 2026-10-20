@@ -216,6 +216,15 @@
 | `Given 收入目標 {goal} 且本月已入帳 {achieved}` | income_goals＋fixture 直寫本月 income（F05-FE S5.4） |
 | `Given 設定→通知→「預算警示」= {state}` | settings `budget.notify_enabled`（on/off；off 僅關推播，in-App 視覺不受影響——FR-O2/S5.7） |
 | `When 開啟預算頁` | 導航至預算分頁（M2 主殼第三分頁，SDD §8 IA） |
+| `When 開啟統計頁並選擇 {month} 月` | 導航至統計分頁＋月份選擇器（M2 主殼第四分頁；F10-FE S1） |
+| `Then 月趨勢圖 {m1} 月 = {v1}、{m2} 月 = {v2}` | 月趨勢值文字（千分位；有資料月份，F10-FE S1） |
+| `When 篩選 期間={period}、分類={cat}` | 明細頁篩選列：期間/分類選擇器（F10-FE S2） |
+| `When 關鍵字輸入「{kw}」` | 篩選關鍵字欄輸入（FTS 即時套用） |
+| `Then 僅顯示 {n} 筆（三條件交集）` | TxTile 計數（AND 交集） |
+| `And 顯示篩選 chips 可逐一移除` | InputChip 存在（≥1，可逐一移除） |
+| `When 清除全部篩選` | 「清除篩選」按鈕（還原完整清單） |
+| `Then 顯示全部 {n} 筆` | TxTile 計數（全部月份） |
+| `Given 篩選生效（期間={period}）` | 明細頁期間篩選設定（F10-FE S3） |
 | `When 開啟總覽頁` | 導航至總覽分頁（NavigationBar；F05-FE S5.4/S5.5） |
 | `Then 金額欄下方顯示常駐計算機鍵盤` | find.byKey(amount-keypad)；金額欄 readOnly 不彈系統鍵盤（F02-FE S2.9） |
 | `Then 金額欄顯示 {value}` | 金額欄 text == value（＝ 求值結果；TWD 四捨五入整數元） |
