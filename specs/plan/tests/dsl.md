@@ -42,6 +42,11 @@
 | `Given 模擬系統時間為 {datetime}` | fake clock 凍結 |
 | `Given 模擬雲端為 in-memory adapter 且已連結` | CloudStorageAdapter = fake，vault 就緒 |
 | `Given 預算「{cat}」金額 {amount}、起始日 {day}` | budgets |
+| `Given 預算總額 {amount}、起始日 {day}` | budgets（category_id NULL＝總預算，FR-B2） |
+| `Given 收入目標 {amount}` | income_goals（FR-B6） |
+| `Given 本期{cat}已支出 {amount}` | fixture 直寫本期 expense（**不觸發警示評估**——警示於記帳鉤子／斷言前 sync 冪等補發，F05 S5.1/S5.2 語意反推） |
+| `Given 本月已入帳收入 {amount}` | fixture 直寫本月 income |
+| `And 已存在支出 {d1}（{cat1} {a1}）與 {d2}（{cat2} {a2}）` | fixture 直寫兩筆（M/D 日期，年取自凍結時間；F05 S5.6） |
 | `Given 收入目標 {amount}` | income_goals |
 | `Given 定期交易「{name}」每月 {day} 日金額 {amount}` | recurring_transactions + next_due |
 | `Given 已建立分類{names}` | categories（連續「名稱」緊接，如「餐飲」「交通」；「其他」為內建 is_system） |
@@ -69,6 +74,7 @@
 | `When 執行 BillingCycleService.run（「{card}」）` | 結帳引擎 |
 | `When 執行 RepayStatementUseCase（帳單 {period}、金額 {amt}）` | 繳款 |
 | `When 以「{card}」記錄支出 {amt}` | SaveTransactionUseCase（信用卡語意） |
+| `When 以「{card}」記錄支出 {amt}（{cat}，預扣）` | 同上＋settlement=pending（F05 S5.3 預扣口徑） |
 | `When 建立轉帳「{from}」→「{to}」金額 {amt}` | transfer |
 | `When 建立轉帳「{from}」→「{to}」金額 {amt}（儲值）` | 同上（儲值語意註記；kind=transfer，FR-A5） |
 | `When 建立還款交易 來源={from} 目標={to} 金額 {amt}` | repayment（無分類；FR-T7） |
@@ -105,6 +111,14 @@
 | `Then 帳單狀態 = {status}、已繳 {amount}、剩餘 {amount}` | statements |
 | `Then oplog 新增 {n} 筆且皆未打包` | oplog |
 | `Then 通知 spy 收到 N-{n} 恰 {k} 次，內容含 "{text}"` | notification spy |
+| `Then 通知 spy 收到 N-{n} 恰 {k} 次` | 同上（無內容限定） |
+| `Then 通知 spy 收到 N-{n} 仍恰 {k} 次（不重複）` | 同上（冪等驗證；斷言前均先 BudgetAlertService.sync 冪等補發） |
+| `Then {cat}預算用量 = {amount}（{note}）` | BudgetEvaluator（本期 expense **含 pending 預扣**；{note} 為語意註記，F05 S5.3/S5.6） |
+| `Then {cat}預算用量 = {amount}` | 同上（base，後於註記 variant） |
+| `And 預算明細標記預扣部分 {amount}` | BudgetEvaluator.pendingPortion（settlement=pending 分量） |
+| `Then 收入目標達標率 = {pct}%（已達成）` | BudgetEvaluator（收入/目標 四捨五入；≥100% 已達成） |
+| `And 本月預計結餘 = {amount}（{expr}）` | BudgetEvaluator（收入目標 − 總預算；{expr} 為算式註記） |
+| `Then 目前週期 = {start} ~ {end}` | BudgetPeriodService（period_start_day → 起訖；end 為含端顯示） |
 | `Then 裝置 {a} 與裝置 {b} 的重算餘額一致` | 跨 fixture 比對 |
 | `Then 衝突事件 1 筆，被覆蓋內容為 "{text}"` | sync_events |
 | `Then 雲端 backups/ 保留 {n} 份` | fake adapter list |
