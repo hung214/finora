@@ -119,7 +119,7 @@
 |---|---|---|---|---|---|
 | F01 快記 | T-F01-BE（8：智慧預設規則×4、儲存事務、Undo、離線、效能） | T-F01-FE（7：預填呈現、對話框、Sticky、完成、時間選擇器、復原、桌面快捷鍵） | settings key 命名（settings 表） | M1 | ☐ |
 | F02 交易帳戶 | T-F02-BE（6：金額驗證、轉帳守恆、儲值語意、軟刪除、還款、多幣別）——**6/6 ✅**（多幣別照數學修：餘額 −2,200；fxRate 換算入 BalanceCalculator） | T-F02-FE（6：禁用態、轉帳樣式、儲值文案、最近刪除、拆分＋**S2.9 計算機鍵盤**）——**6/6 ✅**（executeSplit 總額守恆＋TxTile 拆分樣式） | tx_kind/settlement_status enum（✅ schema v1 覆蓋）；fx_rate（✅ TxRow/Tx/BalanceCalculator 換算） | M1/M2 | ✅ |
-| F03 掃描 | T-F03-BE（7：QR 解析、明細合併、回退、OCR 信賴度、附件定址、離線、效能） | T-F03-FE（6：入口、權限、確認清單、高亮、連拍、桌面匯入） | attachments.sha256（blobs 約定）；測資 fixture=T-H6 | M4 | ☐ |
+| F03 掃描 | T-F03-BE（7：QR 解析、明細合併、回退、OCR 信賴度、附件定址、離線、效能）——**🟢 7/7**（InvoiceQrParser 切片解析＋ReceiptFieldExtractor heuristics＋AttachmentStore 內容定址；techstack v0.3.7 image＋crypto PM 簽核；測資 77 碼規格修正） | T-F03-FE（6：入口、權限、確認清單、高亮、連拍、桌面匯入） | attachments.sha256（blobs 約定）✅ schema v4；測資 fixture=T-H6 | M4 | 🔵（BE 完；FE 待） |
 | F04 信用卡 | T-F04-BE（10：預扣、補算、歸屬 outline、clamp、繳款×2、提醒、逾期、分期、退款、生效日）——**🟢 12 情境執行全綠**（5 服務：BillingCycle/RepayStatement/NotificationCheck/Installment/Refund＋生效日） | T-F04-FE（5：帳單呈現、繳款流程、部分繳、設定顯示、逾期標示）——**🟢 macOS 全綠**（CreditCardPage＋CardSettingsPage＋總覽入口） | **schema v3**（T-S3 ✅）；boundary_rule enum | M3 | ✅（**M3 完成併入 main c1b52b0；v0.4.7 已 tag**：FE 回歸 4/4＋部署驗證通過（Release 47.4MB＋二次啟動）） |
 | F05 預算 | T-F05-BE（5：閾值×2、含預扣、達標率、起始日）——**5/5 ✅**（BudgetAlertService 冪等 sync 點＋notif_state 去重） | T-F05-FE（5：警示色、超支、預扣標籤、達成、通知開關）——**5/5 ✅**（預算分頁＋總覽卡；FE 基線自洽修正 S1 7000/S2 8320） | **schema v2**（T-S2 ✅）；budgets/income_goals | M2 | ✅ |
 | F06 定期交易 | T-F06-BE（5：到期提醒、確認不回寫、跳過、刪除、逾期暫停） | T-F06-FE（4：badge、清單、確認 UI、暫停標示） | **schema v5**（T-S5 先行） | M6 | ☐ |
@@ -185,7 +185,7 @@ S11-12：T-F08 → T-F09 → 效能複測（NFR-01~03）→ 上架
 | Feature | T-F02-FE（@FE @P0 5 情境 🔴→🟢 macOS 實跑全綠：金額驗證禁用態／快記轉帳模式＋明細樣式／儲值文案／最近刪除 30 天還原 UI（RestoreTransactionUseCase 補口＋unit test）／**S2.9 金額計算機鍵盤**（PM 增補：常駐四則運算、＝ 四捨五入整數元、macOS 視窗 800×760）；feature 檔 rootBundle 資產載入（桌面 CWD 修復，F01 同修）；69 unit＋F01-FE 回歸全綠；M1 部署驗證通過（Release 46.9MB＋檔案 DB 二次啟動） | ✅（c46df19；拆分 @P1 @M2） |
 | Feature | T-F05-BE（@BE @P0 5 情境 🔴→🟢：閾值 N-1 冪等／N-2/N-3 分級＋預算用量含 pending 預扣分量／收入達標率不封頂／自訂起始日跨月週期——BudgetPeriodService＋BudgetEvaluator＋BudgetAlertService 冪等 sync 點（settings notif_state per period）＋SaveTransactionUseCase settlementStatus＋afterSave 鉤子；S5.3 規格補漏 Given 6500） | ✅（3181aab） |
 | Feature | T-F05-FE（@FE @P0 5 情境 🔴→🟢 macOS 實跑全綠：進度條警示色 orange/red／超支不封鎖記帳／預扣標籤／收入目標已達成卡／通知開關閘 budget.notify_enabled——預算分頁（M2 IA 第三分頁）＋總覽收入目標卡＋共用 BudgetProgressBar；FE 情境基線自洽修正 S1 7000/S2 8320 對齊 acceptance 敘述） | ✅（b23aca1） |
-| Feature | T-F02~F10（BE+FE） | ☐ |
+| Feature | T-F03-BE（@BE @M4 @FR-S 7 情境 🔴→🟢：左 QR 77 碼切片解析／右 QR 明細合併（deflate+Base32 codec）＋解碼失敗留空邊界／非發票回退 null＋空白確認卡 TransactionDraft.blank／OCR 欄位抽取 heuristics（總額關鍵字 0.9·商家頂部 0.8·日期民國 0.5 西元 0.9·統編無候選留空）／附件壓縮內容定址（image 縮 1600px＋JPEG q70＋crypto sha256→blobs/{sha256}＋attachments 列 oplog 同 transaction）／離線全本機解析／NFR-02 抽取計時——InvoiceQrParser＋ReceiptFieldExtractor＋AttachmentStore；dsl v0.6 +19 句型；規格修正：acceptance/feature 測資字串 76→77 碼（總計段補 0，對齊欄位對照表與 T-H6 金測；acceptance 變更待 PM 複核）＋S7 效能句型「入庫耗時」→「OCR 欄位抽取耗時」；techstack v0.3.7（image 4.12.0＋crypto 3.0.7，PM 簽核 2026-10-21）；DBG-005 結案（save_split 順序依賴，斷言改順序無關，10 連綠） | 🟢（7/7；FE 待） |
 | Feature | 首次啟動播種（內建分類集＋預設現金帳戶；M1 過渡——帳戶/分類管理 UI 屬 F02；oplog 同交易契約） | ✅（8545bc5） |
 | 對齊 | §5 清單自動化（pubspec/schema ✓ 已上 CI）；PR review 項人工 | 🟢 |
 | 發佈 | v0.1.0、v0.2.0（自動標籤；**Release 產物從未成功**——流水線鏈式缺陷）；**v0.4.3（DBG-004）／v0.4.4（首次啟動播種＋發佈格式定案：版本化檔名＋Inno Setup per-user exe／DMG／未簽名 IPA／軟體內版本）** | ✅（v0.4.0~0.4.2 為修復迭代，v0.4.2/v0.4.0 壞包待刪） |
