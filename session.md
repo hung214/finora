@@ -10,8 +10,8 @@
 ## 1. 休息前檢查清單（離開前逐項確認）
 
 - [x] 當前情境的紅/綠燈狀態已記錄（§2 快照表）
-- [x] `tasks.md` §6 對應任務狀態已回寫（本次：首次啟動播種 ✅、發佈格式定案 v0.3.6、DBG-003/004 結案、設定頁按原計畫屬 F07）
-- [x] 工作區已 commit（`git status` 乾淨）；交接快照已推 `session/handoff` 分支（跨電腦接手）
+- [x] `tasks.md` §6 對應任務狀態已回寫（本次：F04 BE 12/12 🟢＋FE 5/5 🟢——M3 核心完成，待部署驗證＋merge）
+- [x] 工作區已 commit（`git status` 乾淨）；分支已 push
 - [x] truth 對齊：techstack v0.3.6；data-spec v0.3.1；T-H9 對齊測試（60 綠內）持續把關
 - [x] 「下一步」精確到：F02 規範檔案、情境清單、分支名（§3）
 - [x] 若有進行中 Debug：`specs/plan/debug.md` 條目狀態已更新（DBG-003/004 均 ✅ 結案）
@@ -20,32 +20,29 @@
 
 | 欄位 | 內容 |
 |---|---|
-| 更新時間 | 2026-10-20（macOS 跨電腦接手） |
-| 階段 | **M3 核心 F04-BE 完成**（12 情境執行全綠：結帳引擎/歸屬/clamp/繳款/通知/分期/退款/生效日）。下一步：**F04-FE 5 情境**（帳單呈現/繳款流程/部分繳/設定顯示/逾期標示）→ M4 掃描 |
-| 當前分支 | feature/F04-credit-card-billing（12 commits 已 push；main = 49dfa09） |
+| 更新時間 | 2026-10-20（F04 全綠後休息交接） |
+| 階段 | **M3 核心 F04 完成**：BE 12 情境執行全綠（結帳引擎/歸屬/clamp/繳款/通知/分期/退款/生效日）＋FE 5 情境 macOS 全綠（帳單呈現/全額繳/部分繳/設定顯示/逾期標示）。下一步：**全量 FE 回歸＋部署驗證→merge main（bump 0.4.7）→ M4 掃描** |
+| 當前分支 | feature/F04-credit-card-billing（F04-FE `1a0aca3` 已 commit；main = 49dfa09） |
 | 當前任務 | 本輪：①T-S2 schema v2 ②F05-BE/FE 🔴→🟢（10 情境；冪等 sync 點警示／預算分頁／總覽卡）③F10-BE 🔴→🟢 5 情境（TextIndex bigram＋AppDatabase FTS 維護（save 鉤子）＋SearchService（FTS 優先 LIKE 降級＋AND）＋ReportService（占比 0.1%）＋CsvExporter（UTF-8 BOM）＋insertTransactionsBulk 效能測資；規格修正：CSV 5 筆／金額區間 400~800／效能句型） |
-| 紅綠燈狀態 | `dart analyze` No issues；unit **81 全綠**；**F04-BE 12 情境執行全綠**（macOS 實跑） |
+| 紅綠燈狀態 | `dart analyze` No issues；unit **82 全綠**；**F04-BE 12＋F04-FE 5 情境執行全綠**（macOS 實跑）；FE 回歸（F01/F02/F05/F10）merge 前跑 |
 | 工作區 | 乾淨（文件回寫後 commit） |
 | truth 對齊 | data-spec v0.3 不變；dsl v0.5（F05 §2 +10／§3 +10 句型）；acceptance F05 不變（BE/FE feature 檔修正見歷程） |
-| 環境筆記 | 延續上輪。新增：①**桌面殼**：LayoutBuilder ≥900px Rail（destinations 無 key 參數——key 掛 label Text；Rail 殼下 NavigationBar taps 全改 byKey nav-{分頁}，四 harness 已更新）②**LedgerPage 重寫教訓**：讀 db 的頁面必須保留 ledgerProvider 訂閱（遺漏→快記後明細不刷新，F01/F02 回歸紅燈抓到）③Python 產碼插入點錯誤（_bind 外）→ analyze 即抓 ④income_goals 不在 dbml sync_entity——F07 前 truth PR |
+| 環境筆記 | 延續上輪。新增（F04-FE）：①**磁碟滿危機**：Data 卷曾 98% 滿→macOS 建置 `lipo: No space left on device`（疑似使用者當機主因）；`flutter clean` 後 9.1GB——**休息後建議大清**（Xcode DerivedData／舊 build／ Downloads）②**推入路由後主殼 offstage**：find 預設略 offstage——harness 跨頁斷言前先 `navigator.maybePop()` ③**金額輸入千分位**：`int.tryParse('2,000')` 回 null——輸入解析須 `replaceAll(',', '')` ④**build 期間不可 invalidate/ref.read 寫入**：ConsumerStatefulWidget 開頁副作用（結帳檢查）放 initState postFrameCallback ⑤桌面殼 Rail/Bar 雙殼：導航 finder 直取 byKey nav-{分頁}（雙殼皆有 key）⑥income_goals 不在 dbml sync_entity——F07 前 truth PR |
 | 阻塞／待決 | ①gh 未安裝（PR/壞包 v0.4.0/0.4.2 刪除）②dbml sync_entity 缺 income_goals（F07 前 truth PR）③SPEC FR-Q4 待 PM ④SP-1 SQLCipher ⑤多幣別 900 矛盾待 PM（M2 尾）⑥notify_enabled=off 期內級別視為已消耗（重開不回補）——語意待 PM 確認 ⑦**UI 統整＝M7 上架前一次做**（Material 3 tokens＋深色模式＋無障礙；PM 2026-10-20 決策——各 milestone 中途不做視覺 pass） |
 
-## 3. 下一步（F04-BE 實作馬拉松；下次開工照此執行）
+## 3. 下一步（F04 已全綠；下次開工照此執行）
 
-1. **F04-BE 逐批 🔴→🟢**（已 C1 紅燈；dsl 14 句型已登記）：
-   - C2 資料層＋預扣：CreditCardDetailRow/StatementRow/StatementItemRow/RefundLinkRow/InstallmentPlanRow＋AppDatabase CRUD＋DbFixture.seedCreditCard/seedStatement＋綁定（已建立信用卡／以「卡」記錄支出（分類）→pending／帳戶重算餘額（本期應付）＝creditOpenBalance）→ S1 預扣 🟢
-   - C3 結帳引擎：BillingCycleService.run（掃過結帳日 pending → statements＋statement_items＋標記 billed＋N-4 通知內容含千分位）→ S2 補算 🟢
-   - C4 歸屬：include/exclude（結帳日當天歸本期/下期——boundary_rule）→ S3 Outline 🟢（執行數 2）
-   - C5 clamp：31 號遇小月 → 月底（2026/02/01 結算 1 月）→ S4 🟢
-   - C6 繳款：RepayStatementUseCase（全額→paid＋薪轉轉出＋N-5 取消；部分→partial 累加）→ S5/S6 🟢
-   - C7 通知：NotificationCheckService（N-5 前三天＋當天各一次、N-6 逾期一次＋overdue 標記）→ S7/S8 🟢
-   - C8 分期：InstallmentService（N 筆未來 pending＋installment_seq＋刪除連動移除）→ S9 🟢
-   - C9 退款：RefundService（refund_tx＋refund_links＋帳單負項應繳減）→ S10 🟢
-   - C10 生效日：effective_from（修改結帳日下期生效）→ S11 🟢
-2. ⚠️ harness `expect(executed, 10)` 需修正為 **12**（11 情境塊＋Outline 逐列 2）——C2 時一併修。
-3. F04-BE 全綠 → F04-FE 5 情境（帳單呈現/繳款流程/部分繳/設定顯示/逾期標示）。
-4. F04 完成後：全量＋部署驗證→merge main（bump 0.4.7）→ M4 掃描（T-F03）。
-5. 休息前照 §1 檢查清單更新本檔。
+1. **merge 前 FE 回歸**：F01/F02/F05/F10 四個 macOS integration test 逐個實跑（`flutter test integration_test/features/<name>_test.dart -d macos`）——F04-FE 修改 overview_page（信用卡入口 onTap）與 providers，須回歸確認。
+2. **M3 部署驗證**（軟體級一次性）：macOS Release 建置＋啟動冒煙＋檔案 DB 二次啟動＋版本號 dart-define 檢查（照 M1 部署驗證清單）。
+3. **merge main**：bump pubspec `0.4.7`→commit→push→PR（gh 未裝：直接 merge 或請 PM 裝 gh）→ tag v0.4.7 自動四平台 release（冪等——merge 後 tag 自動建立）。
+4. **M4 掃描開跑**（T-F03：發票 QR/OCR 掃描——先 BE feature 檔+dsl 紅燈）。
+5. ⚠️ **磁碟清理**：Data 卷 98% 滿（本次當機主因）——Xcode DerivedData／flutter build 殘留／大檔清理後再開工。
+6. 休息前照 §1 檢查清單更新本檔。
+
+### F04-FE 補充筆記（merge 前回歸須知）
+- CreditCardPage 開頁副作用：initState postFrameCallback 觸發結帳檢查（FR-C3 sync 點）——勿在 build 中 ref.read/invalidate（本次已修）。
+- 總覽帳戶卡：type=credit 才有 onTap→CreditCardPage；bank 卡無 onTap。
+- F04-FE harness 導航後若需回主殼斷言：先 `navigator.maybePop()`（推入路由時主殼 offstage）。
 
 ## 4. 恢復工作 SOP（下次開工照此執行）
 
@@ -59,6 +56,7 @@
 
 | 日期 | 摘要 | 分支 | 狀態 |
 |---|---|---|---|
+| 2026-10-20 | **F04 信用卡帳單引擎 BE＋FE 完成（12+5 情境全綠）**：BE（5 服務：BillingCycleService 結帳/clamp/歸屬冪等、RepayStatementUseCase paid/partial＋N-5 取消、NotificationCheckService N-5 前三+當天分級＋N-6 一次、InstallmentService 排程+刪除連動、RefundService refund_links＋帳單負項； TxRow.installmentSeq、AppDatabase v3 CRUD/runInTransaction/生效日）；FE（CreditCardPage 徽章/帳單卡/繳款對話框、CardSettingsPage、總覽入口、repayStatementProvider）；**修復**：build 期間 invalidate（postFrameCallback）／推入路由主殼 offstage（maybePop）／金額千分位 parse／Rail-Bar finder；**磁碟滿危機**（lipo no space→當機主因，flutter clean 9.1GB）；dsl +22 句型（BE 11＋FE 11）；unit 82 全綠 | feature/F04-credit-card-billing | 🔵（F04 全綠；待 FE 回歸+部署驗證+merge 0.4.7） |
 | 2026-10-20 | **App 畫廊新增「10 新增資料」＋UI 統整決策**：畫廊新增可互動 demo 頁（真實 AmountKeypad：計算機/模式切換/儲存啟用態）；**UI 統整＝M7 上架前一次做**（tokens＋深色模式＋無障礙；PM 決策——中途不做視覺 pass）記入 tasks.md §4.2；session.md 快照同步（main 28bdc85） | main | ✅（28bdc85 已 push） |
 | 2026-10-20 | **F10-FE 完成＋桌面殼落地＋UI demo**：統計分頁（M2 IA 第四分頁：月份選擇器＋占比 0.1%＋合計千分位＋月趨勢）；明細頁複合篩選（期間/分類/關鍵字 AND＋chips 可移除＋清除＋無符合結果）＋匯出 CSV 提示；**AC-02 回歸修復**（LedgerPage 搜尋重寫遺漏 ledgerProvider 訂閱——F01/F02 紅燈抓到）；**桌面殼 RWD**（≥900px NavigationRail 側欄＋nav keys 雙殼相容＋⌘N/Ctrl+N 快記 F01-S1.11＋視窗 1180×740 對齊 08 雛型）；UI demo `10-quick-entry-calc.html`（新增資料頁：金額輸入＋計算機＋轉帳模式，README v0.4）；**F10-FE 3 情境全綠於 Rail 殼** | feature/F10-reports-search | 🔵（M2 核心齊：F05＋F10；待全套回歸→部署驗證→merge） |
 | 2026-10-20 | **F10-BE 報表聚合與搜尋完成（5 情境全綠）**：TextIndex（CJK bigram＋MATCH 查詢）＋AppDatabase FTS 維護（save 鉤子重索引＋ftsSearch/transactionsByRowids/setTransactionNote；環境缺模組降級 LIKE）＋SearchService（AND 複合：期間/分類/帳戶/金額區間＋關鍵字標準化）＋ReportService（占比 0.1%＋總計，轉帳/收入不計）＋CsvExporter（UTF-8 BOM＋10 欄位＋金額純數字）＋insertTransactionsBulk 效能測資；**NFR-01 實測 10 萬筆聚合 387ms<1500ms**；規格修正三處（CSV 5 筆／金額區間 400~800 證明空結果／效能句型「入庫耗時」→報表聚合）；**75 unit 全綠** | feature/F10-reports-search | 🔵（BE 🟢 5/5、FE 待） |
