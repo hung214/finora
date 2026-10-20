@@ -21,7 +21,7 @@
 | 欄位 | 內容 |
 |---|---|
 | 更新時間 | 2026-10-20（macOS 跨電腦接手） |
-| 階段 | **M3 開工**（T-S3 schema v3 ✅ 已 merge main；F04-BE C1 紅燈已提交）。下一步：**F04-BE 實作馬拉松**（10 情境——執行數 12：Outline×2；實作順序見 §3）→ F04-FE（5 情境）→ M4 掃描 |
+| 階段 | **M3 開工／休息中斷點**：T-S3 schema v3 ✅（已 merge main `d7d22d7`）＋F04-BE C1 紅燈已提交（`959b2a2`）。**恢復動作＝照 §3 十批次清單從 C2 開始**（資料層→結帳引擎→…逐批 🔴→🟢） |
 | 當前分支 | feature/F04-credit-card-billing（C1 紅燈 959b2a2 已 push；main = 49dfa09） |
 | 當前任務 | 本輪：①T-S2 schema v2 ②F05-BE/FE 🔴→🟢（10 情境；冪等 sync 點警示／預算分頁／總覽卡）③F10-BE 🔴→🟢 5 情境（TextIndex bigram＋AppDatabase FTS 維護（save 鉤子）＋SearchService（FTS 優先 LIKE 降級＋AND）＋ReportService（占比 0.1%）＋CsvExporter（UTF-8 BOM）＋insertTransactionsBulk 效能測資；規格修正：CSV 5 筆／金額區間 400~800／效能句型） |
 | 紅綠燈狀態 | `dart analyze` No issues；unit **81 全綠**（T-S3 回歸 3＋拆分 3）；F04-BE 紅燈（NotBound：已建立信用卡） |
