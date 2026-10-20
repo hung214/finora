@@ -441,7 +441,6 @@ void _bind(GherkinRunner runner, _World w) {
   runner.on(r'修改「{card}」結帳日為 {day} 號（effective_from 下一期）$', (p) {
     // effective_from = 目前週期結束後一日（下一期起算日）。
     final cardId = w.accounts[p['card']!]!;
-    final detail = w.db.creditCardDetail(cardId)!;
     // effective_from = 預扣期間末日＋1（Given 已凍結語意之下一期起算）。
     final nextPeriodStart = DateTime.fromMillisecondsSinceEpoch(w.lastPendingEndMs!);
     w.db.updateCreditCardStatementDay(
@@ -550,15 +549,6 @@ String _getOrCreateCategory(_World w, String name) {
 /// 第一張信用卡（帳單 Given 未指明卡片時之預設）。
 AccountRow _firstCreditCard(AppDatabase db) =>
     db.allAccounts().firstWhere((a) => a.type == 'credit');
-
-DateTime _lastStatementDateOf(DateTime now, int day) {
-  var candidate = _clampDayOf(now.year, now.month, day);
-  if (candidate.isAfter(now)) {
-    final prev = DateTime(now.year, now.month - 1);
-    candidate = _clampDayOf(prev.year, prev.month, day);
-  }
-  return candidate;
-}
 
 DateTime _clampDayOf(int y, int m, int day) {
   final monthEnd = DateTime(y, m + 1, 1).subtract(const Duration(days: 1));
