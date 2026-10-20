@@ -21,10 +21,10 @@
 | 欄位 | 內容 |
 |---|---|
 | 更新時間 | 2026-10-20（macOS 跨電腦接手） |
-| 階段 | **M2 核心完成**（v0.4.6 已 tag，**四平台產物待確認**；整體部署驗證已通過）＋App 畫廊新增「10 新增資料（金額輸入＋計算機）」可互動 demo 頁。下一步：**①確認 v0.4.6 Release 產物（四平台）→ ②M2 遺留（拆分/多幣別）→ ③M3**（T-S3→F04 信用卡） |
-| 當前分支 | main = 28bdc85（M2 merge＋畫廊 demo 頁＋UI 統整決策均已 push；v0.4.6 tag 已建 `94f7410`） |
+| 階段 | **M2 全部完成**（v0.4.6 已發佈＋四平台產物確認；F02 6/6＋6/6 全 ✅：拆分 executeSplit＋多幣別 fxRate 換算照數學修——餘額 −2,200；F05/F10/T-S2/桌面殼已併 main）。下一步：**M3**（T-S3 schema v3→T-F04 信用卡 BE 10＋FE 5）→ M4 掃描 |
+| 當前分支 | feature/F02-m2-remainder（5 commits 已 push；main = 6a7bba6） |
 | 當前任務 | 本輪：①T-S2 schema v2 ②F05-BE/FE 🔴→🟢（10 情境；冪等 sync 點警示／預算分頁／總覽卡）③F10-BE 🔴→🟢 5 情境（TextIndex bigram＋AppDatabase FTS 維護（save 鉤子）＋SearchService（FTS 優先 LIKE 降級＋AND）＋ReportService（占比 0.1%）＋CsvExporter（UTF-8 BOM）＋insertTransactionsBulk 效能測資；規格修正：CSV 5 筆／金額區間 400~800／效能句型） |
-| 紅綠燈狀態 | `dart analyze` No issues；unit **75 全綠**；**FE 20 情境全綠**（F01 7／F02 5／F05 5／F10 3——Rail 殼 1180×740 實跑）；整體部署驗證通過（Release 47.3MB＋啟動冒煙） |
+| 紅綠燈狀態 | `dart analyze` No issues；unit **78 全綠**（＋拆分 3）；**F02-BE 6＋F02-FE 6 情境全綠**（多幣別/拆分解鎖；F05/F10 已佔 main） |
 | 工作區 | 乾淨（文件回寫後 commit） |
 | truth 對齊 | data-spec v0.3 不變；dsl v0.5（F05 §2 +10／§3 +10 句型）；acceptance F05 不變（BE/FE feature 檔修正見歷程） |
 | 環境筆記 | 延續上輪。新增：①**桌面殼**：LayoutBuilder ≥900px Rail（destinations 無 key 參數——key 掛 label Text；Rail 殼下 NavigationBar taps 全改 byKey nav-{分頁}，四 harness 已更新）②**LedgerPage 重寫教訓**：讀 db 的頁面必須保留 ledgerProvider 訂閱（遺漏→快記後明細不刷新，F01/F02 回歸紅燈抓到）③Python 產碼插入點錯誤（_bind 外）→ analyze 即抓 ④income_goals 不在 dbml sync_entity——F07 前 truth PR |
