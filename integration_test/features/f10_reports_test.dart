@@ -8,6 +8,7 @@ import 'package:ledger_sync/core/clock.dart';
 import 'package:ledger_sync/application/providers.dart';
 import 'package:ledger_sync/data/sqlite/app_database.dart';
 import 'package:ledger_sync/presentation/app_shell.dart';
+import 'package:ledger_sync/presentation/screens/ledger/ledger_page.dart';
 
 import '../../test/helpers/db_fixture.dart';
 import '../../test/helpers/gherkin/gherkin.dart';
@@ -144,6 +145,75 @@ void _bind(GherkinRunner runner, _World w) {
       );
     }
   });
+
+  // When/Then：複合篩選互動（F10 S10.2；FR-R3）
+  runner.on(r'篩選 期間={period}、分類={cat}$', (p) async {
+    await _ensureApp(w);
+    await w.tester.tap(find.descendant(
+        of: find.byType(NavigationBar), matching: find.text('明細')));
+    await w.tester.pumpAndSettle();
+    // 期間選擇器 → 選項（句型參數含「月」：6月 → 選項文字「6 月」）
+    final monthNum = p['period']!.replaceAll('月', '');
+    await w.tester.tap(find.byKey(const Key('filter-period')));
+    await w.tester.pumpAndSettle();
+    await w.tester.tap(find.text('$monthNum 月').last);
+    await w.tester.pumpAndSettle();
+    // 分類選擇器 → 選項
+    await w.tester.tap(find.byKey(const Key('filter-category')));
+    await w.tester.pumpAndSettle();
+    await w.tester.tap(find.text(p['cat']!).last);
+    await w.tester.pumpAndSettle();
+  });
+
+  runner.on(r'關鍵字輸入「{kw}」$', (p) async {
+    await w.tester.enterText(find.byKey(const Key('filter-keyword')), p['kw']!);
+    await w.tester.pumpAndSettle();
+  });
+
+  runner.on(r'僅顯示 {n} 筆（三條件交集）$', (p) async {
+    _expectTxCount(w, int.parse(p['n']!));
+  });
+
+  runner.on(r'顯示篩選 chips 可逐一移除$', (p) async {
+    expect(
+      w.tester.any(find.byType(InputChip, skipOffstage: false)),
+      isTrue,
+      reason: '篩選條件應以 chips 呈現（可逐一移除）',
+    );
+  });
+
+  runner.on(r'清除全部篩選$', (p) async {
+    await w.tester.tap(find.byKey(const Key('filter-clear')));
+    await w.tester.pumpAndSettle();
+  });
+
+  runner.on(r'顯示全部 {n} 筆$', (p) async {
+    _expectTxCount(w, int.parse(p['n']!));
+  });
+
+  // Given/When/Then：CSV 匯出（F10 S10.3；FR-R4）
+  runner.on(r'篩選生效（期間={period}）$', (p) async {
+    await _ensureApp(w);
+    await w.tester.tap(find.descendant(
+        of: find.byType(NavigationBar), matching: find.text('明細')));
+    await w.tester.pumpAndSettle();
+    final monthNum2 = p['period']!.replaceAll('月', '');
+    await w.tester.tap(find.byKey(const Key('filter-period')));
+    await w.tester.pumpAndSettle();
+    await w.tester.tap(find.text('$monthNum2 月').last);
+    await w.tester.pumpAndSettle();
+  });
+
+  runner.on(r'按下「{label}」$', (p) async {
+    await w.tester.tap(find.text(p['label']!));
+    await w.tester.pumpAndSettle();
+  });
+}
+
+/// 明細列計數（篩選後；IndexedStack 下以 skipOffstage 取得）。
+void _expectTxCount(_World w, int n) {
+  expect(w.tester.widgetList<TxTile>(find.byType(TxTile, skipOffstage: false)),
+      hasLength(n));
 }
 
 /// 分類隱式建立。

@@ -3,23 +3,54 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../application/providers.dart';
+import '../../../application/reports/csv_exporter.dart';
+import '../../../application/reports/search_service.dart';
 import '../../../data/sqlite/app_database.dart';
 import 'recent_deletions_page.dart';
 
-/// 明細頁（M1）：未刪除交易降冪列表；儲存/復原/刪除後即時刷新（AC-02）。
-class LedgerPage extends ConsumerWidget {
+/// 明細頁（FR-R3 呈現面）：未刪除交易列表＋複合篩選（期間/分類/關鍵字，
+/// AND 語意＋chips 可逐一移除＋清除全部）＋匯出 CSV（FR-R4）。
+/// 儲存/復原/刪除後即時刷新（AC-02）。
+class LedgerPage extends ConsumerStatefulWidget {
   const LedgerPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final txs = ref.watch(ledgerProvider);
+  ConsumerState<LedgerPage> createState() => _LedgerPageState();
+}
+
+class _LedgerPageState extends ConsumerState<LedgerPage> {
+  int? _periodMonth; // null = 全部（月，取 Clock.now().year）
+  String? _categoryFilter; // null = 全部（category id）
+  String _keyword = '';
+
+  bool get _hasFilter =>
+      _periodMonth != null || _categoryFilter != null || _keyword.isNotEmpty;
+
+  @override
+  Widget build(BuildContext context) {
+    final db = ref.watch(dbProvider);
+    final search = SearchService(db);
+    final range = _periodRange(_periodMonth);
+    final rows = search.search(
+      keyword: _keyword.isEmpty ? null : _keyword,
+      startMs: range?.$1,
+      endMs: range?.$2,
+      categoryId: _categoryFilter,
+    );
     final accountById = {
       for (final a in ref.watch(activeAccountsProvider)) a.id: a,
     };
+    final months = _availableMonths(db);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('明細'),
         actions: [
+          TextButton(
+            key: const Key('export-csv'),
+            onPressed: () => _exportCsv(context, rows),
+            child: const Text('匯出 CSV'),
+          ),
           // 「最近刪除」入口（F02 S2.5-2；M1 無設定頁——整體屬 F07，dsl §3.3）。
           IconButton(
             key: const Key('ledger-recent-deletions'),
@@ -31,19 +62,169 @@ class LedgerPage extends ConsumerWidget {
           ),
         ],
       ),
-      body: txs.isEmpty
-          ? const Center(child: Text('尚無交易——點右下角快記第一筆'))
-          : ListView.builder(
-              itemCount: txs.length,
-              itemBuilder: (_, i) => TxTile(
-                tx: txs[i],
-                accountName: accountById[txs[i].accountId]?.name ?? '',
-                toAccount: txs[i].toAccountId == null
-                    ? null
-                    : accountById[txs[i].toAccountId!],
-                onDelete: () => _confirmDelete(context, ref, txs[i]),
+      body: Column(
+        children: [
+          _filterBar(context, db, months),
+          const Divider(height: 1),
+          Expanded(
+            child: rows.isEmpty
+                ? Center(
+                    child: Text(_hasFilter ? '無符合結果' : '尚無交易——點右下角快記第一筆'))
+                : ListView.builder(
+                    itemCount: rows.length,
+                    itemBuilder: (_, i) => TxTile(
+                      tx: rows[i],
+                      accountName: accountById[rows[i].accountId]?.name ?? '',
+                      toAccount: rows[i].toAccountId == null
+                          ? null
+                          : accountById[rows[i].toAccountId!],
+                      onDelete: () => _confirmDelete(context, ref, rows[i]),
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _filterBar(BuildContext context, AppDatabase db, List<int> months) {
+    final chips = <Widget>[
+      if (_periodMonth != null)
+        InputChip(
+          key: const Key('chip-期間'),
+          label: Text('期間 $_periodMonth 月'),
+          onDeleted: () => setState(() => _periodMonth = null),
+        ),
+      if (_categoryFilter != null)
+        InputChip(
+          key: const Key('chip-分類'),
+          label: Text('分類 ${db.categoryName(_categoryFilter!) ?? ''}'),
+          onDeleted: () => setState(() => _categoryFilter = null),
+        ),
+      if (_keyword.isNotEmpty)
+        InputChip(
+          key: const Key('chip-關鍵字'),
+          label: Text('關鍵字 $_keyword'),
+          onDeleted: () => setState(() => _keyword = ''),
+        ),
+    ];
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Flexible(
+                child: PopupMenuButton<int>(
+                  key: const Key('filter-period'),
+                  tooltip: '期間',
+                  onSelected: (m) => setState(() => _periodMonth = m),
+                  itemBuilder: (_) => [
+                    for (final m in months) PopupMenuItem(value: m, child: Text('$m 月')),
+                  ],
+                  child: InputDecorator(
+                    decoration: const InputDecoration(labelText: '期間', isDense: true),
+                    child: Text(_periodMonth == null ? '全部' : '$_periodMonth 月'),
+                  ),
+                ),
               ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: PopupMenuButton<String>(
+                  key: const Key('filter-category'),
+                  tooltip: '分類',
+                  onSelected: (id) => setState(() => _categoryFilter = id),
+                  itemBuilder: (_) => [
+                    for (final c in db.categoriesByKind('expense'))
+                      PopupMenuItem(value: c.id, child: Text(c.name)),
+                  ],
+                  child: InputDecorator(
+                    decoration: const InputDecoration(labelText: '分類', isDense: true),
+                    child: Text(_categoryFilter == null
+                        ? '全部'
+                        : (db.categoryName(_categoryFilter!) ?? '')),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  key: const Key('filter-keyword'),
+                  decoration:
+                      const InputDecoration(labelText: '關鍵字', isDense: true),
+                  onChanged: (v) => setState(() => _keyword = v.trim()),
+                ),
+              ),
+            ],
+          ),
+          if (chips.isNotEmpty)
+            Row(
+              children: [
+                ...chips.map((c) => Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: c,
+                    )),
+                TextButton(
+                  key: const Key('filter-clear'),
+                  onPressed: () => setState(() {
+                    _periodMonth = null;
+                    _categoryFilter = null;
+                    _keyword = '';
+                  }),
+                  child: const Text('清除篩選'),
+                ),
+              ],
             ),
+        ],
+      ),
+    );
+  }
+
+  (int, int)? _periodRange(int? month) {
+    if (month == null) return null;
+    final year = DateTime.now().year;
+    return (
+      DateTime(year, month).millisecondsSinceEpoch,
+      DateTime(year, month + 1).millisecondsSinceEpoch,
+    );
+  }
+
+  /// 有交易之月份（升冪；期間選項）。
+  List<int> _availableMonths(AppDatabase db) {
+    final months = <int>{};
+    for (final t in db.allTransactions()) {
+      if (t.deletedAt != null) continue;
+      months.add(DateTime.fromMillisecondsSinceEpoch(t.occurredAt).month);
+    }
+    return months.toList()..sort();
+  }
+
+  void _exportCsv(BuildContext context, List<TxRow> rows) {
+    final db = ref.read(dbProvider);
+    final csv = CsvExporter(
+      categoryName: (id) => db.categoryName(id) ?? id,
+      accountName: (id) {
+        final names =
+            db.allAccounts().where((a) => a.id == id).map((a) => a.name).toList();
+        return names.isEmpty ? id : names.first;
+      },
+    ).export(rows);
+    // ignore: avoid_print
+    print('CSV 匯出（${rows.length} 筆，UTF-8 BOM）：${csv.length} 字元');
+    final label = _periodMonth == null ? '全部' : '$_periodMonth 月';
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('匯出 CSV'),
+        content: Text(
+            '已匯出 $label交易（${NumberFormat('#,###').format(rows.length)} 筆，UTF-8）'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('確定'),
+          ),
+        ],
+      ),
     );
   }
 
