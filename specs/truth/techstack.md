@@ -51,8 +51,8 @@
 | domain | freezed / json_serializable | 2.5.8 | 實體/OpBundle 模型 | SDD §4 |
 | domain | intl | 0.20.3 | 多語系/幣別格式 | FR-O1 |
 | domain | uuid | 4.6.0 | UUIDv7（交易/實體 ID） | SDD §4.2 |
-| domain | image | 4.x（lock 為準） | 附件壓縮：原圖縮至最長邊 1600px＋JPEG q70（FR-S4，SDD §5.4 附件儲存）。**選純 Dart 之關鍵**：跨平台 JPEG 位元組一致 → 同張照片各裝置壓縮後 sha256 相同 → 雲端 blobs/ 內容定址去重成立（§5.5.6）；平台 codec 各產位元組不同會破壞去重。PM 簽核 2026-10-21 | SDD §5.4/§5.5.6 |
-| domain | crypto | 3.0.0 | sha256 內容定址（blobs/{sha256} 檔名；附件中繼資 attachments.sha256 同源）——Dart 官方維護、零傳遞依賴。PM 簽核 2026-10-21 | SDD §5.5.6 |
+| domain | image | 4.12.0 | 附件壓縮：原圖縮至最長邊 1600px＋JPEG q70（FR-S4，SDD §5.4 附件儲存）。**選純 Dart 之關鍵**：跨平台 JPEG 位元組一致 → 同張照片各裝置壓縮後 sha256 相同 → 雲端 blobs/ 內容定址去重成立（§5.5.6）；平台 codec 各產位元組不同會破壞去重。PM 簽核 2026-10-21 | SDD §5.4/§5.5.6 |
+| domain | crypto | 3.0.7 | sha256 內容定址（blobs/{sha256} 檔名；附件中繼資 attachments.sha256 同源）——Dart 官方維護、零傳遞依賴。PM 簽核 2026-10-21 | SDD §5.5.6 |
 | data | sqlite3 | 2.9.4 | **T-S1 過渡**：本地 DB 直連（lib/data/sqlite/，schema 對齊 data-spec.dbml） | SDD §4.2 |
 | data | drift / drift_dev | 2.35.2（⚠ TR-7 暫緩：與 Dart 3.13.5 工具鏈不相容，M1 前於 CI 重試回歸；屆時 sqlite 直連層 API 不變僅換底層） | SQLite ORM + Reactive Streams + migration（D2） | SDD §4.2 |
 | core | flutter_secure_storage | ⚠ TR-8 暫緩（移出 pubspec 至 M2：Windows 建置需 VS C++ ATL 元件 atlstr.h；M2 前安裝元件或改 DPAPI 直呼） | DB 金鑰/OAuth token | SDD §7.1 |

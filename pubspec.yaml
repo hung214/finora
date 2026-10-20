@@ -20,6 +20,8 @@ dependencies:
   uuid: ^4.6.0                    # UUIDv7（實體 ID）
   cupertino_icons: ^1.0.8
   path_provider: ^2.1.6
+  image: ^4.12.0
+  crypto: ^3.0.7
 
 dev_dependencies:
   flutter_test:
