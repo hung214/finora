@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ledger_sync/application/budgets/budget_evaluator.dart';
+import 'package:ledger_sync/application/quick_entry/save_transaction_use_case.dart';
 import 'package:ledger_sync/core/clock.dart';
 import 'package:ledger_sync/data/sqlite/app_database.dart';
 
@@ -42,6 +44,10 @@ class _World {
   final List<AppDatabase> dbs = [];
   late AppDatabase db;
   final NotificationSpy spy = NotificationSpy();
+  late SaveTransactionUseCase save;
+
+  /// When 步驟前的 oplog 數（delta 基準）。
+  int opBaseline = 0;
 
   /// 名稱 → id 對映（Background 建立時登記）。
   final accounts = <String, String>{};
@@ -57,6 +63,8 @@ void _bind(GherkinRunner runner, _World w) {
     w.accounts.clear();
     w.categories.clear();
     w.spy.clear();
+    w.opBaseline = 0;
+    w.save = SaveTransactionUseCase(db); // C4 接入 afterSave 警示鉤子
   });
 
   runner.on(r'已建立帳戶「{name}」類型 {type} 期初 {amount}$', (p) {
@@ -117,7 +125,122 @@ void _bind(GherkinRunner runner, _World w) {
       amountMinor: _amount(p['amt']!),
     );
   });
+
+  // ── Given：本期資料（F05 S5.1~S5.4）──────────────────────
+  runner.on(r'本期{cat}已支出 {amt}$', (p) {
+    // 直寫 seed（不觸發警示評估——警示為冪等 sync 點，dsl §2.1 註記）。
+    DbFixture.seedTx(
+      w.db,
+      id: 'tx-base-${w.db.allTransactions().length}',
+      kind: 'expense',
+      amountMinor: _amount(p['amt']!),
+      accountId: _firstActiveAccount(w.db).id,
+      category: w.categories[p['cat']!],
+      occurredAt: Clock.now().millisecondsSinceEpoch,
+    );
+  });
+
+  runner.on(r'本月已入帳收入 {amt}$', (p) {
+    DbFixture.seedTx(
+      w.db,
+      id: 'tx-inc-${w.db.allTransactions().length}',
+      kind: 'income',
+      amountMinor: _amount(p['amt']!),
+      accountId: _firstActiveAccount(w.db).id,
+      category: w.categories['薪資'],
+      occurredAt: Clock.now().millisecondsSinceEpoch,
+    );
+  });
+
+  runner.on(r'已存在支出 {d1}（{cat1} {a1}）與 {d2}（{cat2} {a2}）$', (p) {
+    final base = Clock.now();
+    for (final (dateStr, catKey, amountStr) in [
+      (p['d1']!, p['cat1']!, p['a1']!),
+      (p['d2']!, p['cat2']!, p['a2']!),
+    ]) {
+      final m = RegExp(r'^(\d{1,2})/(\d{1,2})$').firstMatch(dateStr)!;
+      final at = DateTime(base.year, int.parse(m.group(1)!), int.parse(m.group(2)!), 12);
+      DbFixture.seedTx(
+        w.db,
+        id: 'tx-hist-${w.db.allTransactions().length}',
+        kind: 'expense',
+        amountMinor: _amount(amountStr),
+        accountId: _firstActiveAccount(w.db).id,
+        category: w.categories[catKey],
+        occurredAt: at.millisecondsSinceEpoch,
+      );
+    }
+  });
+
+  // ── When：記帳（F05 S5.1~S5.3）───────────────────────────
+  runner.on(r'呼叫 SaveTransactionUseCase（帳戶「{a}」、分類「{c}」、金額 {amt}、時間 {t}）$', (p) {
+    w.opBaseline = w.db.allOps().length;
+    w.save.execute(
+      accountId: w.accounts[p['a']!]!,
+      categoryId: w.categories[p['c']!],
+      amountMinor: _amount(p['amt']!),
+      occurredAt: _dateTime(p['t']!),
+    );
+  });
+
+  runner.on(r'以「{card}」記錄支出 {amt}（{cat}，預扣）$', (p) {
+    w.opBaseline = w.db.allOps().length;
+    // F05 S5.3：信用卡支出 = pending 預扣（承諾支出口徑）。
+    w.save.execute(
+      accountId: w.accounts[p['card']!]!,
+      categoryId: w.categories[p['cat']!],
+      amountMinor: _amount(p['amt']!),
+      occurredAt: Clock.now(),
+      settlementStatus: 'pending',
+    );
+  });
+
+  // ── Then：用量／達標率／結餘／週期（F05 S5.3~S5.6）─────────
+  runner.on(r'{cat}預算用量 = {amt}（{note}）$', (p) => _expectUsage(w, p));
+  runner.on(r'{cat}預算用量 = {amt}$', (p) => _expectUsage(w, p));
+
+  runner.on(r'預算明細標記預扣部分 {amt}$', (p) {
+    final usage = _evaluator(w).categoryUsage(w.categories['餐飲']!)!;
+    expect(usage.pendingMinor, _amount(p['amt']!),
+        reason: 'FR-B5：預扣分量可辨識（settlement=pending）');
+  });
+
+  runner.on(r'收入目標達標率 = {pct}%（已達成）$', (p) {
+    final status = _evaluator(w).incomeGoalStatus();
+    expect(status, isNotNull, reason: '收入目標應已設定（FR-B6）');
+    expect(status!.ratePercent, int.parse(p['pct']!),
+        reason: '達標率（四捨五入；>100% 不封頂）');
+    expect(status.achieved, isTrue, reason: '達成狀態明確');
+  });
+
+  runner.on(r'本月預計結餘 = {amt}（{expr}）$', (p) {
+    expect(_evaluator(w).plannedBalanceMinor(), _amount(p['amt']!),
+        reason: 'FR-B7：預計結餘 = 收入目標 − 總預算（${p['expr']}）');
+  });
+
+  runner.on(r'目前週期 = {start} ~ {end}$', (p) {
+    final period = _evaluator(w).categoryPeriod(w.categories['餐飲']!);
+    expect(period, isNotNull, reason: '餐飲預算應已設定（FR-B2）');
+    expect(period!.display(), '${p['start']} ~ ${p['end']}',
+        reason: 'S5.6：自訂起始日跨月週期');
+  });
 }
+
+/// 用量斷言共用（含 pending；S5.3/S5.6）。
+void _expectUsage(_World w, Map<String, String> p) {
+  final usage = _evaluator(w).categoryUsage(w.categories[p['cat']!]!);
+  expect(usage, isNotNull, reason: '${p['cat']} 預算應已設定');
+  expect(usage!.totalMinor, _amount(p['amt']!),
+      reason: '${p['cat']} 預算用量（承諾支出口徑，含 pending 預扣；${p['note'] ?? ''}）');
+}
+
+BudgetEvaluator _evaluator(_World w) => BudgetEvaluator(w.db);
+
+AccountRow _firstActiveAccount(AppDatabase db) => db
+    .allAccounts()
+    .where((a) => !a.archived)
+    .toList()
+    .first;
 
 int _amount(String s) => int.parse(s.trim().replaceAll(',', ''));
 

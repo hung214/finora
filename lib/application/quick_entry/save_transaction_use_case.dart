@@ -54,6 +54,7 @@ class SaveTransactionUseCase {
     String? note,
     TxKind kind = TxKind.expense,
     String? toAccountId,
+    String settlementStatus = 'none',
   }) {
     if (amountMinor <= 0) {
       // F02 S2.1：金額必填且大於 0（0 或空值皆不得入庫；訊息為 FE 顯示契約）。
@@ -76,7 +77,8 @@ class SaveTransactionUseCase {
       note: note,
       occurredAt: occurredAt.millisecondsSinceEpoch,
       source: 'manual',
-      settlementStatus: 'none', // 快記資產帳戶；信用卡預扣語意屬 F04
+      // F05 S5.3：信用卡預扣（pending）——預算「承諾支出」口徑；完整帳單語意屬 F04。
+      settlementStatus: settlementStatus,
       createdAt: now.millisecondsSinceEpoch,
       updatedAt: now.millisecondsSinceEpoch,
       hlc: Hlc.now(deviceId).toString(),
