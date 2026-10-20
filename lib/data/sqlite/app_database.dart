@@ -388,6 +388,62 @@ class AppDatabase {
     }
   }
 
+  // ── 信用卡明細（FR-A3，schema v3；device-local——不在 sync_entity） ──
+
+  void insertCreditCardDetail(CreditCardDetailRow d) => _db.execute(
+        'INSERT INTO credit_card_details (account_id, last4, statement_day, due_offset_days,'
+        ' linked_account_id, boundary_rule, credit_limit_minor, effective_from)'
+        ' VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          d.accountId, d.last4, d.statementDay, d.dueOffsetDays,
+          d.linkedAccountId, d.boundaryRule, d.creditLimitMinor, d.effectiveFrom,
+        ],
+      );
+
+  CreditCardDetailRow? creditCardDetail(String accountId) {
+    final rows = _db
+        .select('SELECT * FROM credit_card_details WHERE account_id = ?', [accountId])
+        .map(CreditCardDetailRow.fromRow)
+        .toList();
+    return rows.isEmpty ? null : rows.first;
+  }
+
+  // ── 帳單（FR-C3，schema v3；statements 屬 sync_entity） ────
+
+  void insertStatement(StatementRow s) => _db.execute(
+        'INSERT INTO statements (id, account_id, period_start, period_end, statement_date,'
+        ' due_date, total_minor, paid_minor, status, paid_at, overdue_notified,'
+        ' created_at, updated_at, hlc, deleted_at)'
+        ' VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          s.id, s.accountId, s.periodStart, s.periodEnd, s.statementDate,
+          s.dueDate, s.totalMinor, s.paidMinor, s.status, s.paidAt,
+          s.overdueNotified ? 1 : 0, s.createdAt, s.updatedAt, s.hlc, s.deletedAt,
+        ],
+      );
+
+  void insertStatementItems(String statementId, List<String> transactionIds) {
+    _db.execute('BEGIN');
+    try {
+      for (final txId in transactionIds) {
+        _db.execute(
+          'INSERT OR IGNORE INTO statement_items (statement_id, transaction_id) VALUES (?, ?)',
+          [statementId, txId],
+        );
+      }
+      _db.execute('COMMIT');
+    } catch (_) {
+      _db.execute('ROLLBACK');
+      rethrow;
+    }
+  }
+
+  StatementRow? statementById(String id) {
+    final rows =
+        _db.select('SELECT * FROM statements WHERE id = ?', [id]).map(StatementRow.fromRow).toList();
+    return rows.isEmpty ? null : rows.first;
+  }
+
   // ── 同步日誌（SDD §5.5） ──────────────────────────────────
 
   void appendOp(OplogRow o) => _db.execute(
@@ -816,6 +872,129 @@ class IncomeGoalRow {
         'created_at': createdAt,
         'updated_at': updatedAt,
         'hlc': hlc,
+      };
+}
+
+/// 信用卡明細列（schema v3，data-spec.dbml credit_card_details；FR-A3）。
+/// device-local（不在 sync_entity——卡片設定不參與同步）。
+class CreditCardDetailRow {
+  const CreditCardDetailRow({
+    required this.accountId,
+    this.last4,
+    required this.statementDay,
+    required this.dueOffsetDays,
+    this.linkedAccountId,
+    required this.boundaryRule,
+    this.creditLimitMinor,
+    this.effectiveFrom,
+  });
+
+  final String accountId;
+  final String? last4;
+
+  /// 1..28；29-31 遇小月 clamp 月底。
+  final int statementDay;
+
+  /// 繳款日 = 結帳日 + N（FR-A3）。
+  final int dueOffsetDays;
+
+  /// 扣款帳戶；null = 手動標記（FR-C4）。
+  final String? linkedAccountId;
+
+  /// include：結帳日當天消費算本期（預設，FR-C2）。
+  final String boundaryRule;
+  final int? creditLimitMinor;
+
+  /// 結帳日修改自下期生效（FR-A3/S4.11）。
+  final int? effectiveFrom;
+
+  factory CreditCardDetailRow.fromRow(Map<String, Object?> r) => CreditCardDetailRow(
+        accountId: r['account_id'] as String,
+        last4: r['last4'] as String?,
+        statementDay: r['statement_day'] as int,
+        dueOffsetDays: r['due_offset_days'] as int,
+        linkedAccountId: r['linked_account_id'] as String?,
+        boundaryRule: r['boundary_rule'] as String,
+        creditLimitMinor: r['credit_limit_minor'] as int?,
+        effectiveFrom: r['effective_from'] as int?,
+      );
+}
+
+/// 帳單列（schema v3，FR-C3）。
+class StatementRow {
+  const StatementRow({
+    required this.id,
+    required this.accountId,
+    required this.periodStart,
+    required this.periodEnd,
+    required this.statementDate,
+    required this.dueDate,
+    required this.totalMinor,
+    required this.paidMinor,
+    required this.status,
+    this.paidAt,
+    required this.overdueNotified,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.hlc,
+    this.deletedAt,
+  });
+
+  final String id;
+  final String accountId;
+  final int periodStart;
+  final int periodEnd;
+  final int statementDate;
+  final int dueDate;
+  final int totalMinor;
+  final int paidMinor;
+
+  /// issued | partial | paid（statement_status）。
+  final String status;
+  final int? paidAt;
+  final bool overdueNotified;
+  final int createdAt;
+  final int updatedAt;
+  final String hlc;
+  final int? deletedAt;
+
+  factory StatementRow.fromRow(Map<String, Object?> r) => StatementRow(
+        id: r['id'] as String,
+        accountId: r['account_id'] as String,
+        periodStart: r['period_start'] as int,
+        periodEnd: r['period_end'] as int,
+        statementDate: r['statement_date'] as int,
+        dueDate: r['due_date'] as int,
+        totalMinor: r['total_minor'] as int,
+        paidMinor: r['paid_minor'] as int,
+        status: r['status'] as String,
+        paidAt: r['paid_at'] as int?,
+        overdueNotified: (r['overdue_notified'] as int) == 1,
+        createdAt: r['created_at'] as int,
+        updatedAt: r['updated_at'] as int,
+        hlc: r['hlc'] as String,
+        deletedAt: r['deleted_at'] as int?,
+      );
+
+  /// 剩餘應繳。
+  int get remainingMinor => totalMinor - paidMinor;
+
+  Map<String, Object?> toSnapshot() => {
+        'id': id,
+        'account_id': accountId,
+        'period_start': periodStart,
+        'period_end': periodEnd,
+        'statement_date': statementDate,
+        'due_date': dueDate,
+        'total_minor': totalMinor,
+        'paid_minor': paidMinor,
+        'status': status,
+        'paid_at': paidAt,
+        'overdue_notified': overdueNotified,
+        'created_at': createdAt,
+        'updated_at': updatedAt,
+        'hlc': hlc,
+        'deleted_at': deletedAt,
       };
 }
 

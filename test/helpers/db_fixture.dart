@@ -186,7 +186,27 @@ class DbFixture {
     );
   }
 
-  /// NFR-01 效能測資：批次直寫當月 N 筆（略 oplog/FTS——聚合僅讀 transactions）。
+  /// 信用卡帳戶＋明細（FR-A3；F04）。
+  static Future<void> seedCreditCard(
+    AppDatabase db, {
+    required String accountId,
+    required String name,
+    required int statementDay,
+    required int dueOffsetDays,
+    String boundaryRule = 'include',
+    String? linkedAccountId,
+  }) async {
+    await seedAccount(db, id: accountId, type: 'credit', name: name);
+    db.insertCreditCardDetail(CreditCardDetailRow(
+      accountId: accountId,
+      statementDay: statementDay,
+      dueOffsetDays: dueOffsetDays,
+      linkedAccountId: linkedAccountId,
+      boundaryRule: boundaryRule,
+    ));
+  }
+
+    /// NFR-01 效能測資：批次直寫當月 N 筆（略 oplog/FTS——聚合僅讀 transactions）。
   static Future<void> seedBulkTransactions(
     AppDatabase db, {
     required int count,

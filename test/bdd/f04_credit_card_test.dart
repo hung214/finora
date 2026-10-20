@@ -1,8 +1,12 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ledger_sync/application/quick_entry/save_transaction_use_case.dart';
 import 'package:ledger_sync/core/clock.dart';
 import 'package:ledger_sync/data/sqlite/app_database.dart';
+import 'package:ledger_sync/domain/entities/account.dart';
+import 'package:ledger_sync/domain/entities/transaction.dart';
+import 'package:ledger_sync/domain/services/balance_calculator.dart';
 
 import '../helpers/db_fixture.dart';
 import '../helpers/gherkin/gherkin.dart';
@@ -42,6 +46,7 @@ class _World {
   final List<AppDatabase> dbs = [];
   late AppDatabase db;
   final NotificationSpy spy = NotificationSpy();
+  late SaveTransactionUseCase save;
 
   /// 名稱 → id 對映（Background 建立時登記）。
   final accounts = <String, String>{};
@@ -61,6 +66,7 @@ void _bind(GherkinRunner runner, _World w) {
     w.categories.clear();
     w.spy.clear();
     w.lastTxId = null;
+    w.save = SaveTransactionUseCase(db);
   });
 
   runner.on(r'已建立帳戶「{name}」類型 {type} 期初 {amount}$', (p) {
@@ -76,7 +82,102 @@ void _bind(GherkinRunner runner, _World w) {
   });
 
   runner.on(r'模擬系統時間為 {dt}$', (p) => Clock.freeze(_dateTime(p['dt']!)));
+
+  // ── Given：信用卡（FR-A3；device-local 明細）──────────────
+  runner.on(r'已建立信用卡「{name}」: 結帳日 {day} 號、繳款日加 {offset} 天、歸屬 {rule}$', (p) async {
+    final accountId = 'card-${w.accounts.length}';
+    await DbFixture.seedCreditCard(
+      w.db,
+      accountId: accountId,
+      name: p['name']!,
+      statementDay: int.parse(p['day']!),
+      dueOffsetDays: int.parse(p['offset']!),
+      boundaryRule: p['rule']!,
+    );
+    w.accounts[p['name']!] = accountId;
+  });
+
+  // ── When：信用卡消費（FR-C1：settlement=pending）──────────
+  runner.on(r'以「{card}」記錄支出 {amt}（{cat}）$', (p) {
+    final catId = _getOrCreateCategory(w, p['cat']!);
+    final result = w.save.execute(
+      accountId: w.accounts[p['card']!]!,
+      categoryId: catId,
+      amountMinor: _amount(p['amt']!),
+      occurredAt: Clock.now(),
+      settlementStatus: 'pending', // FR-C1：刷卡預扣
+    );
+    w.lastTxId = result.transactionId;
+  });
+
+  // ── Then：預扣與本期應付（FR-C1）─────────────────────────
+  runner.on(r'交易 settlement_status = {status}$', (p) {
+    final row = w.db.transactionById(w.lastTxId!);
+    expect(row, isNotNull, reason: '交易應已入庫');
+    expect(row!.settlementStatus, p['status'], reason: 'FR-C1：刷卡預扣');
+  });
+
+  runner.on(r'帳戶「{a}」重算餘額 = {amount}（本期應付）$', (p) {
+    final row = w.db.allAccounts().firstWhere((r) => r.name == p['a']);
+    final account = Account(
+      id: row.id,
+      type: AccountType.values.byName(row.type),
+      name: row.name,
+      currency: row.currency,
+      openingAmountMinor: row.openingAmountMinor,
+      archived: row.archived,
+    );
+    final open = const BalanceCalculator().creditOpenBalance(
+      card: account,
+      txs: w.db.allTransactions().map(_txEntity),
+    );
+    expect(open, _amount(p['amount']!),
+        reason: 'FR-C1：本期應付（Σ pending，衍生值）');
+  });
+
+  runner.on(r'帳戶「{a}」重算餘額 = {amount}$', (p) {
+    final row = w.db.allAccounts().firstWhere((r) => r.name == p['a']);
+    final account = Account(
+      id: row.id,
+      type: AccountType.values.byName(row.type),
+      name: row.name,
+      currency: row.currency,
+      openingAmountMinor: row.openingAmountMinor,
+      archived: row.archived,
+    );
+    final balance = const BalanceCalculator()
+        .assetBalance(account: account, txs: w.db.allTransactions().map(_txEntity));
+    expect(balance, _amount(p['amount']!), reason: '衍生餘額（SDD 原則 2）');
+  });
 }
+
+/// 分類隱式建立（F04 Background 無分類 Given）。
+String _getOrCreateCategory(_World w, String name) {
+  final existing = w.categories[name];
+  if (existing != null) return existing;
+  final id = 'c-${w.categories.length}';
+  DbFixture.seedCategory(w.db, id: id, kind: 'expense', name: name);
+  w.categories[name] = id;
+  return id;
+}
+
+Tx _txEntity(TxRow r) => Tx(
+      id: r.id,
+      kind: TxKind.values.byName(r.kind),
+      amountMinor: r.amountMinor,
+      currency: r.currency,
+      fxRate: r.fxRate,
+      splitGroupId: r.splitGroupId,
+      accountId: r.accountId,
+      toAccountId: r.toAccountId,
+      categoryId: r.categoryId,
+      merchant: r.merchant,
+      note: r.note,
+      occurredAt: r.occurredAt,
+      source: TxSource.values.byName(r.source),
+      settlementStatus: SettlementStatus.values.byName(r.settlementStatus),
+      deleted: r.deletedAt != null,
+    );
 
 DateTime _dateTime(String s) {
   final m = RegExp(r'^(\d{4})/(\d{2})/(\d{2})(?: (\d{1,2}):(\d{2}))?$').firstMatch(s.trim());

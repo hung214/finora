@@ -88,6 +88,9 @@
 | `When 執行 RepayStatementUseCase（帳單 {period}、金額 {amt}）` | 繳款 |
 | `When 以「{card}」記錄支出 {amt}` | SaveTransactionUseCase（信用卡語意） |
 | `When 以「{card}」記錄支出 {amt}（{cat}，預扣）` | 同上＋settlement=pending（F05 S5.3 預扣口徑） |
+| `When 以「{card}」記錄支出 {amt}（{cat}）` | SaveTransactionUseCase（信用卡帳戶＋分類 → settlement=pending，FR-C1；分類隱式建立） |
+| `Then 交易 settlement_status = {status}$` | 最近記錄交易之狀態（F04 預扣/結帳） |
+| `And 帳戶「{card}」重算餘額 = {amount}（本期應付）` | creditOpenBalance（pending 口徑，FR-C1） |
 | `When 建立轉帳「{from}」→「{to}」金額 {amt}` | transfer |
 | `When 建立轉帳「{from}」→「{to}」金額 {amt}（儲值）` | 同上（儲值語意註記；kind=transfer，FR-A5） |
 | `When 建立還款交易 來源={from} 目標={to} 金額 {amt}` | repayment（無分類；FR-T7） |
