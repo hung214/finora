@@ -189,7 +189,7 @@ class AppDatabase {
         categoryId == null
             ? 'DELETE FROM budgets WHERE category_id IS NULL'
             : 'DELETE FROM budgets WHERE category_id = ?',
-        [if (categoryId != null) categoryId],
+        [?categoryId],
       );
 
   List<BudgetRow> allBudgets() => _db
