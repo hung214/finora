@@ -148,3 +148,74 @@ class SchemaV2 {
         '(merchant_bigram, note_bigram, rowid_ref UNINDEXED)',
   ];
 }
+
+/// Schema v3（M3 基線，T-S3）：credit_card_details（FR-A3）＋statements/
+/// statement_items（FR-C3 帳單）＋refund_links（FR-C8）＋installment_plans
+/// （FR-C7）——逐句對齊 data-spec.dbml v0.3（表已預定義，code schema 對齊落地）。
+class SchemaV3 {
+  SchemaV3._();
+
+  static const int version = 3;
+
+  /// 必建表（遷移於交易內全有全無）。
+  static const List<String> statements = [
+    '''
+    CREATE TABLE credit_card_details (
+      account_id TEXT PRIMARY KEY,
+      last4 TEXT,
+      statement_day INTEGER NOT NULL,
+      due_offset_days INTEGER NOT NULL,
+      linked_account_id TEXT,
+      boundary_rule TEXT NOT NULL DEFAULT 'include',
+      credit_limit_minor INTEGER,
+      effective_from INTEGER
+    )
+    ''',
+    '''
+    CREATE TABLE statements (
+      id TEXT PRIMARY KEY,
+      account_id TEXT NOT NULL,
+      period_start INTEGER NOT NULL,
+      period_end INTEGER NOT NULL,
+      statement_date INTEGER NOT NULL,
+      due_date INTEGER NOT NULL,
+      total_minor INTEGER NOT NULL,
+      paid_minor INTEGER NOT NULL DEFAULT 0,
+      status TEXT NOT NULL,
+      paid_at INTEGER,
+      overdue_notified INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      hlc TEXT NOT NULL,
+      deleted_at INTEGER
+    )
+    ''',
+    '''
+    CREATE TABLE statement_items (
+      statement_id TEXT NOT NULL,
+      transaction_id TEXT NOT NULL,
+      PRIMARY KEY (statement_id, transaction_id)
+    )
+    ''',
+    '''
+    CREATE TABLE refund_links (
+      refund_tx_id TEXT PRIMARY KEY,
+      original_tx_id TEXT NOT NULL
+    )
+    ''',
+    '''
+    CREATE TABLE installment_plans (
+      id TEXT PRIMARY KEY,
+      account_id TEXT NOT NULL,
+      total_minor INTEGER NOT NULL,
+      installments INTEGER NOT NULL,
+      first_date INTEGER NOT NULL,
+      note TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      hlc TEXT NOT NULL,
+      deleted_at INTEGER
+    )
+    ''',
+  ];
+}
