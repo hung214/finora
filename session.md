@@ -28,7 +28,7 @@
 | 工作區 | 乾淨（文件回寫後 commit） |
 | truth 對齊 | data-spec v0.3 不變；dsl v0.5（F05 §2 +10／§3 +10 句型）；acceptance F05 不變（BE/FE feature 檔修正見歷程） |
 | 環境筆記 | 延續上輪。新增：①**桌面殼**：LayoutBuilder ≥900px Rail（destinations 無 key 參數——key 掛 label Text；Rail 殼下 NavigationBar taps 全改 byKey nav-{分頁}，四 harness 已更新）②**LedgerPage 重寫教訓**：讀 db 的頁面必須保留 ledgerProvider 訂閱（遺漏→快記後明細不刷新，F01/F02 回歸紅燈抓到）③Python 產碼插入點錯誤（_bind 外）→ analyze 即抓 ④income_goals 不在 dbml sync_entity——F07 前 truth PR |
-| 阻塞／待決 | ①gh 未安裝（PR/壞包 v0.4.0/0.4.2 刪除）②dbml sync_entity 缺 income_goals（F07 前 truth PR）③SPEC FR-Q4 待 PM ④SP-1 SQLCipher ⑤多幣別 900 矛盾待 PM（M2 尾）⑥notify_enabled=off 期內級別視為已消耗（重開不回補）——語意待 PM 確認 |
+| 阻塞／待決 | ①gh 未安裝（PR/壞包 v0.4.0/0.4.2 刪除）②dbml sync_entity 缺 income_goals（F07 前 truth PR）③SPEC FR-Q4 待 PM ④SP-1 SQLCipher ⑤多幣別 900 矛盾待 PM（M2 尾）⑥notify_enabled=off 期內級別視為已消耗（重開不回補）——語意待 PM 確認 ⑦**UI 統整＝M7 上架前一次做**（Material 3 tokens＋深色模式＋無障礙；PM 2026-10-20 決策——各 milestone 中途不做視覺 pass） |
 
 ## 3. 下一步（T-F10-FE→M2 收尾；下次開工照此執行）
 

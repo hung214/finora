@@ -139,6 +139,7 @@ S6-7：T-S4 → T-F03(BE→FE)
 S8  ：F07 之 BE（備份/還原/GC）→ FE（連結/還原/狀態頁）→ Google OAuth 送審
 S9-10：T-S5 → T-F07 其餘（同步/LWW）→ T-F06(BE→FE)
 S11-12：T-F08 → T-F09 → 效能複測（NFR-01~03）→ 上架
+  補充（PM 2026-10-20）：UI 統整留到 M7 上架前一次做——Material 3 tokens 定稿＋各頁視覺套用＋深色模式逐頁檢查＋無障礙/空狀態文案；不在各 milestone 中途做（現況各頁樣式 ad-hoc 已知）
 ```
 
 **依序原則**：同一 feature 永遠 BE 先於 FE（FE 以 BE 為地基）；schema migration 先於依賴它的 feature；truth 變更先於一切。

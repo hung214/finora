@@ -5,6 +5,7 @@ import 'credit_card_demo_page.dart';
 import 'dashboard_demo_page.dart';
 import 'demo_shared.dart';
 import 'ledger_demo_page.dart';
+import 'quick_entry_calc_demo_page.dart';
 import 'quick_entry_demo_page.dart';
 import 'settings_demo_page.dart';
 import 'budget_demo_page.dart';
@@ -31,6 +32,7 @@ class _DemoGalleryPageState extends State<DemoGalleryPage> {
       ('04 預算與收入目標', 'specs/plan/ui/04-budget.html', const BudgetDemoContent()),
       ('06 信用卡與帳單', 'specs/plan/ui/06-credit-card.html', const CreditCardDemoContent()),
       ('09 分類設定', 'specs/plan/ui/09-category-settings.html', const CategorySettingsDemoContent()),
+      ('10 新增資料（金額輸入＋計算機）', 'specs/plan/ui/10-quick-entry-calc.html', const QuickEntryCalcDemoContent()),
       ('09 設定與同步', 'specs/plan/ui/07-settings-sync.html', const SettingsDemoContent()),
     ];
     return DemoThemeScope(
@@ -55,7 +57,8 @@ class _DemoGalleryPageState extends State<DemoGalleryPage> {
               return const Padding(
                 padding: EdgeInsets.all(8),
                 child: Text(
-                  '⚠️ Demo 為靜態畫面（虛構劇例資料，不含互動與資料庫）；\n'
+                  '⚠️ Demo 多為靜態畫面（虛構劇例資料，不含資料庫）；'
+                  '「10 新增資料」含可互動計算機（真實 AmountKeypad 元件）。\n'
                   '真實畫面自 M1 起 F01~F10 以紅綠燈流程實作。\n'
                   '版權聲明：商家/卡片名稱皆為虛構，無商標關聯；圖示使用 Material Icons（Apache-2.0）。\n'
                   'HTML 雛型（含規格便利貼）：specs/plan/ui/',
