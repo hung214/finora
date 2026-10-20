@@ -21,10 +21,10 @@
 | 欄位 | 內容 |
 |---|---|
 | 更新時間 | 2026-10-20（macOS 跨電腦接手） |
-| 階段 | **M3 開工／休息中斷點**：T-S3 schema v3 ✅（已 merge main `d7d22d7`）＋F04-BE C1 紅燈已提交（`959b2a2`）。**恢復動作＝照 §3 十批次清單從 C2 開始**（資料層→結帳引擎→…逐批 🔴→🟢） |
-| 當前分支 | feature/F04-credit-card-billing（C1 紅燈 959b2a2 已 push；main = 49dfa09） |
+| 階段 | **M3 核心 F04-BE 完成**（12 情境執行全綠：結帳引擎/歸屬/clamp/繳款/通知/分期/退款/生效日）。下一步：**F04-FE 5 情境**（帳單呈現/繳款流程/部分繳/設定顯示/逾期標示）→ M4 掃描 |
+| 當前分支 | feature/F04-credit-card-billing（12 commits 已 push；main = 49dfa09） |
 | 當前任務 | 本輪：①T-S2 schema v2 ②F05-BE/FE 🔴→🟢（10 情境；冪等 sync 點警示／預算分頁／總覽卡）③F10-BE 🔴→🟢 5 情境（TextIndex bigram＋AppDatabase FTS 維護（save 鉤子）＋SearchService（FTS 優先 LIKE 降級＋AND）＋ReportService（占比 0.1%）＋CsvExporter（UTF-8 BOM）＋insertTransactionsBulk 效能測資；規格修正：CSV 5 筆／金額區間 400~800／效能句型） |
-| 紅綠燈狀態 | `dart analyze` No issues；unit **81 全綠**（T-S3 回歸 3＋拆分 3）；F04-BE 紅燈（NotBound：已建立信用卡） |
+| 紅綠燈狀態 | `dart analyze` No issues；unit **81 全綠**；**F04-BE 12 情境執行全綠**（macOS 實跑） |
 | 工作區 | 乾淨（文件回寫後 commit） |
 | truth 對齊 | data-spec v0.3 不變；dsl v0.5（F05 §2 +10／§3 +10 句型）；acceptance F05 不變（BE/FE feature 檔修正見歷程） |
 | 環境筆記 | 延續上輪。新增：①**桌面殼**：LayoutBuilder ≥900px Rail（destinations 無 key 參數——key 掛 label Text；Rail 殼下 NavigationBar taps 全改 byKey nav-{分頁}，四 harness 已更新）②**LedgerPage 重寫教訓**：讀 db 的頁面必須保留 ledgerProvider 訂閱（遺漏→快記後明細不刷新，F01/F02 回歸紅燈抓到）③Python 產碼插入點錯誤（_bind 外）→ analyze 即抓 ④income_goals 不在 dbml sync_entity——F07 前 truth PR |
