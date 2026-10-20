@@ -21,13 +21,13 @@
 | 欄位 | 內容 |
 |---|---|
 | 更新時間 | 2026-10-20（macOS 跨電腦接手） |
-| 階段 | **M1 發佈中**（v0.4.5）＋T-F05 完成＋**T-F10-BE 完成**（5 情境全綠：占比聚合／FTS5 bigram／AND 篩選／CSV BOM／NFR-01 10 萬筆 387ms）。下一步：**T-F10-FE**（統計頁 UI 3 情境：占比趨勢呈現／複合篩選互動／CSV 匯出提示）→ M2 核心齊→整體部署驗證→merge main（bump 0.4.6） |
-| 當前分支 | feature/F10-reports-search（8 commits，自 F05 分支續開〔F05 未 push 前接續〕；main = 4e4f8b3） |
+| 階段 | **M1 發佈中**（v0.4.5）＋T-F05 完成＋**T-F10 BE+FE 完成**（5+3 情境全綠）＋**桌面殼落地**（MainShellPage RWD：≥900px NavigationRail 側欄／<900px 底部 Bar＋⌘N/Ctrl+N 快記快捷鍵 F01-S1.11＋視窗 1180×740）＋**UI demo 10-quick-entry-calc.html**（新增資料頁：金額輸入＋計算機＋轉帳模式）。下一步：**全套 FE 回歸確認**（Rail 殼）→ **M2 核心齊→整體部署驗證**→merge main（bump 0.4.6） |
+| 當前分支 | feature/F10-reports-search（已 push 至 ffed7cc；main = 4e4f8b3） |
 | 當前任務 | 本輪：①T-S2 schema v2 ②F05-BE/FE 🔴→🟢（10 情境；冪等 sync 點警示／預算分頁／總覽卡）③F10-BE 🔴→🟢 5 情境（TextIndex bigram＋AppDatabase FTS 維護（save 鉤子）＋SearchService（FTS 優先 LIKE 降級＋AND）＋ReportService（占比 0.1%）＋CsvExporter（UTF-8 BOM）＋insertTransactionsBulk 效能測資；規格修正：CSV 5 筆／金額區間 400~800／效能句型） |
-| 紅綠燈狀態 | `dart analyze` No issues；unit **75 全綠**；**F05-FE 5＋F01-FE 7＋F02-FE 5 情境回歸全綠**（macOS 實跑）；NFR-01 實測 10 萬筆聚合 387ms<1500ms |
+| 紅綠燈狀態 | `dart analyze` No issues；unit **75 全綠**；**F10-FE 3＋F05-FE 5＋F01-FE 7＋F02-FE 5 情境全綠**（F10-FE 於 Rail 殼 1180×740 實跑；全套回歸背景跑置中） |
 | 工作區 | 乾淨（文件回寫後 commit） |
 | truth 對齊 | data-spec v0.3 不變；dsl v0.5（F05 §2 +10／§3 +10 句型）；acceptance F05 不變（BE/FE feature 檔修正見歷程） |
-| 環境筆記 | 延續上輪。新增：①income_goals 不在 dbml sync_entity enum——oplog 暫以 budgets entity 記（**F07 前 truth PR 補 enum**）②List.fold 需顯式 `<int>`（Dart 推斷陷阱）③`null-aware marker ?` 新 lint ④SegmentedButton 參數為 onSelectionChanged ⑤IndexedStack 多頁同 key——finder 用 .first（同資料同色） |
+| 環境筆記 | 延續上輪。新增：①**桌面殼**：LayoutBuilder ≥900px Rail（destinations 無 key 參數——key 掛 label Text；Rail 殼下 NavigationBar taps 全改 byKey nav-{分頁}，四 harness 已更新）②**LedgerPage 重寫教訓**：讀 db 的頁面必須保留 ledgerProvider 訂閱（遺漏→快記後明細不刷新，F01/F02 回歸紅燈抓到）③Python 產碼插入點錯誤（_bind 外）→ analyze 即抓 ④income_goals 不在 dbml sync_entity——F07 前 truth PR |
 | 阻塞／待決 | ①gh 未安裝（PR/壞包 v0.4.0/0.4.2 刪除）②dbml sync_entity 缺 income_goals（F07 前 truth PR）③SPEC FR-Q4 待 PM ④SP-1 SQLCipher ⑤多幣別 900 矛盾待 PM（M2 尾）⑥notify_enabled=off 期內級別視為已消耗（重開不回補）——語意待 PM 確認 |
 
 ## 3. 下一步（T-F10-FE→M2 收尾；下次開工照此執行）
@@ -49,6 +49,7 @@
 
 | 日期 | 摘要 | 分支 | 狀態 |
 |---|---|---|---|
+| 2026-10-20 | **F10-FE 完成＋桌面殼落地＋UI demo**：統計分頁（M2 IA 第四分頁：月份選擇器＋占比 0.1%＋合計千分位＋月趨勢）；明細頁複合篩選（期間/分類/關鍵字 AND＋chips 可移除＋清除＋無符合結果）＋匯出 CSV 提示；**AC-02 回歸修復**（LedgerPage 搜尋重寫遺漏 ledgerProvider 訂閱——F01/F02 紅燈抓到）；**桌面殼 RWD**（≥900px NavigationRail 側欄＋nav keys 雙殼相容＋⌘N/Ctrl+N 快記 F01-S1.11＋視窗 1180×740 對齊 08 雛型）；UI demo `10-quick-entry-calc.html`（新增資料頁：金額輸入＋計算機＋轉帳模式，README v0.4）；**F10-FE 3 情境全綠於 Rail 殼** | feature/F10-reports-search | 🔵（M2 核心齊：F05＋F10；待全套回歸→部署驗證→merge） |
 | 2026-10-20 | **F10-BE 報表聚合與搜尋完成（5 情境全綠）**：TextIndex（CJK bigram＋MATCH 查詢）＋AppDatabase FTS 維護（save 鉤子重索引＋ftsSearch/transactionsByRowids/setTransactionNote；環境缺模組降級 LIKE）＋SearchService（AND 複合：期間/分類/帳戶/金額區間＋關鍵字標準化）＋ReportService（占比 0.1%＋總計，轉帳/收入不計）＋CsvExporter（UTF-8 BOM＋10 欄位＋金額純數字）＋insertTransactionsBulk 效能測資；**NFR-01 實測 10 萬筆聚合 387ms<1500ms**；規格修正三處（CSV 5 筆／金額區間 400~800 證明空結果／效能句型「入庫耗時」→報表聚合）；**75 unit 全綠** | feature/F10-reports-search | 🔵（BE 🟢 5/5、FE 待） |
 | 2026-10-20 | **T-F05 預算 BE→FE 完成（5+5 情境全綠）**：BE 🔴→🟢（BudgetRow/IncomeGoalRow oplog 契約／BudgetPeriodService 跨月週期／BudgetEvaluator 用量含 pending 預扣分量＋達標率不封頂＋預計結餘／BudgetAlertService 冪等 sync 點——N-1/N-2/N-3 分級補發 settings notif_state per period＋afterSave 鉤子＋notificationProvider no-op；S5.3 規格補漏 Given 6500 對齊 acceptance 前置表）；FE 🔴→🟢（預算分頁 M2 IA 第三分頁＋進度條警示色 orange/red＋超支不封鎖＋預扣標籤＋總覽收入目標卡＋通知開關閘 budget.notify_enabled；情境基線自洽修正 S1 7000/S2 8320 對齊 acceptance 敘述）；**74 unit＋F01/F02-FE 回歸全綠** | feature/F05-budget-income-goal | 🔵（5+5 全綠、待 push 與 PR） |
 | 2026-10-20 | **T-S2 schema v2 完成＋M1 發佈**：F02 bump 0.4.5＋merge main→**tag v0.4.5 自動建立**（四平台建置中）；T-S2 🔴→🟢（budgets/income_goals/fts——dbml v0.3 早已預定義，code schema 對齊落地；fts 環境缺模組容錯降級；_migrate 多版本鏈 v1→v2 每版本 transaction＋既有表偵測補標；T-H9 對齊擴充 v1/v2；回歸 4 測試：全新直達 v2／FTS 容錯／v1 舊檔升級資料完整／file 冪等）；T-F05 設計筆記寫入（冪等 sync 點通知語意——由 S5.1 內容 87.5%＋S5.2 N-2 時序反推）；**73 測試全綠**；T-S2 已 merge main（v0.4.5 冪等未重複觸發） | feature/T-S2-schema-v2 → main | ✅（e23b795→bc82a6f→merge ea23a92） |
