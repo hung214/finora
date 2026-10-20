@@ -21,8 +21,8 @@
 | 欄位 | 內容 |
 |---|---|
 | 更新時間 | 2026-10-20（macOS 跨電腦接手） |
-| 階段 | **M2 核心完成並發佈中**（v0.4.6：F05 預算＋F10 報表＋桌面殼 RWD＋S2.9 計算機；整體部署驗證已通過）。下一步：**M2 遺留**（拆分 S2.7、多幣別 S2.8——900 矛盾請 PM 釋義）→ **M3**（T-S3 schema v3→F04 信用卡） |
-| 當前分支 | main = 94f7410（F05/F10/T-S2/桌面殼均已合併；v0.4.6 tag 自動建立中） |
+| 階段 | **M2 核心完成**（v0.4.6 已 tag，**四平台產物待確認**；整體部署驗證已通過）＋App 畫廊新增「10 新增資料（金額輸入＋計算機）」可互動 demo 頁。下一步：**①確認 v0.4.6 Release 產物（四平台）→ ②M2 遺留（拆分/多幣別）→ ③M3**（T-S3→F04 信用卡） |
+| 當前分支 | main = 28bdc85（M2 merge＋畫廊 demo 頁＋UI 統整決策均已 push；v0.4.6 tag 已建 `94f7410`） |
 | 當前任務 | 本輪：①T-S2 schema v2 ②F05-BE/FE 🔴→🟢（10 情境；冪等 sync 點警示／預算分頁／總覽卡）③F10-BE 🔴→🟢 5 情境（TextIndex bigram＋AppDatabase FTS 維護（save 鉤子）＋SearchService（FTS 優先 LIKE 降級＋AND）＋ReportService（占比 0.1%）＋CsvExporter（UTF-8 BOM）＋insertTransactionsBulk 效能測資；規格修正：CSV 5 筆／金額區間 400~800／效能句型） |
 | 紅綠燈狀態 | `dart analyze` No issues；unit **75 全綠**；**FE 20 情境全綠**（F01 7／F02 5／F05 5／F10 3——Rail 殼 1180×740 實跑）；整體部署驗證通過（Release 47.3MB＋啟動冒煙） |
 | 工作區 | 乾淨（文件回寫後 commit） |
@@ -30,12 +30,14 @@
 | 環境筆記 | 延續上輪。新增：①**桌面殼**：LayoutBuilder ≥900px Rail（destinations 無 key 參數——key 掛 label Text；Rail 殼下 NavigationBar taps 全改 byKey nav-{分頁}，四 harness 已更新）②**LedgerPage 重寫教訓**：讀 db 的頁面必須保留 ledgerProvider 訂閱（遺漏→快記後明細不刷新，F01/F02 回歸紅燈抓到）③Python 產碼插入點錯誤（_bind 外）→ analyze 即抓 ④income_goals 不在 dbml sync_entity——F07 前 truth PR |
 | 阻塞／待決 | ①gh 未安裝（PR/壞包 v0.4.0/0.4.2 刪除）②dbml sync_entity 缺 income_goals（F07 前 truth PR）③SPEC FR-Q4 待 PM ④SP-1 SQLCipher ⑤多幣別 900 矛盾待 PM（M2 尾）⑥notify_enabled=off 期內級別視為已消耗（重開不回補）——語意待 PM 確認 ⑦**UI 統整＝M7 上架前一次做**（Material 3 tokens＋深色模式＋無障礙；PM 2026-10-20 決策——各 milestone 中途不做視覺 pass） |
 
-## 3. 下一步（T-F10-FE→M2 收尾；下次開工照此執行）
+## 3. 下一步（確認 v0.4.6 產物→M2 遺留→M3；下次開工照此執行）
 
-1. **T-F10-FE** 3 情境（同分支續作）：①統計頁（M2 第四分頁或總覽入口——開頁選月→分類占比「餐飲 69.2%」＋合計千分位＋月趨勢長條）②複合篩選互動（chips 可移除＋清除全部→全部 6 筆）③CSV 匯出提示（按「匯出 CSV」→「已匯出 6 月交易（5 筆，UTF-8）」——CsvExporter 已備）。dsl §3 先登記。
-2. 完成→全量＋F05 回歸→**M2 核心齊**（F05＋F10）→ 整體部署驗證一次 → merge main（bump 0.4.6，tag 自動）。
-3. M2 遺留排程：拆分 S2.7、多幣別 S2.8（900 矛盾請 PM 釋義）、桌面適配（F01-S1.11）。
-4. 休息前照 §1 檢查清單更新本檔。
+1. **確認 v0.4.6 Release 產物**：https://github.com/hung214/ledger_sync/releases/tag/v0.4.6 四平台（apk/ipa/dmg/exe/zip）是否齊全——**勿重蹈 v0.1.0~v0.4.0 tag 建了但 Release 從未成功**；缺則查 Actions 的 release 工作流日誌。
+2. **壞包清理**：v0.4.0/v0.4.2（及檢查 v0.4.1/v0.4.3/v0.4.5 產物完整性）——Releases 頁手動或安裝 gh 後 CLI 刪除。
+3. **M2 遺留**（同分支或新分支）：拆分 S2.7（split_group_id 已在 schema）、多幣別 S2.8（fx_rate 已在 schema；**「餘額 900」矛盾先請 PM 釋義**）。
+4. **M3**：T-S3 schema v3（credit_card_details/statements 等先行）→ T-F04 信用卡（BE 10＋FE 5）。
+5. 記住：UI 統整＝M7 一次做（已決策，勿提前）；push 前整體部署驗證＝整體軟體全綠後一次。
+6. 休息前照 §1 檢查清單更新本檔。
 
 ## 4. 恢復工作 SOP（下次開工照此執行）
 
@@ -49,6 +51,7 @@
 
 | 日期 | 摘要 | 分支 | 狀態 |
 |---|---|---|---|
+| 2026-10-20 | **App 畫廊新增「10 新增資料」＋UI 統整決策**：畫廊新增可互動 demo 頁（真實 AmountKeypad：計算機/模式切換/儲存啟用態）；**UI 統整＝M7 上架前一次做**（tokens＋深色模式＋無障礙；PM 決策——中途不做視覺 pass）記入 tasks.md §4.2；session.md 快照同步（main 28bdc85） | main | ✅（28bdc85 已 push） |
 | 2026-10-20 | **F10-FE 完成＋桌面殼落地＋UI demo**：統計分頁（M2 IA 第四分頁：月份選擇器＋占比 0.1%＋合計千分位＋月趨勢）；明細頁複合篩選（期間/分類/關鍵字 AND＋chips 可移除＋清除＋無符合結果）＋匯出 CSV 提示；**AC-02 回歸修復**（LedgerPage 搜尋重寫遺漏 ledgerProvider 訂閱——F01/F02 紅燈抓到）；**桌面殼 RWD**（≥900px NavigationRail 側欄＋nav keys 雙殼相容＋⌘N/Ctrl+N 快記 F01-S1.11＋視窗 1180×740 對齊 08 雛型）；UI demo `10-quick-entry-calc.html`（新增資料頁：金額輸入＋計算機＋轉帳模式，README v0.4）；**F10-FE 3 情境全綠於 Rail 殼** | feature/F10-reports-search | 🔵（M2 核心齊：F05＋F10；待全套回歸→部署驗證→merge） |
 | 2026-10-20 | **F10-BE 報表聚合與搜尋完成（5 情境全綠）**：TextIndex（CJK bigram＋MATCH 查詢）＋AppDatabase FTS 維護（save 鉤子重索引＋ftsSearch/transactionsByRowids/setTransactionNote；環境缺模組降級 LIKE）＋SearchService（AND 複合：期間/分類/帳戶/金額區間＋關鍵字標準化）＋ReportService（占比 0.1%＋總計，轉帳/收入不計）＋CsvExporter（UTF-8 BOM＋10 欄位＋金額純數字）＋insertTransactionsBulk 效能測資；**NFR-01 實測 10 萬筆聚合 387ms<1500ms**；規格修正三處（CSV 5 筆／金額區間 400~800 證明空結果／效能句型「入庫耗時」→報表聚合）；**75 unit 全綠** | feature/F10-reports-search | 🔵（BE 🟢 5/5、FE 待） |
 | 2026-10-20 | **T-F05 預算 BE→FE 完成（5+5 情境全綠）**：BE 🔴→🟢（BudgetRow/IncomeGoalRow oplog 契約／BudgetPeriodService 跨月週期／BudgetEvaluator 用量含 pending 預扣分量＋達標率不封頂＋預計結餘／BudgetAlertService 冪等 sync 點——N-1/N-2/N-3 分級補發 settings notif_state per period＋afterSave 鉤子＋notificationProvider no-op；S5.3 規格補漏 Given 6500 對齊 acceptance 前置表）；FE 🔴→🟢（預算分頁 M2 IA 第三分頁＋進度條警示色 orange/red＋超支不封鎖＋預扣標籤＋總覽收入目標卡＋通知開關閘 budget.notify_enabled；情境基線自洽修正 S1 7000/S2 8320 對齊 acceptance 敘述）；**74 unit＋F01/F02-FE 回歸全綠** | feature/F05-budget-income-goal | 🔵（5+5 全綠、待 push 與 PR） |
