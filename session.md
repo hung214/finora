@@ -21,10 +21,10 @@
 | 欄位 | 內容 |
 |---|---|
 | 更新時間 | 2026-10-20（macOS 跨電腦接手） |
-| 階段 | **M1 發佈中**（v0.4.5）＋T-F05 完成＋**T-F10 BE+FE 完成**（5+3 情境全綠）＋**桌面殼落地**（MainShellPage RWD：≥900px NavigationRail 側欄／<900px 底部 Bar＋⌘N/Ctrl+N 快記快捷鍵 F01-S1.11＋視窗 1180×740）＋**UI demo 10-quick-entry-calc.html**（新增資料頁：金額輸入＋計算機＋轉帳模式）。下一步：**全套 FE 回歸確認**（Rail 殼）→ **M2 核心齊→整體部署驗證**→merge main（bump 0.4.6） |
-| 當前分支 | feature/F10-reports-search（已 push 至 ffed7cc；main = 4e4f8b3） |
+| 階段 | **M2 核心完成並發佈中**（v0.4.6：F05 預算＋F10 報表＋桌面殼 RWD＋S2.9 計算機；整體部署驗證已通過）。下一步：**M2 遺留**（拆分 S2.7、多幣別 S2.8——900 矛盾請 PM 釋義）→ **M3**（T-S3 schema v3→F04 信用卡） |
+| 當前分支 | main = 94f7410（F05/F10/T-S2/桌面殼均已合併；v0.4.6 tag 自動建立中） |
 | 當前任務 | 本輪：①T-S2 schema v2 ②F05-BE/FE 🔴→🟢（10 情境；冪等 sync 點警示／預算分頁／總覽卡）③F10-BE 🔴→🟢 5 情境（TextIndex bigram＋AppDatabase FTS 維護（save 鉤子）＋SearchService（FTS 優先 LIKE 降級＋AND）＋ReportService（占比 0.1%）＋CsvExporter（UTF-8 BOM）＋insertTransactionsBulk 效能測資；規格修正：CSV 5 筆／金額區間 400~800／效能句型） |
-| 紅綠燈狀態 | `dart analyze` No issues；unit **75 全綠**；**F10-FE 3＋F05-FE 5＋F01-FE 7＋F02-FE 5 情境全綠**（F10-FE 於 Rail 殼 1180×740 實跑；全套回歸背景跑置中） |
+| 紅綠燈狀態 | `dart analyze` No issues；unit **75 全綠**；**FE 20 情境全綠**（F01 7／F02 5／F05 5／F10 3——Rail 殼 1180×740 實跑）；整體部署驗證通過（Release 47.3MB＋啟動冒煙） |
 | 工作區 | 乾淨（文件回寫後 commit） |
 | truth 對齊 | data-spec v0.3 不變；dsl v0.5（F05 §2 +10／§3 +10 句型）；acceptance F05 不變（BE/FE feature 檔修正見歷程） |
 | 環境筆記 | 延續上輪。新增：①**桌面殼**：LayoutBuilder ≥900px Rail（destinations 無 key 參數——key 掛 label Text；Rail 殼下 NavigationBar taps 全改 byKey nav-{分頁}，四 harness 已更新）②**LedgerPage 重寫教訓**：讀 db 的頁面必須保留 ledgerProvider 訂閱（遺漏→快記後明細不刷新，F01/F02 回歸紅燈抓到）③Python 產碼插入點錯誤（_bind 外）→ analyze 即抓 ④income_goals 不在 dbml sync_entity——F07 前 truth PR |
