@@ -160,6 +160,84 @@ class AppDatabase {
       .map(CategoryRow.fromRow)
       .toList();
 
+  // ── 預算／收入目標（FR-B，schema v2；budgets/income_goals 屬 sync_entity） ──
+
+  void insertBudget(BudgetRow b) => _db.execute(
+        'INSERT INTO budgets (id, category_id, amount_minor, period_start_day, rollover,'
+        ' created_at, updated_at, hlc) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          b.id, b.categoryId, b.amountMinor, b.periodStartDay,
+          b.rollover ? 1 : 0, b.createdAt, b.updatedAt, b.hlc,
+        ],
+      );
+
+  /// 預算寫入 + oplog 追加於同一 transaction（SDD §5.1 契約）。
+  void insertBudgetWithOplog(BudgetRow b, OplogRow o) {
+    _db.execute('BEGIN');
+    try {
+      insertBudget(b);
+      appendOp(o);
+      _db.execute('COMMIT');
+    } catch (_) {
+      _db.execute('ROLLBACK');
+      rethrow;
+    }
+  }
+
+  /// 同 scope（分類／總額）預算之實體清除（fixture 重設語意用；UI 刪除走軟刪除）。
+  void deleteBudgetsByCategory(String? categoryId) => _db.execute(
+        categoryId == null
+            ? 'DELETE FROM budgets WHERE category_id IS NULL'
+            : 'DELETE FROM budgets WHERE category_id = ?',
+        [if (categoryId != null) categoryId],
+      );
+
+  List<BudgetRow> allBudgets() => _db
+      .select('SELECT * FROM budgets WHERE deleted_at IS NULL ORDER BY created_at, id')
+      .map(BudgetRow.fromRow)
+      .toList();
+
+  void insertIncomeGoal(IncomeGoalRow g) => _db.execute(
+        'INSERT INTO income_goals (id, amount_minor, period_start_day, created_at, updated_at, hlc)'
+        ' VALUES (?, ?, ?, ?, ?, ?)',
+        [g.id, g.amountMinor, g.periodStartDay, g.createdAt, g.updatedAt, g.hlc],
+      );
+
+  /// 收入目標寫入 + oplog 追加於同一 transaction（SDD §5.1 契約）。
+  void insertIncomeGoalWithOplog(IncomeGoalRow g, OplogRow o) {
+    _db.execute('BEGIN');
+    try {
+      insertIncomeGoal(g);
+      appendOp(o);
+      _db.execute('COMMIT');
+    } catch (_) {
+      _db.execute('ROLLBACK');
+      rethrow;
+    }
+  }
+
+  /// 單一目標模型（dbml v0.3）：實體清除舊目標後寫入（fixture 重設語意用）。
+  void replaceIncomeGoal(IncomeGoalRow g, OplogRow o) {
+    _db.execute('BEGIN');
+    try {
+      _db.execute('DELETE FROM income_goals');
+      insertIncomeGoal(g);
+      appendOp(o);
+      _db.execute('COMMIT');
+    } catch (_) {
+      _db.execute('ROLLBACK');
+      rethrow;
+    }
+  }
+
+  IncomeGoalRow? activeIncomeGoal() {
+    final rows = _db
+        .select('SELECT * FROM income_goals WHERE deleted_at IS NULL ORDER BY created_at DESC, id DESC LIMIT 1')
+        .map(IncomeGoalRow.fromRow)
+        .toList();
+    return rows.isEmpty ? null : rows.first;
+  }
+
   // ── 交易（FR-T） ──────────────────────────────────────────
 
   void insertTransaction(TxRow t) => _db.execute(
@@ -516,6 +594,94 @@ class TxRow {
         'updated_at': updatedAt,
         'hlc': hlc,
         'deleted_at': deletedAt,
+      };
+}
+
+/// 預算列（schema v2，data-spec.dbml budgets；category_id NULL＝總預算 FR-B2）。
+class BudgetRow {
+  const BudgetRow({
+    required this.id,
+    this.categoryId,
+    required this.amountMinor,
+    required this.periodStartDay,
+    required this.rollover,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.hlc,
+  });
+
+  final String id;
+  final String? categoryId;
+
+  /// 正數 minor units。
+  final int amountMinor;
+
+  /// 1..28 週期起始日（FR-B2）。
+  final int periodStartDay;
+  final bool rollover;
+  final int createdAt;
+  final int updatedAt;
+  final String hlc;
+
+  factory BudgetRow.fromRow(Map<String, Object?> r) => BudgetRow(
+        id: r['id'] as String,
+        categoryId: r['category_id'] as String?,
+        amountMinor: r['amount_minor'] as int,
+        periodStartDay: r['period_start_day'] as int,
+        rollover: (r['rollover'] as int) == 1,
+        createdAt: r['created_at'] as int,
+        updatedAt: r['updated_at'] as int,
+        hlc: r['hlc'] as String,
+      );
+
+  /// oplog payload 之整列快照（SDD §5.5.4）。
+  Map<String, Object?> toSnapshot() => {
+        'id': id,
+        'category_id': categoryId,
+        'amount_minor': amountMinor,
+        'period_start_day': periodStartDay,
+        'rollover': rollover,
+        'created_at': createdAt,
+        'updated_at': updatedAt,
+        'hlc': hlc,
+      };
+}
+
+/// 收入目標列（schema v2，data-spec.dbml income_goals；單一目標模型 FR-B6）。
+class IncomeGoalRow {
+  const IncomeGoalRow({
+    required this.id,
+    required this.amountMinor,
+    required this.periodStartDay,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.hlc,
+  });
+
+  final String id;
+  final int amountMinor;
+  final int periodStartDay;
+  final int createdAt;
+  final int updatedAt;
+  final String hlc;
+
+  factory IncomeGoalRow.fromRow(Map<String, Object?> r) => IncomeGoalRow(
+        id: r['id'] as String,
+        amountMinor: r['amount_minor'] as int,
+        periodStartDay: r['period_start_day'] as int,
+        createdAt: r['created_at'] as int,
+        updatedAt: r['updated_at'] as int,
+        hlc: r['hlc'] as String,
+      );
+
+  /// oplog payload 之整列快照（SDD §5.5.4）。
+  Map<String, Object?> toSnapshot() => {
+        'id': id,
+        'amount_minor': amountMinor,
+        'period_start_day': periodStartDay,
+        'created_at': createdAt,
+        'updated_at': updatedAt,
+        'hlc': hlc,
       };
 }
 

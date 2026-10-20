@@ -88,6 +88,35 @@ void _bind(GherkinRunner runner, _World w) {
   });
 
   runner.on(r'模擬系統時間為 {dt}$', (p) => Clock.freeze(_dateTime(p['dt']!)));
+
+  // ── Given：預算／收入目標（schema v2；FR-B）───────────────
+  runner.on(r'預算「{cat}」金額 {amt}、起始日 {day}$', (p) async {
+    await DbFixture.seedBudget(
+      w.db,
+      id: 'b-${w.db.allBudgets().length}',
+      categoryId: w.categories[p['cat']!],
+      amountMinor: _amount(p['amt']!),
+      periodStartDay: int.parse(p['day']!),
+    );
+  });
+
+  runner.on(r'預算總額 {amt}、起始日 {day}$', (p) async {
+    await DbFixture.seedBudget(
+      w.db,
+      id: 'b-${w.db.allBudgets().length}',
+      categoryId: null, // 總預算（FR-B2）
+      amountMinor: _amount(p['amt']!),
+      periodStartDay: int.parse(p['day']!),
+    );
+  });
+
+  runner.on(r'收入目標 {amt}$', (p) async {
+    await DbFixture.seedIncomeGoal(
+      w.db,
+      id: 'g-${w.db.allBudgets().length}',
+      amountMinor: _amount(p['amt']!),
+    );
+  });
 }
 
 int _amount(String s) => int.parse(s.trim().replaceAll(',', ''));
