@@ -37,6 +37,15 @@
 | `Given 已重置記憶體資料庫` | 重建 drift in-memory DB + 清空 spy |
 | `Given 已建立帳戶「{name}」類型 {type} 期初 {amount}` | accounts + 期初 |
 | `Given 已建立信用卡「{name}」: 結帳日 {day} 號、繳款日加 {n} 天、歸屬 {include/exclude}` | accounts + credit_card_details |
+| `Given 已建立信用卡「{name}」: 結帳日 {day} 號、歸屬 {include/exclude}` | 同上（繳款日加預設 15 天；F04 clamp 情境） |
+| `Given 已有 {n} 筆預扣交易於「{card}」共 {amount}（{start}~{end}）` | 批次 pending 交易＋oplog（期間變體，F04 S10-補算/逾期/生效日） |
+| `Given 帳單 {period} 應繳 {amount} 狀態 {status}，含交易 {txAmount}（billed）` | statements＋statement_items＋billed 交易（退款情境，F04） |
+| `Given 帳單 {period} 應繳 {amount} 狀態 {status}（繳款日 {date}）` | 同上＋due_date 指定（提醒情境，F04） |
+| `Given 已有 {n} 筆預扣交易於「{card}」共 {amount}（{start}~{end} 期間）` | 週期語意（生效日情境，F04 修改結帳日） |
+| `Given 帳單 {period} 應繳 {amount} 狀態 {status}，含交易 {txAmount}（billed）` | statements＋billed 交易＋statement_items（退款情境，F04） |
+| `When 針對該筆建立退款 {amount}` | RefundService（refund 交易＋refund_links＋帳單負項，FR-C8） |
+| `Then 帳單應繳 = {amount}（負項明細 -{refund}）` | 帳單 total 沖減（FR-C8） |
+| `And refund_links 關聯已建立` | refund_links 查詢（FR-C8） |
 | `Given 已有 {n} 筆預扣交易於「{card}」共 {amount}` | 批次插入 pending 交易 + oplog |
 | `Given 帳單 {period} 應繳 {amount} 狀態 {status}` | statements + items |
 | `Given 模擬系統時間為 {datetime}` | fake clock 凍結 |
@@ -75,9 +84,20 @@
 | `When 呼叫 QuickEntryPresetService 計算預設（商家={m}）` | 同上＋商家歷史分類優先 |
 | `When 呼叫 UndoLastTransaction` | 軟刪除+oplog |
 | `When 執行 BillingCycleService.run（「{card}」）` | 結帳引擎 |
+| `Given 模擬系統時間為 {card} 的結帳日當天` | Clock 凍結至該卡當月結帳日（statement_day；Outline 歸屬情境） |
+| `Then 該筆 {amount} 歸屬於{period}$` | 本期：statement_items 含該筆；下期：不含（FR-C2） |
+| `When 觸發通知檢查` | NotificationCheckService（提醒 N-5/逾期 N-6，FR-C5/C6） |
+| `And 模擬系統時間為 {dt} 後觸發通知檢查` | Clock 快轉＋通知檢查 |
+| `When 以「{card}」建立分期 {total} 分 {n} 期、首期 {date}` | InstallmentService（FR-C7） |
+| `When 刪除該分期計畫` | 刪除 plan＋未到期分期交易移除（FR-C7） |
+| `When 針對該筆建立退款 {amount}` | RefundService（refund_links＋帳單負項，FR-C8） |
+| `When 修改「{card}」結帳日為 {day} 號（effective_from 下一期）` | credit_card_details 更新（FR-A3） |
 | `When 執行 RepayStatementUseCase（帳單 {period}、金額 {amt}）` | 繳款 |
 | `When 以「{card}」記錄支出 {amt}` | SaveTransactionUseCase（信用卡語意） |
 | `When 以「{card}」記錄支出 {amt}（{cat}，預扣）` | 同上＋settlement=pending（F05 S5.3 預扣口徑） |
+| `When 以「{card}」記錄支出 {amt}（{cat}）` | SaveTransactionUseCase（信用卡帳戶＋分類 → settlement=pending，FR-C1；分類隱式建立） |
+| `Then 交易 settlement_status = {status}$` | 最近記錄交易之狀態（F04 預扣/結帳） |
+| `And 帳戶「{card}」重算餘額 = {amount}（本期應付）` | creditOpenBalance（pending 口徑，FR-C1） |
 | `When 建立轉帳「{from}」→「{to}」金額 {amt}` | transfer |
 | `When 建立轉帳「{from}」→「{to}」金額 {amt}（儲值）` | 同上（儲值語意註記；kind=transfer，FR-A5） |
 | `When 建立還款交易 來源={from} 目標={to} 金額 {amt}` | repayment（無分類；FR-T7） |
@@ -118,6 +138,17 @@
 | `And 金額運算無浮點誤差（Money VO 斷言）` | **M2**（F02 S2.8；Money 整數 minor units 換算斷言） |
 | `Then 產生帳單 {period}、應繳 {amount}、繳款日 {date}` | statements |
 | `Then 帳單狀態 = {status}、已繳 {amount}、剩餘 {amount}` | statements |
+| `Then 交易 settlement_status = {status}$` | 最近記錄交易之狀態（F04 預扣/結帳） |
+| `And 帳戶「{card}」重算餘額 = {amount}（本期應付）` | creditOpenBalance（pending 口徑，F04 S10-預扣） |
+| `And 通知 spy 不再收到 N-{n}（已繳取消提醒）` | spy.withId(n) 於取消後不增加 |
+| `Then 帳單狀態標記逾期` | statements.overdue（FR-C6） |
+| `Then 產生 {n} 筆未來 pending 交易（每筆 {amount}、installment_seq 1..{last}）` | installment 排程（FR-C7；{last}={n}——同名捕獲群禁用） |
+| `And 帳戶「{card}」未來已承諾 = {amount}` | Σ 未到期分期 pending（FR-C7） |
+| `Then 尚未到期的 {n} 筆分期交易已移除` | 刪除連動（FR-C7） |
+| `Then 帳單應繳 = {amount}（負項明細 -{refund}）` | 退款負項（FR-C8） |
+| `And refund_links 關聯已建立` | refund_links 表（FR-C8） |
+| `Then 帳單 {period} 仍以 {day} 號規則結算` | effective_from 語意（FR-A3） |
+| `And 下一期週期 = {period}` | 新結帳日之下一期（FR-A3） |
 | `Then oplog 新增 {n} 筆且皆未打包` | oplog |
 | `Then 通知 spy 收到 N-{n} 恰 {k} 次，內容含 "{text}"` | notification spy |
 | `Then 通知 spy 收到 N-{n} 恰 {k} 次` | 同上（無內容限定） |
@@ -142,6 +173,7 @@
 | `Then 交易 {amount} 為軟刪除（deleted_at 非 null）` | 以金額對映 Given 已儲存之最近一筆 |
 | `And oplog 新增 {n} 筆（墓標）` | delta=n 且新 oplog payload=NULL |
 | `Then 解析結果：商家="{m}"、總額={amt}、日期={date}` | parser 輸出 |
+| `Then 通知 spy 收到 N-{n} 恰 {k} 次（分級累計）` | 通知檢查多時點累計（F04 提醒：前 3 天＋當天各一次） |
 | `Then 搜尋 "{kw}" 命中 {n} 筆` | FTS5 bigram |
 | `Then 搜尋 "{kw}" 命中 {n} 筆（命中「{hit}」）` | 同上＋命中備註/商家含 {hit} |
 | `Then 命中 {n} 筆（{note}）` / `Then 命中 {n} 筆` | 複合篩選結果數（AND；空結果友善提示為 UI 面） |
@@ -225,6 +257,15 @@
 | `When 清除全部篩選` | 「清除篩選」按鈕（還原完整清單） |
 | `Then 顯示全部 {n} 筆` | TxTile 計數（全部月份） |
 | `Given 篩選生效（期間={period}）` | 明細頁期間篩選設定（F10-FE S3） |
+| `And 已建立帳戶「{name}」(餘額 {amount})（結帳日 {day} 號、歸屬={rule}）` | seedCreditCard（rule：當天算本期=include；F04-FE） |
+| `Given 已有 {n} 筆預扣交易於「{card}」共 {amount}（上一期）` | fixture 直寫上一期 pending（相對凍結時間之已關閉週期；F04-FE） |
+| `And 執行 BillingCycleService.run（「{card}」）（經 fixture 觸發）` | BE 服務直接呼叫（結帳觸發點前置，F04-FE） |
+| `When 開啟信用卡頁` | 總覽信用卡卡點擊 → CreditCardPage（F04-FE） |
+| `When 開啟信用卡頁並按下「{label}」` | 開頁＋繳款對話框開啟（F04-FE） |
+| `When 按下「繳款」→「自訂金額」輸入 {amount} 並確認` | 自訂金額繳款流程（F04-FE S3） |
+| `When 開啟卡片設定頁` | CardSettingsPage（歸屬規則呈現，F04-FE S4） |
+| `Then 顯示「{text}」徽章` | 狀態徽章（key badge-{text}；F04-FE） |
+| `And 顯示「{text}」徽章（頁首）` | 頁首徽章（逾期標示，F04-FE S5） |
 | `When 建立拆分交易 總額 {total}（{cat1} {a1} + {cat2} {a2}）` | 快記拆分模式：雙子項（分類＋金額）→ executeSplit（總額守恆；F02-FE S2.7 @M2） |
 | `And 顯示「{label}」樣式（同一群組）` | 拆分樣式：兩列同群組＋call_split 圖示（F02-FE S2.7） |
 | `When 開啟總覽頁` | 導航至總覽分頁（NavigationBar；F05-FE S5.4/S5.5） |

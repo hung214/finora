@@ -263,12 +263,12 @@ class AppDatabase {
   void insertTransaction(TxRow t) => _db.execute(
         'INSERT INTO transactions (id, kind, amount_minor, currency, fx_rate, account_id,'
         ' to_account_id, category_id, merchant, note, occurred_at, source, split_group_id,'
-        ' settlement_status, created_at, updated_at, hlc)'
-        ' VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        ' installment_seq, settlement_status, created_at, updated_at, hlc)'
+        ' VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [
           t.id, t.kind, t.amountMinor, t.currency, t.fxRate, t.accountId, t.toAccountId,
           t.categoryId, t.merchant, t.note, t.occurredAt, t.source, t.splitGroupId,
-          t.settlementStatus, t.createdAt, t.updatedAt, t.hlc,
+          t.installmentSeq, t.settlementStatus, t.createdAt, t.updatedAt, t.hlc,
         ],
       );
 
@@ -373,6 +373,95 @@ class AppDatabase {
     }
   }
 
+  /// 結帳標記：settlement_status → billed（FR-C3；oplog 由結帳批次補——
+  /// 與 oplog 同步寫入屬 BillingCycleService 批次契約）。
+  void markTransactionBilled(String id, int updatedAtMs, String hlc) {
+    _db.execute(
+      'UPDATE transactions SET settlement_status = ?, updated_at = ?, hlc = ? WHERE id = ?',
+      ['billed', updatedAtMs, hlc, id],
+    );
+  }
+
+  /// 於單一 DB transaction 內執行 [body]（全有全無；UseCase 複合寫入用，
+  /// 如 F04 繳款：repayment 交易＋帳單更新＋各筆 oplog）。
+  T runInTransaction<T>(T Function() body) {
+    _db.execute('BEGIN');
+    try {
+      final result = body();
+      _db.execute('COMMIT');
+      return result;
+    } catch (_) {
+      _db.execute('ROLLBACK');
+      rethrow;
+    }
+  }
+
+  /// 實體刪除交易（FR-C7：分期刪除連動，未到期承諾移除；oplog 保留——
+  /// 同步端刪除語意屬 F07 範疇，M3 本地語意為直接移除）。
+  /// 不自行包裹 transaction（呼叫端以 runInTransaction 包裹）。
+  void deleteTransactionsPhysical(List<String> ids) {
+    for (final id in ids) {
+      _db.execute('DELETE FROM transactions WHERE id = ?', [id]);
+    }
+  }
+
+  void insertInstallmentPlan(InstallmentPlanRow p) => _db.execute(
+        'INSERT INTO installment_plans (id, account_id, total_minor, installments,'
+        ' first_date, note, created_at, updated_at, hlc, deleted_at)'
+        ' VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          p.id, p.accountId, p.totalMinor, p.installments, p.firstDate,
+          p.note, p.createdAt, p.updatedAt, p.hlc, p.deletedAt,
+        ],
+      );
+
+  InstallmentPlanRow? installmentPlanById(String id) {
+    final rows = _db
+        .select('SELECT * FROM installment_plans WHERE id = ?', [id])
+        .map(InstallmentPlanRow.fromRow)
+        .toList();
+    return rows.isEmpty ? null : rows.first;
+  }
+
+  void markInstallmentPlanDeleted(String id, int updatedAtMs, String hlc) {
+    _db.execute(
+      'UPDATE installment_plans SET deleted_at = ?, updated_at = ?, hlc = ? WHERE id = ?',
+      [updatedAtMs, updatedAtMs, hlc, id],
+    );
+  }
+
+  /// 退款關聯（FR-C8）。
+  void insertRefundLink({required String refundTxId, required String originalTxId}) {
+    _db.execute(
+      'INSERT INTO refund_links (refund_tx_id, original_tx_id) VALUES (?, ?)',
+      [refundTxId, originalTxId],
+    );
+  }
+
+  /// 原交易之退款關聯是否存在（斷言用）。
+  bool refundLinkExistsForOriginal(String originalTxId) {
+    return _db
+        .select('SELECT 1 FROM refund_links WHERE original_tx_id = ?', [originalTxId])
+        .isNotEmpty;
+  }
+
+  /// 帳單負項沖減（FR-C8）：原交易所屬帳單 total 遞減（M3 簡化——經
+  /// statement_items 反查；正式分攤屬 F04 深化）。
+  void applyRefundToStatement(
+      String originalTxId, int amountMinor, int updatedAtMs, String hlc) {
+    final rows = _db.select(
+      'SELECT statement_id FROM statement_items WHERE transaction_id = ?',
+      [originalTxId],
+    );
+    if (rows.isEmpty) return; // 未入帳單（pending 退款）→ 無帳單可沖減
+    final statementId = rows.first['statement_id'] as String;
+    _db.execute(
+      'UPDATE statements SET total_minor = total_minor - ?, updated_at = ?, hlc = ?'
+      ' WHERE id = ?',
+      [amountMinor, updatedAtMs, hlc, statementId],
+    );
+  }
+
   /// 批次寫入（單一 transaction；NFR-01 效能測資用，略 oplog/FTS——
   /// 聚合僅讀 transactions。正式寫入路徑仍走 saveTransactionWithOplog）。
   void insertTransactionsBulk(List<TxRow> rows) {
@@ -386,6 +475,127 @@ class AppDatabase {
       _db.execute('ROLLBACK');
       rethrow;
     }
+  }
+
+  // ── 信用卡明細（FR-A3，schema v3；device-local——不在 sync_entity） ──
+
+  void insertCreditCardDetail(CreditCardDetailRow d) => _db.execute(
+        'INSERT INTO credit_card_details (account_id, last4, statement_day, due_offset_days,'
+        ' linked_account_id, boundary_rule, credit_limit_minor, effective_from)'
+        ' VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          d.accountId, d.last4, d.statementDay, d.dueOffsetDays,
+          d.linkedAccountId, d.boundaryRule, d.creditLimitMinor, d.effectiveFrom,
+        ],
+      );
+
+  /// 帳戶名稱（通知文案用；不存在回 null）。
+  String? accountName(String id) {
+    final rows = _db.select('SELECT name FROM accounts WHERE id = ?', [id]);
+    return rows.isEmpty ? null : rows.first['name'] as String;
+  }
+
+  /// 同帳戶同期間之帳單查詢（冪等檢查用）。
+  bool statementExistsForPeriod(String accountId, int periodStartMs, int periodEndMs) {
+    return _db
+        .select(
+            'SELECT id FROM statements WHERE account_id = ? AND period_start = ? AND period_end = ?',
+            [accountId, periodStartMs, periodEndMs])
+        .isNotEmpty;
+  }
+
+  /// 修改結帳日（FR-A3：effective_from 下一期生效）。
+  void updateCreditCardStatementDay(String accountId, int newDay, int effectiveFromMs) {
+    _db.execute(
+      'UPDATE credit_card_details SET statement_day = ?, effective_from = ?'
+      ' WHERE account_id = ?',
+      [newDay, effectiveFromMs, accountId],
+    );
+  }
+
+  CreditCardDetailRow? creditCardDetail(String accountId) {
+    final rows = _db
+        .select('SELECT * FROM credit_card_details WHERE account_id = ?', [accountId])
+        .map(CreditCardDetailRow.fromRow)
+        .toList();
+    return rows.isEmpty ? null : rows.first;
+  }
+
+  // ── 帳單（FR-C3，schema v3；statements 屬 sync_entity） ────
+
+  void insertStatement(StatementRow s) => _db.execute(
+        'INSERT INTO statements (id, account_id, period_start, period_end, statement_date,'
+        ' due_date, total_minor, paid_minor, status, paid_at, overdue_notified,'
+        ' created_at, updated_at, hlc, deleted_at)'
+        ' VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          s.id, s.accountId, s.periodStart, s.periodEnd, s.statementDate,
+          s.dueDate, s.totalMinor, s.paidMinor, s.status, s.paidAt,
+          s.overdueNotified ? 1 : 0, s.createdAt, s.updatedAt, s.hlc, s.deletedAt,
+        ],
+      );
+
+  void insertStatementItems(String statementId, List<String> transactionIds) {
+    _db.execute('BEGIN');
+    try {
+      for (final txId in transactionIds) {
+        _db.execute(
+          'INSERT OR IGNORE INTO statement_items (statement_id, transaction_id) VALUES (?, ?)',
+          [statementId, txId],
+        );
+      }
+      _db.execute('COMMIT');
+    } catch (_) {
+      _db.execute('ROLLBACK');
+      rethrow;
+    }
+  }
+
+  /// 帳單繳款更新（FR-C4；oplog 由 UseCase 於同一 transaction 補）。
+  void updateStatementPayment(
+      String id, int paidMinor, String status, int? paidAt, int updatedAtMs, String hlc) {
+    _db.execute(
+      'UPDATE statements SET paid_minor = ?, status = ?, paid_at = ?, updated_at = ?, hlc = ?'
+      ' WHERE id = ?',
+      [paidMinor, status, paidAt, updatedAtMs, hlc, id],
+    );
+  }
+
+  /// 帳單查詢（依帳戶＋期間；F04 逾期/提醒用）。
+  StatementRow? statementForPeriod(String accountId, int periodStartMs, int periodEndMs) {
+    final rows = _db
+        .select(
+            'SELECT * FROM statements WHERE account_id = ? AND period_start = ? AND period_end = ?',
+            [accountId, periodStartMs, periodEndMs])
+        .map(StatementRow.fromRow)
+        .toList();
+    return rows.isEmpty ? null : rows.first;
+  }
+
+  /// 全部未刪除帳單（通知檢查巡迴用，F04）。
+  List<StatementRow> allStatementsForTest() => _db
+      .select('SELECT * FROM statements WHERE deleted_at IS NULL ORDER BY due_date')
+      .map(StatementRow.fromRow)
+      .toList();
+
+  /// 逾期已通知標記（N-6 恰一次，FR-C6）。
+  void markStatementOverdueNotified(String id) {
+    _db.execute('UPDATE statements SET overdue_notified = 1 WHERE id = ?', [id]);
+  }
+
+  /// 帳單明細之交易 id（歸屬斷言用，F04）。
+  List<String> statementItemTxIds(String statementId) {
+    return _db
+        .select('SELECT transaction_id FROM statement_items WHERE statement_id = ?',
+            [statementId])
+        .map((r) => r['transaction_id'] as String)
+        .toList();
+  }
+
+  StatementRow? statementById(String id) {
+    final rows =
+        _db.select('SELECT * FROM statements WHERE id = ?', [id]).map(StatementRow.fromRow).toList();
+    return rows.isEmpty ? null : rows.first;
   }
 
   // ── 同步日誌（SDD §5.5） ──────────────────────────────────
@@ -651,6 +861,7 @@ class TxRow {
     required this.source,
     required this.settlementStatus,
     this.splitGroupId,
+    this.installmentSeq,
     required this.createdAt,
     required this.updatedAt,
     required this.hlc,
@@ -684,6 +895,9 @@ class TxRow {
   /// 拆分群組（FR-T6；同群組子交易共享；null＝非拆分）。
   final String? splitGroupId;
 
+  /// 分期序號（FR-C7；1..N；null＝非分期）。
+  final int? installmentSeq;
+
   /// 墓標（SDD 原則 5）；null = 未刪除。
   final int? deletedAt;
 
@@ -702,6 +916,7 @@ class TxRow {
         source: r['source'] as String,
         settlementStatus: r['settlement_status'] as String,
         splitGroupId: r['split_group_id'] as String?,
+        installmentSeq: r['installment_seq'] as int?,
         createdAt: r['created_at'] as int,
         updatedAt: r['updated_at'] as int,
         hlc: r['hlc'] as String,
@@ -724,6 +939,7 @@ class TxRow {
         'source': source,
         'settlement_status': settlementStatus,
         'split_group_id': splitGroupId,
+        'installment_seq': installmentSeq,
         'created_at': createdAt,
         'updated_at': updatedAt,
         'hlc': hlc,
@@ -817,6 +1033,170 @@ class IncomeGoalRow {
         'updated_at': updatedAt,
         'hlc': hlc,
       };
+}
+
+/// 信用卡明細列（schema v3，data-spec.dbml credit_card_details；FR-A3）。
+/// device-local（不在 sync_entity——卡片設定不參與同步）。
+class CreditCardDetailRow {
+  const CreditCardDetailRow({
+    required this.accountId,
+    this.last4,
+    required this.statementDay,
+    required this.dueOffsetDays,
+    this.linkedAccountId,
+    required this.boundaryRule,
+    this.creditLimitMinor,
+    this.effectiveFrom,
+  });
+
+  final String accountId;
+  final String? last4;
+
+  /// 1..28；29-31 遇小月 clamp 月底。
+  final int statementDay;
+
+  /// 繳款日 = 結帳日 + N（FR-A3）。
+  final int dueOffsetDays;
+
+  /// 扣款帳戶；null = 手動標記（FR-C4）。
+  final String? linkedAccountId;
+
+  /// include：結帳日當天消費算本期（預設，FR-C2）。
+  final String boundaryRule;
+  final int? creditLimitMinor;
+
+  /// 結帳日修改自下期生效（FR-A3/S4.11）。
+  final int? effectiveFrom;
+
+  factory CreditCardDetailRow.fromRow(Map<String, Object?> r) => CreditCardDetailRow(
+        accountId: r['account_id'] as String,
+        last4: r['last4'] as String?,
+        statementDay: r['statement_day'] as int,
+        dueOffsetDays: r['due_offset_days'] as int,
+        linkedAccountId: r['linked_account_id'] as String?,
+        boundaryRule: r['boundary_rule'] as String,
+        creditLimitMinor: r['credit_limit_minor'] as int?,
+        effectiveFrom: r['effective_from'] as int?,
+      );
+}
+
+/// 帳單列（schema v3，FR-C3）。
+class StatementRow {
+  const StatementRow({
+    required this.id,
+    required this.accountId,
+    required this.periodStart,
+    required this.periodEnd,
+    required this.statementDate,
+    required this.dueDate,
+    required this.totalMinor,
+    required this.paidMinor,
+    required this.status,
+    this.paidAt,
+    required this.overdueNotified,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.hlc,
+    this.deletedAt,
+  });
+
+  final String id;
+  final String accountId;
+  final int periodStart;
+  final int periodEnd;
+  final int statementDate;
+  final int dueDate;
+  final int totalMinor;
+  final int paidMinor;
+
+  /// issued | partial | paid（statement_status）。
+  final String status;
+  final int? paidAt;
+  final bool overdueNotified;
+  final int createdAt;
+  final int updatedAt;
+  final String hlc;
+  final int? deletedAt;
+
+  factory StatementRow.fromRow(Map<String, Object?> r) => StatementRow(
+        id: r['id'] as String,
+        accountId: r['account_id'] as String,
+        periodStart: r['period_start'] as int,
+        periodEnd: r['period_end'] as int,
+        statementDate: r['statement_date'] as int,
+        dueDate: r['due_date'] as int,
+        totalMinor: r['total_minor'] as int,
+        paidMinor: r['paid_minor'] as int,
+        status: r['status'] as String,
+        paidAt: r['paid_at'] as int?,
+        overdueNotified: (r['overdue_notified'] as int) == 1,
+        createdAt: r['created_at'] as int,
+        updatedAt: r['updated_at'] as int,
+        hlc: r['hlc'] as String,
+        deletedAt: r['deleted_at'] as int?,
+      );
+
+  /// 剩餘應繳。
+  int get remainingMinor => totalMinor - paidMinor;
+
+  Map<String, Object?> toSnapshot() => {
+        'id': id,
+        'account_id': accountId,
+        'period_start': periodStart,
+        'period_end': periodEnd,
+        'statement_date': statementDate,
+        'due_date': dueDate,
+        'total_minor': totalMinor,
+        'paid_minor': paidMinor,
+        'status': status,
+        'paid_at': paidAt,
+        'overdue_notified': overdueNotified,
+        'created_at': createdAt,
+        'updated_at': updatedAt,
+        'hlc': hlc,
+        'deleted_at': deletedAt,
+      };
+}
+
+/// 分期計畫列（schema v3，FR-C7）。
+class InstallmentPlanRow {
+  const InstallmentPlanRow({
+    required this.id,
+    required this.accountId,
+    required this.totalMinor,
+    required this.installments,
+    required this.firstDate,
+    this.note,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.hlc,
+    this.deletedAt,
+  });
+
+  final String id;
+  final String accountId;
+  final int totalMinor;
+  final int installments;
+  final int firstDate;
+  final String? note;
+  final int createdAt;
+  final int updatedAt;
+  final String hlc;
+  final int? deletedAt;
+
+  factory InstallmentPlanRow.fromRow(Map<String, Object?> r) =>
+      InstallmentPlanRow(
+        id: r['id'] as String,
+        accountId: r['account_id'] as String,
+        totalMinor: r['total_minor'] as int,
+        installments: r['installments'] as int,
+        firstDate: r['first_date'] as int,
+        note: r['note'] as String?,
+        createdAt: r['created_at'] as int,
+        updatedAt: r['updated_at'] as int,
+        hlc: r['hlc'] as String,
+        deletedAt: r['deleted_at'] as int?,
+      );
 }
 
 class OplogRow {
