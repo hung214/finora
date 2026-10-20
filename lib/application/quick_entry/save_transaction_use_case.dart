@@ -102,4 +102,63 @@ class SaveTransactionUseCase {
     afterSave?.call();
     return SaveTransactionResult(row.id);
   }
+
+  /// 拆分交易（FR-T6，acceptance S2.7）：一次儲存 N 筆子交易——
+  /// 同 [splitGroupId]（UUIDv7）、同帳戶、同時間；**總額守恆**（子項加總 ≠
+  /// 總額即驗證失敗，UI 無法儲存）；單一 DB transaction（各筆 oplog＋FTS）。
+  ///
+  /// 回傳各子交易 id（明細呈現「拆分」樣式用）。
+  List<String> executeSplit({
+    required String accountId,
+    required int totalMinor,
+    required List<({String? categoryId, int amountMinor})> items,
+    required DateTime occurredAt,
+    String? merchant,
+    String? note,
+  }) {
+    if (items.isEmpty) {
+      throw const TransactionValidationException('驗證失敗：拆分至少一個子項');
+    }
+    final sum = items.fold<int>(0, (s, i) => s + i.amountMinor);
+    if (sum != totalMinor) {
+      throw const TransactionValidationException('驗證失敗：子項加總須等於總額');
+    }
+    final groupId = const Uuid().v7();
+    final now = Clock.now();
+    final nowMs = now.millisecondsSinceEpoch;
+    final hlc = Hlc.now(deviceId).toString();
+    final rows = <TxRow>[];
+    final ops = <OplogRow>[];
+    for (final item in items) {
+      final row = TxRow(
+        id: const Uuid().v7(),
+        kind: 'expense',
+        amountMinor: item.amountMinor,
+        currency: 'TWD',
+        accountId: accountId,
+        toAccountId: null,
+        categoryId: item.categoryId,
+        merchant: merchant,
+        note: note,
+        occurredAt: occurredAt.millisecondsSinceEpoch,
+        source: 'manual',
+        settlementStatus: 'none',
+        splitGroupId: groupId,
+        createdAt: nowMs,
+        updatedAt: nowMs,
+        hlc: hlc,
+      );
+      rows.add(row);
+      ops.add(OplogRow(
+        entity: 'transactions',
+        entityId: row.id,
+        hlc: hlc,
+        payload: jsonEncode(row.toSnapshot()),
+        packedSeq: null,
+      ));
+    }
+    _db.saveTransactionsSplitWithOplog(rows, ops);
+    afterSave?.call();
+    return [for (final r in rows) r.id];
+  }
 }

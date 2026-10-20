@@ -248,12 +248,13 @@ class AppDatabase {
   // ── 交易（FR-T） ──────────────────────────────────────────
 
   void insertTransaction(TxRow t) => _db.execute(
-        'INSERT INTO transactions (id, kind, amount_minor, currency, account_id, to_account_id,'
-        ' category_id, merchant, note, occurred_at, source, settlement_status, created_at, updated_at, hlc)'
-        ' VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO transactions (id, kind, amount_minor, currency, fx_rate, account_id,'
+        ' to_account_id, category_id, merchant, note, occurred_at, source, split_group_id,'
+        ' settlement_status, created_at, updated_at, hlc)'
+        ' VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [
-          t.id, t.kind, t.amountMinor, t.currency, t.accountId, t.toAccountId,
-          t.categoryId, t.merchant, t.note, t.occurredAt, t.source,
+          t.id, t.kind, t.amountMinor, t.currency, t.fxRate, t.accountId, t.toAccountId,
+          t.categoryId, t.merchant, t.note, t.occurredAt, t.source, t.splitGroupId,
           t.settlementStatus, t.createdAt, t.updatedAt, t.hlc,
         ],
       );
@@ -339,6 +340,24 @@ class AppDatabase {
             [like, like])
         .map(TxRow.fromRow)
         .toList();
+  }
+
+  /// 拆分交易寫入（FR-T6）：N 筆子交易＋N oplog 於**同一 transaction**
+  /// （同 split_group_id；FTS 隨寫入維護）——總額守恆由 UseCase 驗證。
+  void saveTransactionsSplitWithOplog(List<TxRow> rows, List<OplogRow> ops) {
+    assert(rows.length == ops.length);
+    _db.execute('BEGIN');
+    try {
+      for (var i = 0; i < rows.length; i++) {
+        insertTransaction(rows[i]);
+        _ftsReindex(rows[i]);
+        appendOp(ops[i]);
+      }
+      _db.execute('COMMIT');
+    } catch (_) {
+      _db.execute('ROLLBACK');
+      rethrow;
+    }
   }
 
   /// 批次寫入（單一 transaction；NFR-01 效能測資用，略 oplog/FTS——
@@ -609,6 +628,7 @@ class TxRow {
     required this.kind,
     required this.amountMinor,
     required this.currency,
+    this.fxRate,
     required this.accountId,
     required this.toAccountId,
     required this.categoryId,
@@ -617,6 +637,7 @@ class TxRow {
     required this.occurredAt,
     required this.source,
     required this.settlementStatus,
+    this.splitGroupId,
     required this.createdAt,
     required this.updatedAt,
     required this.hlc,
@@ -628,7 +649,12 @@ class TxRow {
 
   /// 正數；方向由 [kind] 與帳戶語意決定（SDD §4.2）。
   final int amountMinor;
+
+  /// 交易幣別（原幣；TWD 為本位幣，FR-T4）。
   final String currency;
+
+  /// 非本位幣匯率（原幣 1 單位兌本位幣；FR-T4；null＝本位幣）。
+  final double? fxRate;
   final String accountId;
   final String? toAccountId;
   final String? categoryId;
@@ -637,9 +663,13 @@ class TxRow {
   final int occurredAt;
   final String source;
   final String settlementStatus;
+
   final int createdAt;
   final int updatedAt;
   final String hlc;
+
+  /// 拆分群組（FR-T6；同群組子交易共享；null＝非拆分）。
+  final String? splitGroupId;
 
   /// 墓標（SDD 原則 5）；null = 未刪除。
   final int? deletedAt;
@@ -649,6 +679,7 @@ class TxRow {
         kind: r['kind'] as String,
         amountMinor: r['amount_minor'] as int,
         currency: r['currency'] as String,
+        fxRate: r['fx_rate'] as double?,
         accountId: r['account_id'] as String,
         toAccountId: r['to_account_id'] as String?,
         categoryId: r['category_id'] as String?,
@@ -657,6 +688,7 @@ class TxRow {
         occurredAt: r['occurred_at'] as int,
         source: r['source'] as String,
         settlementStatus: r['settlement_status'] as String,
+        splitGroupId: r['split_group_id'] as String?,
         createdAt: r['created_at'] as int,
         updatedAt: r['updated_at'] as int,
         hlc: r['hlc'] as String,
@@ -669,6 +701,7 @@ class TxRow {
         'kind': kind,
         'amount_minor': amountMinor,
         'currency': currency,
+        'fx_rate': fxRate,
         'account_id': accountId,
         'to_account_id': toAccountId,
         'category_id': categoryId,
@@ -677,6 +710,7 @@ class TxRow {
         'occurred_at': occurredAt,
         'source': source,
         'settlement_status': settlementStatus,
+        'split_group_id': splitGroupId,
         'created_at': createdAt,
         'updated_at': updatedAt,
         'hlc': hlc,
