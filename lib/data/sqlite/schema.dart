@@ -219,3 +219,29 @@ class SchemaV3 {
     ''',
   ];
 }
+
+/// Schema v4（M4 基線，T-S4）：attachments（FR-S4 附件中繼資——sha256 內容
+/// 定址，同步去重 SDD §5.5.6；blob 本體以 {sha256} 命名存 app 支援目錄
+/// blobs/，SDD §4.2 約定，落地於 F03 儲存流程）——逐句對齊 data-spec.dbml
+/// v0.3（表已預定義，code schema 對齊落地）。
+class SchemaV4 {
+  SchemaV4._();
+
+  static const int version = 4;
+
+  /// 必建表（遷移於交易內全有全無）。
+  static const List<String> statements = [
+    '''
+    CREATE TABLE attachments (
+      id TEXT PRIMARY KEY,
+      transaction_id TEXT NOT NULL,
+      sha256 TEXT NOT NULL,
+      mime TEXT,
+      byte_size INTEGER,
+      created_at INTEGER NOT NULL,
+      hlc TEXT NOT NULL,
+      deleted_at INTEGER
+    )
+    ''',
+  ];
+}
