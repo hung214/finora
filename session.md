@@ -21,23 +21,31 @@
 | 欄位 | 內容 |
 |---|---|
 | 更新時間 | 2026-10-20（macOS 跨電腦接手） |
-| 階段 | **M2 全部完成**（v0.4.6 已發佈＋四平台產物確認；F02 6/6＋6/6 全 ✅：拆分 executeSplit＋多幣別 fxRate 換算照數學修——餘額 −2,200；F05/F10/T-S2/桌面殼已併 main）。下一步：**M3**（T-S3 schema v3→T-F04 信用卡 BE 10＋FE 5）→ M4 掃描 |
-| 當前分支 | feature/F02-m2-remainder（5 commits 已 push；main = 6a7bba6） |
+| 階段 | **M3 開工**（T-S3 schema v3 ✅ 已 merge main；F04-BE C1 紅燈已提交）。下一步：**F04-BE 實作馬拉松**（10 情境——執行數 12：Outline×2；實作順序見 §3）→ F04-FE（5 情境）→ M4 掃描 |
+| 當前分支 | feature/F04-credit-card-billing（C1 紅燈 959b2a2 已 push；main = 49dfa09） |
 | 當前任務 | 本輪：①T-S2 schema v2 ②F05-BE/FE 🔴→🟢（10 情境；冪等 sync 點警示／預算分頁／總覽卡）③F10-BE 🔴→🟢 5 情境（TextIndex bigram＋AppDatabase FTS 維護（save 鉤子）＋SearchService（FTS 優先 LIKE 降級＋AND）＋ReportService（占比 0.1%）＋CsvExporter（UTF-8 BOM）＋insertTransactionsBulk 效能測資；規格修正：CSV 5 筆／金額區間 400~800／效能句型） |
-| 紅綠燈狀態 | `dart analyze` No issues；unit **78 全綠**（＋拆分 3）；**F02-BE 6＋F02-FE 6 情境全綠**（多幣別/拆分解鎖；F05/F10 已佔 main） |
+| 紅綠燈狀態 | `dart analyze` No issues；unit **81 全綠**（T-S3 回歸 3＋拆分 3）；F04-BE 紅燈（NotBound：已建立信用卡） |
 | 工作區 | 乾淨（文件回寫後 commit） |
 | truth 對齊 | data-spec v0.3 不變；dsl v0.5（F05 §2 +10／§3 +10 句型）；acceptance F05 不變（BE/FE feature 檔修正見歷程） |
 | 環境筆記 | 延續上輪。新增：①**桌面殼**：LayoutBuilder ≥900px Rail（destinations 無 key 參數——key 掛 label Text；Rail 殼下 NavigationBar taps 全改 byKey nav-{分頁}，四 harness 已更新）②**LedgerPage 重寫教訓**：讀 db 的頁面必須保留 ledgerProvider 訂閱（遺漏→快記後明細不刷新，F01/F02 回歸紅燈抓到）③Python 產碼插入點錯誤（_bind 外）→ analyze 即抓 ④income_goals 不在 dbml sync_entity——F07 前 truth PR |
 | 阻塞／待決 | ①gh 未安裝（PR/壞包 v0.4.0/0.4.2 刪除）②dbml sync_entity 缺 income_goals（F07 前 truth PR）③SPEC FR-Q4 待 PM ④SP-1 SQLCipher ⑤多幣別 900 矛盾待 PM（M2 尾）⑥notify_enabled=off 期內級別視為已消耗（重開不回補）——語意待 PM 確認 ⑦**UI 統整＝M7 上架前一次做**（Material 3 tokens＋深色模式＋無障礙；PM 2026-10-20 決策——各 milestone 中途不做視覺 pass） |
 
-## 3. 下一步（確認 v0.4.6 產物→M2 遺留→M3；下次開工照此執行）
+## 3. 下一步（F04-BE 實作馬拉松；下次開工照此執行）
 
-1. **確認 v0.4.6 Release 產物**：https://github.com/hung214/ledger_sync/releases/tag/v0.4.6 四平台（apk/ipa/dmg/exe/zip）是否齊全——**勿重蹈 v0.1.0~v0.4.0 tag 建了但 Release 從未成功**；缺則查 Actions 的 release 工作流日誌。
-2. **壞包清理**：v0.4.0/v0.4.2（及檢查 v0.4.1/v0.4.3/v0.4.5 產物完整性）——Releases 頁手動或安裝 gh 後 CLI 刪除。
-3. **M2 遺留**（同分支或新分支）：拆分 S2.7（split_group_id 已在 schema）、多幣別 S2.8（fx_rate 已在 schema；**「餘額 900」矛盾先請 PM 釋義**）。
-4. **M3**：T-S3 schema v3（credit_card_details/statements 等先行）→ T-F04 信用卡（BE 10＋FE 5）。
-5. 記住：UI 統整＝M7 一次做（已決策，勿提前）；push 前整體部署驗證＝整體軟體全綠後一次。
-6. 休息前照 §1 檢查清單更新本檔。
+1. **F04-BE 逐批 🔴→🟢**（已 C1 紅燈；dsl 14 句型已登記）：
+   - C2 資料層＋預扣：CreditCardDetailRow/StatementRow/StatementItemRow/RefundLinkRow/InstallmentPlanRow＋AppDatabase CRUD＋DbFixture.seedCreditCard/seedStatement＋綁定（已建立信用卡／以「卡」記錄支出（分類）→pending／帳戶重算餘額（本期應付）＝creditOpenBalance）→ S1 預扣 🟢
+   - C3 結帳引擎：BillingCycleService.run（掃過結帳日 pending → statements＋statement_items＋標記 billed＋N-4 通知內容含千分位）→ S2 補算 🟢
+   - C4 歸屬：include/exclude（結帳日當天歸本期/下期——boundary_rule）→ S3 Outline 🟢（執行數 2）
+   - C5 clamp：31 號遇小月 → 月底（2026/02/01 結算 1 月）→ S4 🟢
+   - C6 繳款：RepayStatementUseCase（全額→paid＋薪轉轉出＋N-5 取消；部分→partial 累加）→ S5/S6 🟢
+   - C7 通知：NotificationCheckService（N-5 前三天＋當天各一次、N-6 逾期一次＋overdue 標記）→ S7/S8 🟢
+   - C8 分期：InstallmentService（N 筆未來 pending＋installment_seq＋刪除連動移除）→ S9 🟢
+   - C9 退款：RefundService（refund_tx＋refund_links＋帳單負項應繳減）→ S10 🟢
+   - C10 生效日：effective_from（修改結帳日下期生效）→ S11 🟢
+2. ⚠️ harness `expect(executed, 10)` 需修正為 **12**（11 情境塊＋Outline 逐列 2）——C2 時一併修。
+3. F04-BE 全綠 → F04-FE 5 情境（帳單呈現/繳款流程/部分繳/設定顯示/逾期標示）。
+4. F04 完成後：全量＋部署驗證→merge main（bump 0.4.7）→ M4 掃描（T-F03）。
+5. 休息前照 §1 檢查清單更新本檔。
 
 ## 4. 恢復工作 SOP（下次開工照此執行）
 
