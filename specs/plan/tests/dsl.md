@@ -37,10 +37,15 @@
 | `Given 已重置記憶體資料庫` | 重建 drift in-memory DB + 清空 spy |
 | `Given 已建立帳戶「{name}」類型 {type} 期初 {amount}` | accounts + 期初 |
 | `Given 已建立信用卡「{name}」: 結帳日 {day} 號、繳款日加 {n} 天、歸屬 {include/exclude}` | accounts + credit_card_details |
+| `Given 已建立信用卡「{name}」: 結帳日 {day} 號、歸屬 {include/exclude}` | 同上（繳款日加預設 15 天；F04 clamp 情境） |
 | `Given 已有 {n} 筆預扣交易於「{card}」共 {amount}（{start}~{end}）` | 批次 pending 交易＋oplog（期間變體，F04 S10-補算/逾期/生效日） |
 | `Given 帳單 {period} 應繳 {amount} 狀態 {status}，含交易 {txAmount}（billed）` | statements＋statement_items＋billed 交易（退款情境，F04） |
 | `Given 帳單 {period} 應繳 {amount} 狀態 {status}（繳款日 {date}）` | 同上＋due_date 指定（提醒情境，F04） |
 | `Given 已有 {n} 筆預扣交易於「{card}」共 {amount}（{start}~{end} 期間）` | 週期語意（生效日情境，F04 修改結帳日） |
+| `Given 帳單 {period} 應繳 {amount} 狀態 {status}，含交易 {txAmount}（billed）` | statements＋billed 交易＋statement_items（退款情境，F04） |
+| `When 針對該筆建立退款 {amount}` | RefundService（refund 交易＋refund_links＋帳單負項，FR-C8） |
+| `Then 帳單應繳 = {amount}（負項明細 -{refund}）` | 帳單 total 沖減（FR-C8） |
+| `And refund_links 關聯已建立` | refund_links 查詢（FR-C8） |
 | `Given 已有 {n} 筆預扣交易於「{card}」共 {amount}` | 批次插入 pending 交易 + oplog |
 | `Given 帳單 {period} 應繳 {amount} 狀態 {status}` | statements + items |
 | `Given 模擬系統時間為 {datetime}` | fake clock 凍結 |
@@ -79,6 +84,8 @@
 | `When 呼叫 QuickEntryPresetService 計算預設（商家={m}）` | 同上＋商家歷史分類優先 |
 | `When 呼叫 UndoLastTransaction` | 軟刪除+oplog |
 | `When 執行 BillingCycleService.run（「{card}」）` | 結帳引擎 |
+| `Given 模擬系統時間為 {card} 的結帳日當天` | Clock 凍結至該卡當月結帳日（statement_day；Outline 歸屬情境） |
+| `Then 該筆 {amount} 歸屬於{period}$` | 本期：statement_items 含該筆；下期：不含（FR-C2） |
 | `When 觸發通知檢查` | NotificationCheckService（提醒 N-5/逾期 N-6，FR-C5/C6） |
 | `And 模擬系統時間為 {dt} 後觸發通知檢查` | Clock 快轉＋通知檢查 |
 | `When 以「{card}」建立分期 {total} 分 {n} 期、首期 {date}` | InstallmentService（FR-C7） |
@@ -135,7 +142,7 @@
 | `And 帳戶「{card}」重算餘額 = {amount}（本期應付）` | creditOpenBalance（pending 口徑，F04 S10-預扣） |
 | `And 通知 spy 不再收到 N-{n}（已繳取消提醒）` | spy.withId(n) 於取消後不增加 |
 | `Then 帳單狀態標記逾期` | statements.overdue（FR-C6） |
-| `Then 產生 {n} 筆未來 pending 交易（每筆 {amount}、installment_seq 1..{n}）` | installment 排程（FR-C7） |
+| `Then 產生 {n} 筆未來 pending 交易（每筆 {amount}、installment_seq 1..{last}）` | installment 排程（FR-C7；{last}={n}——同名捕獲群禁用） |
 | `And 帳戶「{card}」未來已承諾 = {amount}` | Σ 未到期分期 pending（FR-C7） |
 | `Then 尚未到期的 {n} 筆分期交易已移除` | 刪除連動（FR-C7） |
 | `Then 帳單應繳 = {amount}（負項明細 -{refund}）` | 退款負項（FR-C8） |

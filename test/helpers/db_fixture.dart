@@ -206,6 +206,36 @@ class DbFixture {
     ));
   }
 
+    /// 帳單種子（F04 繳款/提醒/逾期情境）。
+  static Future<String> seedStatement(
+    AppDatabase db, {
+    required String accountId,
+    required int periodStartMs,
+    required int periodEndMs,
+    required int totalMinor,
+    String status = 'issued',
+    int? dueDateMs,
+  }) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final id = 'st-\${now}-\${db.allTransactions().length}';
+    db.insertStatement(StatementRow(
+      id: id,
+      accountId: accountId,
+      periodStart: periodStartMs,
+      periodEnd: periodEndMs,
+      statementDate: periodEndMs,
+      dueDate: dueDateMs ?? periodEndMs + 15 * 86400000,
+      totalMinor: totalMinor,
+      paidMinor: 0,
+      status: status,
+      overdueNotified: false,
+      createdAt: now,
+      updatedAt: now,
+      hlc: '\${now}.st',
+    ));
+    return id;
+  }
+
     /// NFR-01 效能測資：批次直寫當月 N 筆（略 oplog/FTS——聚合僅讀 transactions）。
   static Future<void> seedBulkTransactions(
     AppDatabase db, {
