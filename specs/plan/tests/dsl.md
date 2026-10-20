@@ -2,7 +2,7 @@
 
 | 項目 | 內容 |
 |---|---|
-| 文件版本 | v0.6（F03-BE：§2.1 Given 1＋§2.2 When 5（單 QR／OCR fixture {n}＋計時／附件儲存）＋§2.3 Then 13 句型登記；S7 效能句型規格修正「入庫耗時」→「OCR 欄位抽取耗時」（F10 先例）） |
+| 文件版本 | v0.7（F03：§2 BE 19 句型（v0.6）＋§3 FE +20 句型——Given 4/When 7/Then 9＋註冊順序註記；S7 效能句型規格修正照 F10 先例） |
 | 用途 | 前端／後端 `.feature` 檔的**步驟句型唯一登記處**。新步驟必須先登記於本檔再實作綁定；未登記句型視為違規 |
 | 綁定 | 前端：自製 Gherkin runner + integration_test（TR-9 過渡；同 T-H7）｜後端：自製 Gherkin runner + flutter_test |
 
@@ -225,6 +225,10 @@
 | `Given 已存在一筆支出 {amount} 元` | fixture 直寫 1 筆支出（第一個未封存帳戶）並凍結基準日 2026/10/19 12:00（對齊情境日期算術：2026/11/18 = +30 日；F02-FE S4） |
 | `Given 裝置處於飛航模式` | 連線模擬關閉 |
 | `Given 同步模式設定為「{mode}」` | settings 寫入 |
+| `Given 相機權限未授權` | fake 權限閘（T-H8 掛鉤；權限對話框回放；F03-FE S2） |
+| `Given 掃描頁已掃 {n} 張標準測資發票` | fake scanner 回放注入 n 張 T-H6 標準發票（不經真相機；F03-FE S3） |
+| `Given OCR 對日期欄位的信賴度為 {conf}（低於 {threshold} 門檻）` | OCR 影像回放注入低信賴 fixture（acceptance S3.5；F03-FE S4） |
+| `Given 使用者位於 Windows 版（無相機裝置）` | 桌面無相機模擬（F03-FE S6 @desktop） |
 
 ### 3.2 When（動作）
 
@@ -246,6 +250,13 @@
 | `When App 切至背景 {n} 秒後返回` | lifecycle 模擬 |
 | `When 關閉並重新啟動 App` | 重啟（驗證啟動同步） |
 | `When 從相簿匯入 fixture {n}` | 桌面/無相機路徑 |
+| `When 開啟總覽頁並按下「掃描」` | 導航至總覽＋點擊掃描入口（key scan-entry；F03-FE S2） |
+| `When 拒絕權限` | fake 權限對話框按「拒絕」（F03-FE S2） |
+| `When 進入確認卡` | 確認清單首張卡聚焦（F03-FE S4） |
+| `When 確認第 {n} 張（分類={cat}、帳戶={a}）並按下「確認儲存」` | 卡內分類/帳戶選擇→儲存→自動跳下一張（source=scan＋附件關聯；F03-FE S3） |
+| `When 按下「{label}」而未處理` | 點擊但高亮欄位未確認（F03-FE S4；匹配順序須後於通用 `按下「{label}」`） |
+| `When 按下 Ctrl+Shift+S（macOS 為 ⌘⇧S）` | 桌面掃描快捷鍵注入（F03-FE S6；同 Ctrl+N 鍵注入模式） |
+| `And 再掃描 {n} 張` | fake scanner 追加回放（F03-FE S5） |
 
 ### 3.3 Then（斷言）
 
@@ -261,6 +272,16 @@
 | `Then 顯示「{text}」` / `Then 不顯示「{text}」` | 文字存在性（「日期時間選擇器」綁定 find.byType(QuickDateTimePicker)） |
 | `Then 顯示「{text}」且為可點擊` | 文字存在＋對應按鈕 enabled（F02-FE S1 儲存鈕啟用） |
 | `Then 顯示「{text}」標籤` | 文字存在（標籤語意；F05-FE S5.3 預扣標籤） |
+| `Then 顯示「掃描」按鈕（獨立於快記大鈕）` | find.byKey(scan-entry)（FR-S6 兩入口；F03-FE S1） |
+| `Then 顯示「前往設定開啟權限」且不離開 App` | 引導文案＋仍在 App 內（F03-FE S2） |
+| `Then 顯示「確認清單（{n} 張）」` | 確認清單標題（F03-FE S3/S6） |
+| `Then 顯示「{n} / {total}」` | 逐張確認進度（F03-FE S3） |
+| `And 明細頁即時顯示該 1 筆（帶 📷 附件標記）` | 明細列＋附件圖示（F03-FE S3；**先於通用 `明細頁即時顯示該 {n} 筆` 註冊**） |
+| `Then 顯示「請確認日期」（高亮樣式）` | needsReview 欄位警示高亮（FR-S5 0.7 門檻；F03-FE S4） |
+| `Then 顯示「請先確認高亮欄位」且不建立交易` | 未處理擋下＋交易零新增（FR-S5；F03-FE S4） |
+| `Then 顯示「已掃 {n} 張」` | 掃描計數文字（FR-S7；F03-FE S5） |
+| `And 顯示 {n} 個縮圖` | 掃描縮圖列計數（F03-FE S5） |
+| `Then 導向「相簿/檔案匯入」` | 無相機匯入頁呈現（F03-FE S6 @desktop） |
 | `Given 本期{cat}已支出 {amount}` | fixture 直寫本期 expense（F05-FE） |
 | `Given 本期{cat}含信用卡預扣 {amount}` | fixture 直寫本期 pending expense（F05-FE S5.3） |
 | `Given 收入目標 {goal} 且本月已入帳 {achieved}` | income_goals＋fixture 直寫本月 income（F05-FE S5.4） |
