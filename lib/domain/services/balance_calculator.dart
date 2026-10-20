@@ -1,5 +1,8 @@
+import 'dart:math';
+
 import '../entities/account.dart';
 import '../entities/transaction.dart';
+import '../../core/money.dart';
 
 /// 餘額計算器（SDD §4.3）。
 ///
@@ -19,7 +22,8 @@ import '../entities/transaction.dart';
 class BalanceCalculator {
   const BalanceCalculator();
 
-  /// 計算資產帳戶餘額（minor units）。[txs] 需為該帳戶相關之全部交易。
+  /// 計算資產帳戶餘額（minor units，**帳戶本位幣**）。[txs] 需為該帳戶相關之
+  /// 全部交易；外幣交易依 [Tx.fxRate] 換算為帳戶幣別（FR-T4，整數運算）。
   int assetBalance({
     required Account account,
     required Iterable<Tx> txs,
@@ -27,23 +31,39 @@ class BalanceCalculator {
     var balance = account.openingAmountMinor;
     for (final tx in txs) {
       if (tx.deleted) continue; // 墓標排除
+      final amount = _toAccountCurrency(tx, account);
       switch (tx.kind) {
         case TxKind.income:
-          if (tx.accountId == account.id) balance += tx.amountMinor;
+          if (tx.accountId == account.id) balance += amount;
         case TxKind.expense:
-          if (tx.accountId == account.id) balance -= tx.amountMinor;
+          if (tx.accountId == account.id) balance -= amount;
         case TxKind.transfer:
-          if (tx.accountId == account.id) balance -= tx.amountMinor;
-          if (tx.toAccountId == account.id) balance += tx.amountMinor;
+          if (tx.accountId == account.id) balance -= amount;
+          if (tx.toAccountId == account.id) balance += amount;
         case TxKind.repayment:
           // 還款轉出（from = 扣款帳戶）；信用卡端屬負債面，不在此計算。
-          if (tx.accountId == account.id) balance -= tx.amountMinor;
+          if (tx.accountId == account.id) balance -= amount;
         case TxKind.refund:
           // 退款作用於信用卡（負債面），資產帳戶不計。
           break;
       }
     }
     return balance;
+  }
+
+  /// 外幣交易金額 → 帳戶幣別 minor units（FR-T4）。
+  ///
+  /// 同幣別原值；異幣別：`amountMinor × fxRate × 10^(toExp − fromExp)` 後
+  /// 四捨五入（USD 10000 minor × 32 ÷ 100 = 3200 TWD）。無匯率 → 原幣面額
+  /// （不猜測；匯率必填由 UseCase 驗證）。
+  int _toAccountCurrency(Tx tx, Account account) {
+    if (tx.currency == account.currency) return tx.amountMinor;
+    final rate = tx.fxRate;
+    if (rate == null) return tx.amountMinor;
+    final fromExp = Money(0, currency: tx.currency).exponent;
+    final toExp = Money(0, currency: account.currency).exponent;
+    final converted = tx.amountMinor * rate * pow(10, toExp - fromExp);
+    return converted.round();
   }
 
   /// 信用卡「本期應付」：Σ 預扣支出 − Σ 退款（M3 帳單引擎前之骨架版）。

@@ -52,6 +52,6 @@ Feature: 交易與帳戶領域邏輯（後端自動化）
   @P1 @M2 @FR-T4
   Scenario: 多幣別整數換算
     When 呼叫 SaveTransactionUseCase（帳戶「現金」、金額 100 USD、匯率 32.0）
-    Then 交易保存原幣 100 與 fx_rate 32.0
-    And 帳戶「現金」重算餘額 = 900（以 3200 TWD 計）
+    Then 交易保存原幣 100 與 fx_rate 32.0（100 USD＝10000 minor）
+    And 帳戶「現金」重算餘額 = -2200（以 3200 TWD 計；1000−3200）
     And 金額運算無浮點誤差（Money VO 斷言）

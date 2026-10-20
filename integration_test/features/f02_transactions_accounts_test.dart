@@ -8,6 +8,7 @@ import 'package:ledger_sync/application/providers.dart';
 import 'package:ledger_sync/core/clock.dart';
 import 'package:ledger_sync/data/sqlite/app_database.dart';
 import 'package:ledger_sync/presentation/app_shell.dart';
+import 'package:ledger_sync/presentation/screens/ledger/ledger_page.dart';
 import 'package:ledger_sync/presentation/screens/ledger/recent_deletions_page.dart';
 import 'package:ledger_sync/presentation/screens/quick_entry/quick_entry_controller.dart';
 import 'package:ledger_sync/presentation/screens/quick_entry/quick_entry_page.dart';
@@ -33,10 +34,10 @@ Future<void> main() async {
     _bind(runner, w);
     try {
       final executed = await runner.run(doc, tagFilter: (tags) {
-        // 檔級標籤含 @P0（預設優先級）——情境級 @P1（拆分 @M2）以明確排除。
-        return tags.contains('@FE') && !tags.contains('@P1');
+        // M2 遺留完成（拆分 @P1 @M2 已實作）——全部情境執行。
+        return tags.contains('@FE');
       });
-      expect(executed, 5, reason: 'F02-FE 應執行 5 個情境（@FE @P0 含 S2.9 計算機；拆分 @P1 @M2 排除）');
+      expect(executed, 6, reason: 'F02-FE 應執行 6 個情境（@FE 全部：P0 5＋拆分 @P1 @M2）');
       // ignore: avoid_print
       print(runner.log.join('\n'));
     } finally {
@@ -186,6 +187,39 @@ void _bind(GherkinRunner runner, _World w) {
       isTrue,
       reason: '轉帳圖示（非支出圖示）',
     );
+  });
+
+  runner.on(r'顯示「{label}」樣式（同一群組）$', (p) async {
+    final tiles =
+        w.tester.widgetList<TxTile>(find.byType(TxTile, skipOffstage: false)).toList();
+    final splitTiles = tiles.where((t) => t.tx.splitGroupId != null).toList();
+    expect(splitTiles, hasLength(2), reason: '拆分應有 2 筆子交易');
+    expect(splitTiles[0].tx.splitGroupId, splitTiles[1].tx.splitGroupId,
+        reason: '兩筆共享同一 split_group_id（FR-T6）');
+    expect(
+      w.tester.any(find.byIcon(Icons.call_split, skipOffstage: false)),
+      isTrue,
+      reason: '拆分圖示（call_split）',
+    );
+  });
+
+  runner.on(r'建立拆分交易 總額 {total}（{cat1} {a1} \+ {cat2} {a2}）$', (p) async {
+    await _ensureQuickEntry(w);
+    final ctrl = w.container!.read(quickEntryControllerProvider.notifier);
+    ctrl.setMode(QuickEntryMode.split);
+    await w.tester.pumpAndSettle(); // 拆分欄位建構
+    ctrl.selectSplitCategory(0, p['cat1']!);
+    ctrl.selectSplitCategory(1, p['cat2']!);
+    await w.tester.enterText(
+        find.byKey(const Key('split-item-0-amount')), p['a1']!);
+    await w.tester.enterText(
+        find.byKey(const Key('split-item-1-amount')), p['a2']!);
+    await w.tester.pump();
+    ctrl.save();
+    w.sessionExpenses.addAll([_amount(p['a1']!), _amount(p['a2']!)]);
+    await w.tester.pumpAndSettle(); // SavedDialog
+    await w.tester.tap(find.text('完成'));
+    await w.tester.pumpAndSettle(); // 返回主殼
   });
 
   runner.on(r'顯示「{text}」（不顯示「{other}」）$', (p) async {

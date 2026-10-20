@@ -83,6 +83,7 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
               segments: const [
                 ButtonSegment(value: QuickEntryMode.expense, label: Text('支出')),
                 ButtonSegment(value: QuickEntryMode.transfer, label: Text('轉帳')),
+                ButtonSegment(value: QuickEntryMode.split, label: Text('拆分')),
               ],
               selected: {state.mode},
               onSelectionChanged: (modes) => controller.setMode(modes.first),
@@ -106,6 +107,59 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
                     .where((a) => a.id != state.account?.id)
                     .map((a) => (a.id, a.name)),
                 onSelected: controller.selectToAccountById,
+              ),
+              const SizedBox(height: 12),
+            ] else if (state.mode == QuickEntryMode.split) ...[
+              // 拆分子項 ×2（FR-T6；M2 固定兩項；總額守恆由 BE 驗證）。
+              Row(
+                children: [
+                  Expanded(
+                    child: _pickerField(
+                      key: const Key('split-item-0-cat'),
+                      label: '子項 1 分類',
+                      text: state.splitCat0?.name ?? '選擇分類',
+                      entries: categories.map((c) => (c.id, c.name)),
+                      onSelected: (id) => controller.selectSplitCategoryById(0, id),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      key: const Key('split-item-0-amount'),
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: '子項 1 金額'),
+                      onChanged: (v) => controller.setSplitItemAmount(0, v),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _pickerField(
+                      key: const Key('split-item-1-cat'),
+                      label: '子項 2 分類',
+                      text: state.splitCat1?.name ?? '選擇分類',
+                      entries: categories.map((c) => (c.id, c.name)),
+                      onSelected: (id) => controller.selectSplitCategoryById(1, id),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      key: const Key('split-item-1-amount'),
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: '子項 2 金額'),
+                      onChanged: (v) => controller.setSplitItemAmount(1, v),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '總額 ${_splitTotal(state)} 元',
+                style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 12),
             ] else ...[
@@ -157,17 +211,35 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
             const SizedBox(height: 24),
             FilledButton(
               key: const Key('quick-entry-save'),
-              // F02 S2.1：金額必填且大於 0（空值/0 皆禁用）；轉帳另需目標帳戶。
-              onPressed: (int.tryParse(state.amount) ?? 0) <= 0 ||
-                      (state.mode == QuickEntryMode.transfer && state.toAccount == null)
-                  ? null
-                  : controller.save,
+              // F02 S2.1：金額必填且大於 0（空值/0 皆禁用）；轉帳另需目標帳戶；
+              // 拆分另需雙子項完成（FR-T6 總額守恆由 BE 驗證）。
+              onPressed: _saveEnabled(state) ? controller.save : null,
               child: const Text('儲存'),
             ),
           ],
         ),
       ),
     );
+  }
+
+  static String _splitTotal(QuickEntryState state) {
+    final a0 = int.tryParse(state.splitAmount0) ?? 0;
+    final a1 = int.tryParse(state.splitAmount1) ?? 0;
+    return '${a0 + a1}';
+  }
+
+  static bool _saveEnabled(QuickEntryState state) {
+    final amountOk = (int.tryParse(state.amount) ?? 0) > 0;
+    switch (state.mode) {
+      case QuickEntryMode.transfer:
+        return amountOk && state.toAccount != null;
+      case QuickEntryMode.split:
+        final a0 = int.tryParse(state.splitAmount0) ?? 0;
+        final a1 = int.tryParse(state.splitAmount1) ?? 0;
+        return a0 > 0 && a1 > 0 && state.splitCat0 != null && state.splitCat1 != null;
+      case QuickEntryMode.expense:
+        return amountOk;
+    }
   }
 
   Widget _pickerField({

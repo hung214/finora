@@ -118,7 +118,7 @@
 | Feature | BE 任務（情境數） | FE 任務（情境數） | truth 對齊項 | 里程碑 | 狀態 |
 |---|---|---|---|---|---|
 | F01 快記 | T-F01-BE（8：智慧預設規則×4、儲存事務、Undo、離線、效能） | T-F01-FE（7：預填呈現、對話框、Sticky、完成、時間選擇器、復原、桌面快捷鍵） | settings key 命名（settings 表） | M1 | ☐ |
-| F02 交易帳戶 | T-F02-BE（6：金額驗證、轉帳守恆、儲值語意、軟刪除、還款、多幣別）——**M1 5/6 ✅**（多幣別 @P1 @M2 deferred，PM 確認 2026-10-19） | T-F02-FE（6：禁用態、轉帳樣式、儲值文案、最近刪除、拆分＋**S2.9 計算機鍵盤**〔PM 2026-10-20 增補〕）——**M1 5/6 ✅**（拆分 @P1 @M2 deferred） | tx_kind/settlement_status enum（✅ schema v1 已覆蓋） | M1/M2 | ✅（M1 完成；M2 項目：拆分／多幣別） |
+| F02 交易帳戶 | T-F02-BE（6：金額驗證、轉帳守恆、儲值語意、軟刪除、還款、多幣別）——**6/6 ✅**（多幣別照數學修：餘額 −2,200；fxRate 換算入 BalanceCalculator） | T-F02-FE（6：禁用態、轉帳樣式、儲值文案、最近刪除、拆分＋**S2.9 計算機鍵盤**）——**6/6 ✅**（executeSplit 總額守恆＋TxTile 拆分樣式） | tx_kind/settlement_status enum（✅ schema v1 覆蓋）；fx_rate（✅ TxRow/Tx/BalanceCalculator 換算） | M1/M2 | ✅ |
 | F03 掃描 | T-F03-BE（7：QR 解析、明細合併、回退、OCR 信賴度、附件定址、離線、效能） | T-F03-FE（6：入口、權限、確認清單、高亮、連拍、桌面匯入） | attachments.sha256（blobs 約定）；測資 fixture=T-H6 | M4 | ☐ |
 | F04 信用卡 | T-F04-BE（10：預扣、補算、歸屬 outline、clamp、繳款×2、提醒、逾期、分期、退款、生效日） | T-F04-FE（5：帳單呈現、繳款流程、部分繳、設定顯示、逾期標示） | **schema v3**（T-S3 先行）；boundary_rule enum | M3 | ☐ |
 | F05 預算 | T-F05-BE（5：閾值×2、含預扣、達標率、起始日）——**5/5 ✅**（BudgetAlertService 冪等 sync 點＋notif_state 去重） | T-F05-FE（5：警示色、超支、預扣標籤、達成、通知開關）——**5/5 ✅**（預算分頁＋總覽卡；FE 基線自洽修正 S1 7000/S2 8320） | **schema v2**（T-S2 ✅）；budgets/income_goals | M2 | ✅ |

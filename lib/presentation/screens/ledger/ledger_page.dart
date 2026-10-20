@@ -80,6 +80,9 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
                       toAccount: rows[i].toAccountId == null
                           ? null
                           : accountById[rows[i].toAccountId!],
+                      categoryName: rows[i].categoryId == null
+                          ? '未分類'
+                          : (db.categoryName(rows[i].categoryId!) ?? '未分類'),
                       onDelete: () => _confirmDelete(context, ref, rows[i]),
                     ),
                   ),
@@ -273,12 +276,16 @@ class TxTile extends StatelessWidget {
     required this.tx,
     required this.accountName,
     this.toAccount,
+    this.categoryName = '未分類',
     this.onDelete,
   });
 
   final TxRow tx;
   final String accountName;
   final AccountRow? toAccount;
+
+  /// 分類名稱（拆分樣式副標用）。
+  final String categoryName;
   final VoidCallback? onDelete;
 
   String get _title {
@@ -295,6 +302,22 @@ class TxTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final time = DateTime.fromMillisecondsSinceEpoch(tx.occurredAt);
+    if (tx.splitGroupId != null) {
+      // 拆分樣式（FR-T6）：call_split 圖示＋「拆分 · {分類}」＋群組副標。
+      return ListTile(
+        onTap: onDelete,
+        leading: const Icon(Icons.call_split),
+        title: Text('拆分 · $categoryName'),
+        subtitle: Text(
+          '群組 ${tx.splitGroupId!.substring(0, 8)}… · '
+          '${DateFormat('yyyy/MM/dd HH:mm').format(time)}',
+        ),
+        trailing: Text(
+          '-${tx.amountMinor}',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+      );
+    }
     if (tx.kind == 'transfer') {
       return ListTile(
         onTap: onDelete,

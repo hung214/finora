@@ -225,6 +225,8 @@
 | `When 清除全部篩選` | 「清除篩選」按鈕（還原完整清單） |
 | `Then 顯示全部 {n} 筆` | TxTile 計數（全部月份） |
 | `Given 篩選生效（期間={period}）` | 明細頁期間篩選設定（F10-FE S3） |
+| `When 建立拆分交易 總額 {total}（{cat1} {a1} + {cat2} {a2}）` | 快記拆分模式：雙子項（分類＋金額）→ executeSplit（總額守恆；F02-FE S2.7 @M2） |
+| `And 顯示「{label}」樣式（同一群組）` | 拆分樣式：兩列同群組＋call_split 圖示（F02-FE S2.7） |
 | `When 開啟總覽頁` | 導航至總覽分頁（NavigationBar；F05-FE S5.4/S5.5） |
 | `Then 金額欄下方顯示常駐計算機鍵盤` | find.byKey(amount-keypad)；金額欄 readOnly 不彈系統鍵盤（F02-FE S2.9） |
 | `Then 金額欄顯示 {value}` | 金額欄 text == value（＝ 求值結果；TWD 四捨五入整數元） |

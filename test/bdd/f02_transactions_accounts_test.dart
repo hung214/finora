@@ -6,6 +6,7 @@ import 'package:ledger_sync/application/stats/monthly_stats_service.dart';
 import 'package:ledger_sync/application/transactions/delete_transaction_use_case.dart';
 import 'package:ledger_sync/application/transactions/tombstone_purge_service.dart';
 import 'package:ledger_sync/core/clock.dart';
+import 'package:ledger_sync/core/money.dart';
 import 'package:ledger_sync/data/sqlite/app_database.dart';
 import 'package:ledger_sync/domain/entities/account.dart';
 import 'package:ledger_sync/domain/entities/transaction.dart';
@@ -23,7 +24,7 @@ void main() {
   final source = File('test/bdd/F02_transactions-accounts.feature').readAsStringSync();
   final doc = GherkinParser.parse(source);
 
-  test('F02-BE：交易與帳戶領域邏輯（5 情境：金額驗證／轉帳守恆／儲值語意／軟刪除／還款）', () async {
+  test('F02-BE：交易與帳戶領域邏輯（6 情境：金額驗證／轉帳守恆／儲值語意／軟刪除／還款／多幣別）', () async {
     final w = _World();
     final runner = GherkinRunner();
     _bind(runner, w);
@@ -33,10 +34,10 @@ void main() {
       // 會被所有情境繼承，須以 !@M2 排除 M2 範圍。
       final executed = await runner.run(
         doc,
-        tagFilter: (tags) =>
-            tags.contains('@BE') && tags.contains('@P0') && !tags.contains('@M2'),
+        // M2 遺留完成（多幣別 @P1 @M2 已實作）——全部 6 情境執行。
+        tagFilter: (tags) => tags.contains('@BE'),
       );
-      expect(executed, 5, reason: 'F02-BE 應執行 5 個情境（@BE @P0；多幣別 @P1 @M2 屬 M2）');
+      expect(executed, 6, reason: 'F02-BE 應執行 6 個情境（@BE 全部：P0 5＋多幣別 @P1 @M2）');
       // ignore: avoid_print
       print(runner.log.join('\n'));
     } finally {
@@ -307,6 +308,47 @@ void _bind(GherkinRunner runner, _World w) {
     expect(unpaid, _amount(p['amount']!), reason: '還款抵扣未繳合計（下限 0；M3 前骨架版）');
   });
 
+  // ── When／Then：多幣別（F02 S2.8 @M2；FR-T4）──────────────
+  runner.on(r'呼叫 SaveTransactionUseCase（帳戶「{a}」、金額 {amount} {currency}、匯率 {rate}）$', (p) {
+    w.opBaseline = w.db.allOps().length;
+    final currency = p['currency']!;
+    final minor = Money.fromMajor(_amount(p['amount']!), currency: currency).minorUnits;
+    try {
+      final result = w.save.execute(
+        accountId: w.accounts[p['a']!]!,
+        amountMinor: minor,
+        occurredAt: Clock.now(),
+        currency: currency,
+        fxRate: double.parse(p['rate']!),
+      );
+      w.lastCreatedTxId = result.transactionId;
+      w.validationError = null;
+    } on TransactionValidationException catch (e) {
+      w.validationError = e.message;
+    }
+  });
+
+  runner.on(r'交易保存原幣 {amount} 與 fx_rate {rate}（{note}）$', (p) {
+    // 註記格式「100 USD＝10000 minor」→ 幣別與 minor units。
+    final noteParts = p['note']!.split('＝');
+    final currency = noteParts.first.trim().split(' ').last; // USD
+    final minor = int.parse(noteParts.last.trim().split(' ').first); // 10000
+    final row = w.db.transactionById(w.lastCreatedTxId!);
+    expect(row, isNotNull, reason: '交易應已入庫');
+    expect(row!.currency, currency, reason: '原幣幣別（FR-T4）');
+    expect(row.amountMinor, minor, reason: '原幣 minor units（${p['note']}）');
+    expect(row.fxRate, double.parse(p['rate']!), reason: 'fx_rate');
+  });
+
+  runner.on(r'金額運算無浮點誤差（Money VO 斷言）$', (p) {
+    // 100 USD（10000 minor）× 32 ÷ 100 = 3200 TWD——整數運算無浮點誤差。
+    final usdMinor = Money.fromMajor(100, currency: 'USD').minorUnits;
+    expect(usdMinor, 10000, reason: 'USD exponent 2');
+    final twdMinor = (usdMinor * 32) ~/ 100;
+    expect(twdMinor, Money(3200, currency: 'TWD').minorUnits,
+        reason: '換算無浮點誤差（Money VO）');
+  });
+
   // ── Then：餘額（dsl.md §2.3 既有句型）─────────────────────
   runner.on(r'帳戶「{a}」重算餘額 = {amount}$', (p) {
     final row = w.db.allAccounts().firstWhere((r) => r.name == p['a']);
@@ -347,6 +389,9 @@ Tx _txEntity(TxRow r) => Tx(
       id: r.id,
       kind: TxKind.values.byName(r.kind),
       amountMinor: r.amountMinor,
+      currency: r.currency,
+      fxRate: r.fxRate,
+      splitGroupId: r.splitGroupId,
       accountId: r.accountId,
       toAccountId: r.toAccountId,
       categoryId: r.categoryId,
@@ -367,4 +412,9 @@ Account _accountEntity(AccountRow r) => Account(
       archived: r.archived,
     );
 
-int _amount(String s) => int.parse(s.trim().replaceAll(',', ''));
+/// 金額解析：取前導數字（含負號/千分位；容許其後註記，如「-2200（以 3200 TWD 計）」）。
+int _amount(String s) {
+  final m = RegExp(r'^-?[\d,]+').firstMatch(s.trim());
+  if (m == null) throw FormatException('金額格式未支援：$s');
+  return int.parse(m.group(0)!.replaceAll(',', ''));
+}
