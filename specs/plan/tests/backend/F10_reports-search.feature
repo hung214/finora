@@ -35,7 +35,7 @@ Feature: 報表聚合與搜尋（後端自動化）
     When 匯出 CSV
     Then 檔案以 UTF-8 BOM 開頭（EF BB BF）
     And 欄位含 日期/類型/金額/幣別/帳戶/分類/商家/備註
-    And 金額欄為純數字（6 筆，可 SUM）
+    And 金額欄為純數字（5 筆，可 SUM）
 
   @P0 @NFR-01
   Scenario: 效能_10 萬筆報表

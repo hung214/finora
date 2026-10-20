@@ -29,4 +29,4 @@ Feature: 報表與搜尋 UI（前端自動化）
   Scenario: CSV 匯出提示
     Given 篩選生效（期間=6月）
     When 按下「匯出 CSV」
-    Then 顯示「已匯出 6 月交易（6 筆，UTF-8）」
+    Then 顯示「已匯出 6 月交易（5 筆，UTF-8）」

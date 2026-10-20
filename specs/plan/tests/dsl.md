@@ -60,6 +60,9 @@
 | `Given 已儲存 {n} 筆（{amounts}）` | fixture 直寫 n 筆支出於第一個未封存帳戶（金額清單「、」分隔，依序遞減 1 分鐘） |
 | `Given 本月已支出 {expense}、收入 {income}` | fixture 直寫本月支出/收入各 1 筆於票證卡（本月統計基準線；不得落於該情境有餘額斷言之帳戶，F02 S2.3） |
 | `Given 已存在一筆支出 {amount} 元` | fixture 直寫 1 筆支出於第一個未封存帳戶並登記 id（刪除情境目標，F02 S2.5） |
+| `Given 已存在 {month} 月支出: {desc}（經 fixture）` | fixture 直寫（段落「分類 N 筆共 TOTAL」以總額/N 各一筆；年取 Clock.now；FTS 隨 save 維護，F10） |
+| `And 其中 {n} 筆 {month} 月{cat}備註含「{kw}」` | setTransactionNote（UPDATE＋FTS 重索引；正式編輯功能屬後續） |
+| `Given 已匯入 {n} 萬筆種子交易` | 批次直寫當月（略 oplog——聚合僅讀 transactions；NFR-01 效能測資） |
 | `And 連線已關閉` | in-memory adapter 進入 failing 態（模擬離線） |
 
 ### 2.2 When（動作）
@@ -80,6 +83,12 @@
 | `When 建立還款交易 來源={from} 目標={to} 金額 {amt}` | repayment（無分類；FR-T7） |
 | `When 呼叫 SaveTransactionUseCase（金額 {amt}）` | 最小參數驗證（F02 S2.1：金額規則） |
 | `When 刪除該筆交易` | DeleteTransactionUseCase（軟刪除+oplog 墓標，FR-T3） |
+| `When 執行報表聚合（期間={period}）` | ReportService.aggregate（YYYY/MM；僅 expense，轉帳/收入不計——FR-R2） |
+| `When 執行報表聚合（期間=最近月，計時）` | 同上＋Stopwatch（NFR-01：10 萬筆 < 1500ms） |
+| `When 搜尋 "{kw}"` | SearchService（FTS5 bigram；環境缺模組降級 LIKE） |
+| `When 篩選 期間={period}、分類={cat}、關鍵字={kw}` | AND 複合（FR-R3） |
+| `When 加上 金額區間 {min}~{max}` | 前次篩選條件＋金額區間（AND） |
+| `When 匯出 CSV` | CsvExporter（篩選後結果；UTF-8 BOM，FR-R4） |
 | `When 模擬時間快轉 {days} 天並執行清除工作` | Clock 快轉＋TombstonePurgeService（30 天保留期，FR-T3） |
 | `When 呼叫 SaveTransactionUseCase（帳戶「{a}」、金額 {amount} {currency}、匯率 {rate}）` | **M2**（F02 S2.8 多幣別 @P1；M1 不綁定） |
 | `When 解析左側 QR 字串 "..." 與右側 QR 字串 "..."` | InvoiceQrParser 純函數 |
@@ -134,6 +143,14 @@
 | `And oplog 新增 {n} 筆（墓標）` | delta=n 且新 oplog payload=NULL |
 | `Then 解析結果：商家="{m}"、總額={amt}、日期={date}` | parser 輸出 |
 | `Then 搜尋 "{kw}" 命中 {n} 筆` | FTS5 bigram |
+| `Then 搜尋 "{kw}" 命中 {n} 筆（命中「{hit}」）` | 同上＋命中備註/商家含 {hit} |
+| `Then 命中 {n} 筆（{note}）` / `Then 命中 {n} 筆` | 複合篩選結果數（AND；空結果友善提示為 UI 面） |
+| `Then 檔案以 UTF-8 BOM 開頭（EF BB BF）` | CsvExporter 輸出 utf8 前三 bytes（FR-R4） |
+| `And 欄位含 {fields}` | CSV header 欄位檢查 |
+| `And 金額欄為純數字（{n} 筆，可 SUM）` | 資料列金額皆為整數＋列數檢查 |
+| `Then 效能：報表聚合耗時 < {limit}ms（P95）` | Stopwatch 實測（NFR-01；10 萬筆 < 1500ms） |
+| `Then {cat}占比 = {pct}%（{expr}）` | ReportAggregate（分類金額/總計，四捨五入至 0.1%；FR-R2） |
+| `And 合計 = {amount}（{note}）` | 期間 expense 總計（不含 7 月/轉帳——FR-R2） |
 
 ---
 
