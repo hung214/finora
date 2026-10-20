@@ -186,6 +186,41 @@ class DbFixture {
     );
   }
 
+  /// NFR-01 效能測資：批次直寫當月 N 筆（略 oplog/FTS——聚合僅讀 transactions）。
+  static Future<void> seedBulkTransactions(
+    AppDatabase db, {
+    required int count,
+    String? accountId,
+  }) async {
+    final now = DateTime.now();
+    final acct = accountId ?? 'a-bulk';
+    if (db.allAccounts().every((a) => a.id != acct)) {
+      await seedAccount(db, id: acct, type: 'cash', name: '效能現金');
+    }
+    final rows = <TxRow>[];
+    for (var i = 0; i < count; i++) {
+      final at = DateTime(now.year, now.month, (i % 28) + 1, 12);
+      rows.add(TxRow(
+        id: 'tx-bulk-$i',
+        kind: 'expense',
+        amountMinor: 100 + (i % 50),
+        currency: 'TWD',
+        accountId: acct,
+        toAccountId: null,
+        categoryId: 'c-bulk-${i % 4}',
+        merchant: null,
+        note: null,
+        occurredAt: at.millisecondsSinceEpoch,
+        source: 'manual',
+        settlementStatus: 'none',
+        createdAt: now.millisecondsSinceEpoch,
+        updatedAt: now.millisecondsSinceEpoch,
+        hlc: '${now.millisecondsSinceEpoch}.$i.bulk',
+      ));
+    }
+    db.insertTransactionsBulk(rows);
+  }
+
   /// T-H5：標準劇例資料集（acceptance 背景資料）。
   /// 帳戶 4（現金 1,000／銀行 10,000／票證卡 0／示例卡 0）＋分類 5＋交易 3（→oplog 3）。
   static Future<void> seedStandardScenario(AppDatabase db) async {

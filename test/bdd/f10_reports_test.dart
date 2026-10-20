@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_sync/application/reports/report_service.dart';
+import 'package:ledger_sync/application/reports/csv_exporter.dart';
 import 'package:ledger_sync/application/reports/search_service.dart';
 import 'package:ledger_sync/core/clock.dart';
 import 'package:ledger_sync/data/sqlite/app_database.dart';
@@ -158,6 +160,15 @@ void _bind(GherkinRunner runner, _World w) {
   });
 
   // ── When／Then：報表聚合（F10 S10.1；FR-R2）───────────────
+  runner.on(r'執行報表聚合（期間=最近月，計時）$', (p) {
+    final now = Clock.now();
+    final sw = Stopwatch()..start();
+    w.report = ReportService(w.db).aggregate(now.year, now.month);
+    w.aggregateElapsed = sw.elapsed;
+    // ignore: avoid_print
+    print('NFR-01 實測：10 萬筆報表聚合 ${w.aggregateElapsed!.inMilliseconds}ms');
+  });
+
   runner.on(r'執行報表聚合（期間={period}）$', (p) {
     final (year, month) = _parsePeriod(p['period']!);
     w.report = ReportService(w.db).aggregate(year, month);
@@ -176,6 +187,101 @@ void _bind(GherkinRunner runner, _World w) {
     final report = w.report as ReportAggregate?;
     expect(report!.totalMinor, _amount(p['amt']!),
         reason: '期間 expense 合計（${p['note']}）');
+  });
+
+  // ── When／Then：AND 篩選（F10 S10.2 @P1）─────────────────
+  runner.on(r'篩選 期間={period}、分類={cat}、關鍵字={kw}$', (p) {
+    w.filterPeriod = p['period'];
+    w.filterCategory = w.categories[p['cat']!];
+    w.filterKeyword = p['kw'];
+    final (year, month) = _parsePeriod(p['period']!);
+    w.searchResults = SearchService(w.db).search(
+      keyword: w.filterKeyword,
+      startMs: DateTime(year, month).millisecondsSinceEpoch,
+      endMs: DateTime(year, month + 1).millisecondsSinceEpoch,
+      categoryId: w.filterCategory,
+    );
+  });
+
+  runner.on(r'加上 金額區間 {min}~{max}$', (p) {
+    final (year, month) = _parsePeriod(w.filterPeriod!);
+    w.filterMin = _amount(p['min']!);
+    w.filterMax = _amount(p['max']!);
+    w.searchResults = SearchService(w.db).search(
+      keyword: w.filterKeyword,
+      startMs: DateTime(year, month).millisecondsSinceEpoch,
+      endMs: DateTime(year, month + 1).millisecondsSinceEpoch,
+      categoryId: w.filterCategory,
+      minMinor: w.filterMin,
+      maxMinor: w.filterMax,
+    );
+  });
+
+  runner.on(r'命中 {n} 筆（{note}）$', (p) {
+    expect(w.searchResults ?? const <TxRow>[], hasLength(int.parse(p['n']!)),
+        reason: 'AND 複合篩選（${p['note']}）');
+  });
+
+  runner.on(r'命中 {n} 筆$', (p) {
+    expect(w.searchResults ?? const <TxRow>[], hasLength(int.parse(p['n']!)),
+        reason: '複合篩選結果數');
+  });
+
+  // ── Given／When／Then：CSV（F10 S10.3 @P1；FR-R4）─────────
+  runner.on(r'篩選期間={period}$', (p) {
+    w.filterPeriod = p['period'];
+  });
+
+  runner.on(r'匯出 CSV$', (p) {
+    final (year, month) = _parsePeriod(w.filterPeriod!);
+    final rows = SearchService(w.db).search(
+      startMs: DateTime(year, month).millisecondsSinceEpoch,
+      endMs: DateTime(year, month + 1).millisecondsSinceEpoch,
+    );
+    final names = w.categories;
+    w.csv = CsvExporter(
+      categoryName: (id) => names.entries.where((e) => e.value == id).map((e) => e.key).first,
+      accountName: (id) => '現金',
+    ).export(rows);
+  });
+
+  runner.on(r'檔案以 UTF-8 BOM 開頭（EF BB BF）$', (p) {
+    final bytes = const Utf8Encoder().convert(w.csv ?? '');
+    expect(bytes.length, greaterThanOrEqualTo(3), reason: 'CSV 應非空');
+    expect([bytes[0], bytes[1], bytes[2]], [0xEF, 0xBB, 0xBF],
+        reason: 'FR-R4：UTF-8 with BOM（Excel 中文相容）');
+  });
+
+  runner.on(r'欄位含 {fields}$', (p) {
+    final header = (w.csv ?? '').split('\n').first;
+    for (final field in p['fields']!.split('/')) {
+      expect(header, contains(field), reason: 'CSV header 應含「$field」');
+    }
+  });
+
+  runner.on(r'金額欄為純數字（{n} 筆，可 SUM）$', (p) {
+    final lines = (w.csv ?? '')
+        .split('\n')
+        .where((l) => l.trim().isNotEmpty)
+        .skip(1) // header
+        .toList();
+    expect(lines, hasLength(int.parse(p['n']!)), reason: '資料列數（篩選期間）');
+    for (final line in lines) {
+      final amount = line.split(',')[2]; // 金額欄（無逗號欄位干擾：測資無引號欄）
+      expect(int.tryParse(amount), isNotNull, reason: '金額欄應為純數字：$amount');
+    }
+  });
+
+  // ── Given／When／Then：效能（F10 NFR-01 @P0）──────────────
+  runner.on(r'已匯入 {n} 萬筆種子交易$', (p) async {
+    final count = int.parse(p['n']!) * 10000;
+    await DbFixture.seedBulkTransactions(w.db, count: count);
+  });
+
+  runner.on(r'效能：報表聚合耗時 < {limit}ms（P95）$', (p) {
+    expect(w.aggregateElapsed, isNotNull, reason: '應已計時聚合');
+    expect(w.aggregateElapsed!.inMilliseconds, lessThan(int.parse(p['limit']!)),
+        reason: 'NFR-01：報表聚合 < ${p['limit']}ms');
   });
 }
 

@@ -341,6 +341,21 @@ class AppDatabase {
         .toList();
   }
 
+  /// 批次寫入（單一 transaction；NFR-01 效能測資用，略 oplog/FTS——
+  /// 聚合僅讀 transactions。正式寫入路徑仍走 saveTransactionWithOplog）。
+  void insertTransactionsBulk(List<TxRow> rows) {
+    _db.execute('BEGIN');
+    try {
+      for (final t in rows) {
+        insertTransaction(t);
+      }
+      _db.execute('COMMIT');
+    } catch (_) {
+      _db.execute('ROLLBACK');
+      rethrow;
+    }
+  }
+
   // ── 同步日誌（SDD §5.5） ──────────────────────────────────
 
   void appendOp(OplogRow o) => _db.execute(
