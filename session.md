@@ -21,20 +21,20 @@
 | 欄位 | 內容 |
 |---|---|
 | 更新時間 | 2026-10-20（macOS 跨電腦接手） |
-| 階段 | **M1 發佈中**（v0.4.5）＋**T-F05 預算 BE→FE 完成**（BE 5＋FE 5 情境全綠；F01/F02-FE 回歸全綠）。下一步：**push 本分支→T-F10 報表**（FTS5 bigram）→ M2 核心齊後整體部署驗證→merge main（bump 0.4.6） |
-| 當前分支 | feature/F05-budget-income-goal（12 commits；main = 4e4f8b3） |
-| 當前任務 | 本輪：①T-S2 schema v2（73 綠，已 merge main）②F05-BE 🔴→🟢 5 情境（BudgetRow/IncomeGoalRow oplog 契約／BudgetPeriodService 週期／BudgetEvaluator 用量含預扣分量／BudgetAlertService 冪等 sync＋afterSave 鉤子／settlementStatus 參數）③S5.3 規格補漏（Given 6500 對齊 acceptance 前置表）④F05-FE 🔴→🟢 5 情境（基線自洽修正 S1 7000/S2 8320＋預算分頁＋總覽收入目標卡＋進度橫幅＋通知開關閘） |
-| 紅綠燈狀態 | `dart analyze` No issues；unit **74 全綠**；**F05-FE 5 情境全綠**＋**F01-FE（7 情境）／F02-FE（5 情境）回歸全綠**（macOS 實跑） |
+| 階段 | **M1 發佈中**（v0.4.5）＋T-F05 完成＋**T-F10-BE 完成**（5 情境全綠：占比聚合／FTS5 bigram／AND 篩選／CSV BOM／NFR-01 10 萬筆 387ms）。下一步：**T-F10-FE**（統計頁 UI 3 情境：占比趨勢呈現／複合篩選互動／CSV 匯出提示）→ M2 核心齊→整體部署驗證→merge main（bump 0.4.6） |
+| 當前分支 | feature/F10-reports-search（8 commits，自 F05 分支續開〔F05 未 push 前接續〕；main = 4e4f8b3） |
+| 當前任務 | 本輪：①T-S2 schema v2 ②F05-BE/FE 🔴→🟢（10 情境；冪等 sync 點警示／預算分頁／總覽卡）③F10-BE 🔴→🟢 5 情境（TextIndex bigram＋AppDatabase FTS 維護（save 鉤子）＋SearchService（FTS 優先 LIKE 降級＋AND）＋ReportService（占比 0.1%）＋CsvExporter（UTF-8 BOM）＋insertTransactionsBulk 效能測資；規格修正：CSV 5 筆／金額區間 400~800／效能句型） |
+| 紅綠燈狀態 | `dart analyze` No issues；unit **75 全綠**；**F05-FE 5＋F01-FE 7＋F02-FE 5 情境回歸全綠**（macOS 實跑）；NFR-01 實測 10 萬筆聚合 387ms<1500ms |
 | 工作區 | 乾淨（文件回寫後 commit） |
 | truth 對齊 | data-spec v0.3 不變；dsl v0.5（F05 §2 +10／§3 +10 句型）；acceptance F05 不變（BE/FE feature 檔修正見歷程） |
 | 環境筆記 | 延續上輪。新增：①income_goals 不在 dbml sync_entity enum——oplog 暫以 budgets entity 記（**F07 前 truth PR 補 enum**）②List.fold 需顯式 `<int>`（Dart 推斷陷阱）③`null-aware marker ?` 新 lint ④SegmentedButton 參數為 onSelectionChanged ⑤IndexedStack 多頁同 key——finder 用 .first（同資料同色） |
 | 阻塞／待決 | ①gh 未安裝（PR/壞包 v0.4.0/0.4.2 刪除）②dbml sync_entity 缺 income_goals（F07 前 truth PR）③SPEC FR-Q4 待 PM ④SP-1 SQLCipher ⑤多幣別 900 矛盾待 PM（M2 尾）⑥notify_enabled=off 期內級別視為已消耗（重開不回補）——語意待 PM 確認 |
 
-## 3. 下一步（F05 收尾→T-F10；下次開工照此執行）
+## 3. 下一步（T-F10-FE→M2 收尾；下次開工照此執行）
 
-1. **push** feature/F05-budget-income-goal（push 前驗證已備：74 unit＋F01/F02/F05-FE 全綠）。
-2. **T-F10 報表**新分支 `feature/F10-reports-search`（分類占比＋FTS5 bigram 搜尋——schema v2 已備 transactions_fts；BE 5 情境：占比、bigram、AND 篩選、CSV、效能）。
-3. T-F10 完成後：M2 核心（F05＋F10）齊 → **整體部署驗證一次**→ merge main（bump 0.4.6）→ M2 遺留（拆分 S2.7、多幣別 S2.8＋矛盾釋義）。
+1. **T-F10-FE** 3 情境（同分支續作）：①統計頁（M2 第四分頁或總覽入口——開頁選月→分類占比「餐飲 69.2%」＋合計千分位＋月趨勢長條）②複合篩選互動（chips 可移除＋清除全部→全部 6 筆）③CSV 匯出提示（按「匯出 CSV」→「已匯出 6 月交易（5 筆，UTF-8）」——CsvExporter 已備）。dsl §3 先登記。
+2. 完成→全量＋F05 回歸→**M2 核心齊**（F05＋F10）→ 整體部署驗證一次 → merge main（bump 0.4.6，tag 自動）。
+3. M2 遺留排程：拆分 S2.7、多幣別 S2.8（900 矛盾請 PM 釋義）、桌面適配（F01-S1.11）。
 4. 休息前照 §1 檢查清單更新本檔。
 
 ## 4. 恢復工作 SOP（下次開工照此執行）
@@ -49,6 +49,7 @@
 
 | 日期 | 摘要 | 分支 | 狀態 |
 |---|---|---|---|
+| 2026-10-20 | **F10-BE 報表聚合與搜尋完成（5 情境全綠）**：TextIndex（CJK bigram＋MATCH 查詢）＋AppDatabase FTS 維護（save 鉤子重索引＋ftsSearch/transactionsByRowids/setTransactionNote；環境缺模組降級 LIKE）＋SearchService（AND 複合：期間/分類/帳戶/金額區間＋關鍵字標準化）＋ReportService（占比 0.1%＋總計，轉帳/收入不計）＋CsvExporter（UTF-8 BOM＋10 欄位＋金額純數字）＋insertTransactionsBulk 效能測資；**NFR-01 實測 10 萬筆聚合 387ms<1500ms**；規格修正三處（CSV 5 筆／金額區間 400~800 證明空結果／效能句型「入庫耗時」→報表聚合）；**75 unit 全綠** | feature/F10-reports-search | 🔵（BE 🟢 5/5、FE 待） |
 | 2026-10-20 | **T-F05 預算 BE→FE 完成（5+5 情境全綠）**：BE 🔴→🟢（BudgetRow/IncomeGoalRow oplog 契約／BudgetPeriodService 跨月週期／BudgetEvaluator 用量含 pending 預扣分量＋達標率不封頂＋預計結餘／BudgetAlertService 冪等 sync 點——N-1/N-2/N-3 分級補發 settings notif_state per period＋afterSave 鉤子＋notificationProvider no-op；S5.3 規格補漏 Given 6500 對齊 acceptance 前置表）；FE 🔴→🟢（預算分頁 M2 IA 第三分頁＋進度條警示色 orange/red＋超支不封鎖＋預扣標籤＋總覽收入目標卡＋通知開關閘 budget.notify_enabled；情境基線自洽修正 S1 7000/S2 8320 對齊 acceptance 敘述）；**74 unit＋F01/F02-FE 回歸全綠** | feature/F05-budget-income-goal | 🔵（5+5 全綠、待 push 與 PR） |
 | 2026-10-20 | **T-S2 schema v2 完成＋M1 發佈**：F02 bump 0.4.5＋merge main→**tag v0.4.5 自動建立**（四平台建置中）；T-S2 🔴→🟢（budgets/income_goals/fts——dbml v0.3 早已預定義，code schema 對齊落地；fts 環境缺模組容錯降級；_migrate 多版本鏈 v1→v2 每版本 transaction＋既有表偵測補標；T-H9 對齊擴充 v1/v2；回歸 4 測試：全新直達 v2／FTS 容錯／v1 舊檔升級資料完整／file 冪等）；T-F05 設計筆記寫入（冪等 sync 點通知語意——由 S5.1 內容 87.5%＋S5.2 N-2 時序反推）；**73 測試全綠**；T-S2 已 merge main（v0.4.5 冪等未重複觸發） | feature/T-S2-schema-v2 → main | ✅（e23b795→bc82a6f→merge ea23a92） |
 | 2026-10-20 | **F02-FE 完成＋S2.9 計算機（M1 全綠）**：F02-FE @P0 5 情境 🔴→🟢 macOS 實跑全綠（S1 金額 0/空值禁用／S2 快記轉帳模式＋明細 swap 樣式＋總覽千分位／S3 儲值文案／S4 最近刪除 30 曆日窗口＋還原 UI〔RestoreTransactionUseCase＋unit test〕）；**S2.9 金額計算機鍵盤**（PM 增補：常駐四則運算、＝ 左至右四捨五入整數元、÷0 no-op、連按運算子取代；macOS 視窗 800×760）；**harness 修復**：feature 檔 rootBundle 資產載入（桌面行程 CWD=/，File 相對路徑失效——F01 同修）；規範修正：本地部署驗證＝整體軟體全綠後**一次**、任務前必列 TODOLIST；analyze 0＋unit 69 綠＋F01-FE 回歸全綠；M1 部署驗證通過（Release 46.9MB＋檔案 DB 二次啟動） | feature/F02-transactions-accounts | 🔵（M1 全綠、已部署驗證、已 push、待 PR 合併） |
