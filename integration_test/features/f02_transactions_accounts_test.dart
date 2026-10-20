@@ -204,8 +204,7 @@ void _bind(GherkinRunner runner, _World w) {
   runner.on(r'帳戶「{name}」餘額顯示為 {amount}$', (p) async {
     await _ensureApp(w);
     // 導航至總覽（NavigationBar；冪等——已作用中再點無副作用）。
-    await w.tester.tap(find.descendant(
-        of: find.byType(NavigationBar), matching: find.text('總覽')));
+    await w.tester.tap(find.byKey(const Key('nav-總覽')));
     await w.tester.pumpAndSettle();
     final fmt = NumberFormat('#,###').format(_amount(p['amount']!));
     expect(find.text('餘額 $fmt'), findsOneWidget, reason: '總覽餘額卡（千分位）');
@@ -232,8 +231,7 @@ void _bind(GherkinRunner runner, _World w) {
   // ── When：刪除與時間（F02-FE S4）────────────────────────
   runner.on(r'刪除該筆交易$', (p) async {
     await _ensureApp(w);
-    await w.tester.tap(find.descendant(
-        of: find.byType(NavigationBar), matching: find.text('明細')));
+    await w.tester.tap(find.byKey(const Key('nav-明細')));
     await w.tester.pumpAndSettle();
     // 點該筆（session 最後一筆支出）→ bottom sheet「刪除」。
     final amt = w.sessionExpenses.last;
@@ -365,8 +363,7 @@ Future<void> _openRecentDeletions(_World w) async {
     await w.tester.pageBack();
     await w.tester.pumpAndSettle();
   }
-  await w.tester.tap(find.descendant(
-      of: find.byType(NavigationBar), matching: find.text('明細')));
+  await w.tester.tap(find.byKey(const Key('nav-明細')));
   await w.tester.pumpAndSettle();
   await w.tester.tap(find.byKey(const Key('ledger-recent-deletions')));
   await w.tester.pumpAndSettle();

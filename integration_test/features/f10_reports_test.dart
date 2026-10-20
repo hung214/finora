@@ -121,8 +121,7 @@ void _bind(GherkinRunner runner, _World w) {
   // When/Then：統計頁（F10 S10.1；FR-R2 呈現面）
   runner.on(r'開啟統計頁並選擇 {month} 月$', (p) async {
     await _ensureApp(w);
-    await w.tester.tap(find.descendant(
-        of: find.byType(NavigationBar), matching: find.text('統計')));
+    await w.tester.tap(find.byKey(const Key('nav-統計')));
     await w.tester.pumpAndSettle();
     await w.tester.tap(find.byKey(const Key('stats-month')));
     await w.tester.pumpAndSettle();
@@ -149,8 +148,7 @@ void _bind(GherkinRunner runner, _World w) {
   // When/Then：複合篩選互動（F10 S10.2；FR-R3）
   runner.on(r'篩選 期間={period}、分類={cat}$', (p) async {
     await _ensureApp(w);
-    await w.tester.tap(find.descendant(
-        of: find.byType(NavigationBar), matching: find.text('明細')));
+    await w.tester.tap(find.byKey(const Key('nav-明細')));
     await w.tester.pumpAndSettle();
     // 期間選擇器 → 選項（句型參數含「月」：6月 → 選項文字「6 月」）
     final monthNum = p['period']!.replaceAll('月', '');
@@ -194,8 +192,7 @@ void _bind(GherkinRunner runner, _World w) {
   // Given/When/Then：CSV 匯出（F10 S10.3；FR-R4）
   runner.on(r'篩選生效（期間={period}）$', (p) async {
     await _ensureApp(w);
-    await w.tester.tap(find.descendant(
-        of: find.byType(NavigationBar), matching: find.text('明細')));
+    await w.tester.tap(find.byKey(const Key('nav-明細')));
     await w.tester.pumpAndSettle();
     final monthNum2 = p['period']!.replaceAll('月', '');
     await w.tester.tap(find.byKey(const Key('filter-period')));

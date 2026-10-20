@@ -157,15 +157,13 @@ void _bind(GherkinRunner runner, _World w) {
   // ── When：導航（M2 主殼第三分頁）──────────────────────────
   runner.on(r'開啟預算頁$', (p) async {
     await _ensureApp(w);
-    await w.tester.tap(find.descendant(
-        of: find.byType(NavigationBar), matching: find.text('預算')));
+    await w.tester.tap(find.byKey(const Key('nav-預算')));
     await w.tester.pumpAndSettle();
   });
 
   runner.on(r'開啟總覽頁$', (p) async {
     await _ensureApp(w);
-    await w.tester.tap(find.descendant(
-        of: find.byType(NavigationBar), matching: find.text('總覽')));
+    await w.tester.tap(find.byKey(const Key('nav-總覽')));
     await w.tester.pumpAndSettle();
   });
 
