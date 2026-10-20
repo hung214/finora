@@ -23,6 +23,7 @@
 | `07-settings-sync.html` | 設定：雲端同步/安全/通知（行動） | FR-Y7/Y11、FR-X1、FR-O1/O2 | AC-08、S7.10~S7.13 |
 | `08-desktop-shell.html` | 桌面版三欄殼（Windows/macOS） | SDD §8、FR-Q7 | F01-S1.11、F03-S3.9 |
 | `09-category-settings.html` | 分類設定（行動） | FR-B1、FR-Q1 | F01-S1.1 |
+| `10-quick-entry-calc.html` | 新增資料（快記 v2）：金額輸入＋計算機鍵盤＋轉帳模式（行動） | FR-Q1~Q5、**S2.9**、FR-T7、FR-A5 | F02-S2.1/S2.9、AC-10 |
 
 ## 2. 雛型原則
 
@@ -42,4 +43,5 @@
 
 | 日期 | 版本 | 變更 | 簽核 |
 |---|---|---|---|
+| 2026-10-20 | v0.4 | 新增 `10-quick-entry-calc.html`：新增資料頁（金額輸入＋S2.9 計算機鍵盤＋F02 轉帳模式）——對齊已實作之 AmountKeypad／快記模式切換 | PM 待簽 |
 | 2026-10-18 | v0.3 | 初版 8 個畫面雛型 | PM 待簽 |
