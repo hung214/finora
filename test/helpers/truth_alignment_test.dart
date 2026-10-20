@@ -34,7 +34,7 @@ void main() {
     }
   });
 
-  test('schema v1/v2：表與欄位皆存在於 specs/truth/data-spec.dbml', () {
+  test('schema v1/v2/v3：表與欄位皆存在於 specs/truth/data-spec.dbml', () {
     final dbml = File('specs/truth/data-spec.dbml').readAsStringSync();
     final tableRe = RegExp(r'CREATE TABLE (\w+)');
     final colRe = RegExp(r'^\s*([a-z_]+)\s+(TEXT|INTEGER|REAL)', multiLine: true);
@@ -46,7 +46,7 @@ void main() {
       expect(dbml, contains(table), reason: 'data-spec.dbml 缺少表：$table');
     }
 
-    for (final stmt in [...SchemaV1.statements, ...SchemaV2.statements]) {
+    for (final stmt in [...SchemaV1.statements, ...SchemaV2.statements, ...SchemaV3.statements]) {
       final table = tableRe.firstMatch(stmt)!.group(1)!;
       expect(dbml, contains(table), reason: 'data-spec.dbml 缺少表：$table');
       for (final m in colRe.allMatches(stmt)) {
