@@ -4,8 +4,9 @@ import 'budget/budget_page.dart';
 import 'ledger/ledger_page.dart';
 import 'overview/overview_page.dart';
 import 'quick_entry/quick_entry_page.dart';
+import 'stats/stats_page.dart';
 
-/// 主殼：總覽/明細/預算三分頁＋快記 FAB（SDD §8 IA；M2 加入預算分頁）。
+/// 主殼：總覽/明細/預算/統計四分頁＋快記 FAB（SDD §8 IA；M2 加入預算/統計）。
 /// 快記為全頁面推入，「完成」返回進入前分頁（FR-Q2）。
 class MainShellPage extends StatefulWidget {
   const MainShellPage({super.key});
@@ -22,7 +23,7 @@ class _MainShellPageState extends State<MainShellPage> {
     return Scaffold(
       body: IndexedStack(
         index: _tab,
-        children: const [OverviewPage(), LedgerPage(), BudgetPage()],
+        children: const [OverviewPage(), LedgerPage(), BudgetPage(), StatsPage()],
       ),
       floatingActionButton: FloatingActionButton(
         key: const Key('fab-quick-entry'),
@@ -50,6 +51,11 @@ class _MainShellPageState extends State<MainShellPage> {
             icon: Icon(Icons.savings_outlined),
             selectedIcon: Icon(Icons.savings),
             label: '預算',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.query_stats_outlined),
+            selectedIcon: Icon(Icons.query_stats),
+            label: '統計',
           ),
         ],
       ),

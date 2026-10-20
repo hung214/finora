@@ -1,9 +1,13 @@
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:intl/intl.dart';
 import 'package:ledger_sync/core/clock.dart';
+import 'package:ledger_sync/application/providers.dart';
 import 'package:ledger_sync/data/sqlite/app_database.dart';
+import 'package:ledger_sync/presentation/app_shell.dart';
 
 import '../../test/helpers/db_fixture.dart';
 import '../../test/helpers/gherkin/gherkin.dart';
@@ -112,6 +116,34 @@ void _bind(GherkinRunner runner, _World w) {
       updated++;
     }
   });
+
+  // When/Then：統計頁（F10 S10.1；FR-R2 呈現面）
+  runner.on(r'開啟統計頁並選擇 {month} 月$', (p) async {
+    await _ensureApp(w);
+    await w.tester.tap(find.descendant(
+        of: find.byType(NavigationBar), matching: find.text('統計')));
+    await w.tester.pumpAndSettle();
+    await w.tester.tap(find.byKey(const Key('stats-month')));
+    await w.tester.pumpAndSettle();
+    await w.tester.tap(find.text('${p['month']}月').last);
+    await w.tester.pumpAndSettle();
+  });
+
+  runner.on(r'顯示「{text}」$', (p) async {
+    expect(w.tester.any(find.text(p['text']!, skipOffstage: false)), isTrue,
+        reason: '應顯示「${p['text']}」');
+  });
+
+  runner.on(r'月趨勢圖 {m1} 月 = {v1}、{m2} 月 = {v2}$', (p) async {
+    final fmt = NumberFormat('#,###');
+    for (final (m, v) in [(p['m1']!, p['v1']!), (p['m2']!, p['v2']!)]) {
+      expect(
+        w.tester.any(find.text('$m月 ${fmt.format(_amount(v))}', skipOffstage: false)),
+        isTrue,
+        reason: '月趨勢 $m 月應為 ${fmt.format(_amount(v))}',
+      );
+    }
+  });
 }
 
 /// 分類隱式建立。
@@ -122,6 +154,23 @@ String _getOrCreateCategory(_World w, String name) {
   DbFixture.seedCategory(w.db!, id: id, kind: 'expense', name: name);
   w.categories[name] = id;
   return id;
+}
+
+Future<void> _ensureApp(_World w) async {
+  if (w.pumped) return;
+  final container = ProviderContainer(overrides: [
+    dbProvider.overrideWithValue(w.db!),
+  ]);
+  w.containers.add(container);
+  w.container = container;
+  await w.tester.pumpWidget(
+    KeyedSubtree(
+      key: ValueKey('app-shell-${w.dbs.length}'),
+      child: UncontrolledProviderScope(container: container, child: const AppShell()),
+    ),
+  );
+  await w.tester.pumpAndSettle();
+  w.pumped = true;
 }
 
 /// 帳戶隱式建立。
