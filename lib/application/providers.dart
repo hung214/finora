@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/sqlite/app_database.dart';
 import '../domain/entities/account.dart';
 import '../domain/entities/transaction.dart';
+import 'budgets/budget_alert_service.dart';
+import 'notifications/notification_service.dart';
 import 'quick_entry/quick_entry_preset_service.dart';
 import 'quick_entry/save_transaction_use_case.dart';
 import 'quick_entry/undo_last_transaction_use_case.dart';
@@ -22,9 +24,32 @@ final dbProvider = Provider<AppDatabase>((ref) {
 final quickEntryPresetProvider =
     Provider((ref) => QuickEntryPresetService(ref.watch(dbProvider)));
 
-/// 儲存事務（FR-Q5，SDD §5.1）。
-final saveTransactionProvider =
-    Provider((ref) => SaveTransactionUseCase(ref.watch(dbProvider)));
+/// 儲存事務（FR-Q5，SDD §5.1）——入庫後冪等同步預算警示（FR-B4 sync 點①）。
+final saveTransactionProvider = Provider((ref) => SaveTransactionUseCase(
+      ref.watch(dbProvider),
+      afterSave: () => ref.read(budgetAlertProvider).sync(),
+    ));
+
+/// 本機通知（N-1~N-10；預設 no-op——正式 flutter_local_notifications 屬 M2 接線；
+/// 測試以 NotificationSpy override）。
+final notificationProvider = Provider<NotificationService>((ref) {
+  return const NoopNotificationService();
+});
+
+/// 預算警示（FR-B4；冪等 sync 點）。
+final budgetAlertProvider = Provider(
+    (ref) => BudgetAlertService(ref.watch(dbProvider), ref.watch(notificationProvider)));
+
+/// no-op 通知（App 未接正式通知服務前行為；介面契約不變）。
+class NoopNotificationService implements NotificationService {
+  const NoopNotificationService();
+
+  @override
+  Future<void> notify(NotificationCall call) async {}
+
+  @override
+  Future<void> cancel(int id) async {}
+}
 
 /// 復原上一筆（FR-Q3）。
 final undoLastTransactionProvider =

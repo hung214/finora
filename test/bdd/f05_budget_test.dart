@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ledger_sync/application/budgets/budget_alert_service.dart';
 import 'package:ledger_sync/application/budgets/budget_evaluator.dart';
 import 'package:ledger_sync/application/quick_entry/save_transaction_use_case.dart';
 import 'package:ledger_sync/core/clock.dart';
@@ -45,6 +46,7 @@ class _World {
   late AppDatabase db;
   final NotificationSpy spy = NotificationSpy();
   late SaveTransactionUseCase save;
+  late BudgetAlertService alerts;
 
   /// When 步驟前的 oplog 數（delta 基準）。
   int opBaseline = 0;
@@ -64,7 +66,9 @@ void _bind(GherkinRunner runner, _World w) {
     w.categories.clear();
     w.spy.clear();
     w.opBaseline = 0;
-    w.save = SaveTransactionUseCase(db); // C4 接入 afterSave 警示鉤子
+    w.alerts = BudgetAlertService(db, w.spy);
+    // 記帳鉤子（sync 點①）：入庫後冪等同步預算警示（FR-B4）。
+    w.save = SaveTransactionUseCase(db, afterSave: w.alerts.sync);
   });
 
   runner.on(r'已建立帳戶「{name}」類型 {type} 期初 {amount}$', (p) {
@@ -223,6 +227,30 @@ void _bind(GherkinRunner runner, _World w) {
     expect(period, isNotNull, reason: '餐飲預算應已設定（FR-B2）');
     expect(period!.display(), '${p['start']} ~ ${p['end']}',
         reason: 'S5.6：自訂起始日跨月週期');
+  });
+
+  // ── Then：預算警示（F05 S5.1/S5.2；斷言前 sync＝警示檢視點，dsl §2.3）──
+  runner.on(r'通知 spy 收到 N-{n} 恰 {k} 次，內容含 "{text}"$', (p) {
+    w.alerts.sync();
+    final n = int.parse(p['n']!);
+    expect(w.spy.timesWithId(n), int.parse(p['k']!),
+        reason: 'N-$n 次數（每期每級別一次）');
+    final hit = w.spy
+        .withId(n)
+        .any((r) => r.body.contains(p['text']!) || r.title.contains(p['text']!));
+    expect(hit, isTrue, reason: 'N-$n 內容應含「${p['text']}」');
+  });
+
+  runner.on(r'通知 spy 收到 N-{n} 恰 {k} 次$', (p) {
+    w.alerts.sync();
+    expect(w.spy.timesWithId(int.parse(p['n']!)), int.parse(p['k']!),
+        reason: 'N-${p['n']} 次數');
+  });
+
+  runner.on(r'通知 spy 收到 N-{n} 仍恰 {k} 次（不重複）$', (p) {
+    w.alerts.sync();
+    expect(w.spy.timesWithId(int.parse(p['n']!)), int.parse(p['k']!),
+        reason: 'N-${p['n']} 冪等（不重複轟炸）');
   });
 }
 
