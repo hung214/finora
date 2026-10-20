@@ -126,7 +126,7 @@
 | F07 雲端同步 | T-F07-BE（8：補同步、LWW、每筆模式、批次、附件分流、bootstrap、GC、備份密碼） | T-F07-FE（6：連結、立即同步、啟動同步、還原、異帳號、衝突檢視） | api-spec.yaml（P2 僅對照，不改）；oplog packed_seq | M5/M6 | ☐ |
 | F08 App 鎖 | T-F08-BE（4：門檻邊界、退場狀態機、重設路徑×2） | T-F08-FE（5：鎖定畫面、10 秒、退 PIN、忘記 PIN、遮蔽） | lock.timeout key（settings） | M7 | ☐ |
 | F09 資料管理 | T-F09-BE（3：本地清空、雲端清空、不復活） | T-F09-FE（2：三重防護、加驗身分） | 清空=雲端資料夾刪除契約 | M7 | ☐ |
-| F10 報表 | T-F10-BE（5：占比、bigram 搜尋、AND 篩選、CSV、效能） | T-F10-FE（3：圖表呈現、複合篩選、匯出提示） | transactions_fts（v2）；CSV 欄位契約 | M2 | ☐ |
+| F10 報表 | T-F10-BE（5：占比、bigram 搜尋、AND 篩選、CSV、效能）——**5/5 ✅**（TextIndex bigram＋SearchService FTS 優先 LIKE 降級＋ReportService 0.1%＋CsvExporter BOM＋NFR-01 10 萬筆 387ms） | T-F10-FE（3：圖表呈現、複合篩選、匯出提示）——**3/3 ✅**（統計分頁＋明細篩選列 chips＋匯出提示；呈現以數值文字斷言，甜甜圈視覺屬打磨） | transactions_fts（v2 ✅）；CSV 欄位契約 | M2 | ✅ |
 
 ### 4.2 依序開發的排程（對應 research §2.2 Sprint）
 
