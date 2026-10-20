@@ -48,4 +48,4 @@ Feature: 發票掃描解析與附件（後端自動化）
   @P0 @NFR-02
   Scenario: 效能_單張 OCR < 3 秒
     When 對 OCR 文字 fixture 1 執行欄位抽取（計時）
-    Then 效能：入庫耗時 2999ms < 3000ms
+    Then 效能：OCR 欄位抽取耗時 2999ms < 3000ms

@@ -611,6 +611,38 @@ class AppDatabase {
     return rows.isEmpty ? null : rows.first;
   }
 
+  // ── 附件（FR-S4，schema v4；attachments 屬 sync_entity） ──
+
+  /// 附件列寫入 + oplog 追加於同一 DB transaction（SDD §5.1 契約——
+  /// 附件中繼資參與同步；blob 本體內容定址另存檔案系統 blobs/）。
+  void insertAttachmentWithOplog(AttachmentRow a, OplogRow o) {
+    _db.execute('BEGIN');
+    try {
+      insertAttachment(a);
+      appendOp(o);
+      _db.execute('COMMIT');
+    } catch (_) {
+      _db.execute('ROLLBACK');
+      rethrow;
+    }
+  }
+
+  void insertAttachment(AttachmentRow a) => _db.execute(
+        'INSERT INTO attachments (id, transaction_id, sha256, mime, byte_size,'
+        ' created_at, hlc, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          a.id, a.transactionId, a.sha256, a.mime, a.byteSize,
+          a.createdAt, a.hlc, a.deletedAt,
+        ],
+      );
+
+  /// 交易之未刪除附件（S5 關聯斷言）。
+  List<AttachmentRow> attachmentsForTransaction(String transactionId) => _db
+      .select('SELECT * FROM attachments WHERE transaction_id = ? AND deleted_at IS NULL',
+          [transactionId])
+      .map(AttachmentRow.fromRow)
+      .toList();
+
   // ── 同步日誌（SDD §5.5） ──────────────────────────────────
 
   void appendOp(OplogRow o) => _db.execute(
@@ -1210,6 +1242,57 @@ class InstallmentPlanRow {
         hlc: r['hlc'] as String,
         deletedAt: r['deleted_at'] as int?,
       );
+}
+
+/// 附件列（schema v4，data-spec.dbml attachments；FR-S4——sha256 內容定址）。
+class AttachmentRow {
+  const AttachmentRow({
+    required this.id,
+    required this.transactionId,
+    required this.sha256,
+    this.mime,
+    this.byteSize,
+    required this.createdAt,
+    required this.hlc,
+    this.deletedAt,
+  });
+
+  final String id;
+
+  /// 關聯交易（Ref: delete cascade——dbml；交易刪除連動由 UseCase 維護）。
+  final String transactionId;
+
+  /// 壓縮內容 sha256（檔名 blobs/{sha256} 與雲端 blobs/{sha256}.bin.enc 同源；
+  /// 同步去重 SDD §5.5.6）。
+  final String sha256;
+  final String? mime;
+  final int? byteSize;
+  final int createdAt;
+  final String hlc;
+  final int? deletedAt;
+
+  factory AttachmentRow.fromRow(Map<String, Object?> r) => AttachmentRow(
+        id: r['id'] as String,
+        transactionId: r['transaction_id'] as String,
+        sha256: r['sha256'] as String,
+        mime: r['mime'] as String?,
+        byteSize: r['byte_size'] as int?,
+        createdAt: r['created_at'] as int,
+        hlc: r['hlc'] as String,
+        deletedAt: r['deleted_at'] as int?,
+      );
+
+  /// oplog payload 之整列快照（SDD §5.5.4）。
+  Map<String, Object?> toSnapshot() => {
+        'id': id,
+        'transaction_id': transactionId,
+        'sha256': sha256,
+        'mime': mime,
+        'byte_size': byteSize,
+        'created_at': createdAt,
+        'hlc': hlc,
+        'deleted_at': deletedAt,
+      };
 }
 
 class OplogRow {
