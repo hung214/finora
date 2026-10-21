@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/providers.dart';
+import '../../application/recurring/recurring_service.dart';
 import 'budget/budget_page.dart';
 import 'ledger/ledger_page.dart';
 import 'overview/overview_page.dart';
@@ -39,6 +40,9 @@ class _MainShellPageState extends ConsumerState<MainShellPage> {
     super.initState();
     // FR-Y11 啟動同步：已連結雲端時同步一次（fire-and-forget；M5 BE 已驗協議）。
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // FR-T5 啟動檢查：到期定期交易提醒（N-7；未確認不入帳）。
+      RecurringService(ref.read(dbProvider), ref.read(notificationProvider))
+          .runCheck();
       if ((ref.read(dbProvider).getSetting('sync.account') ?? '').isNotEmpty) {
         ref.read(syncCoordinatorProvider).sync().then((_) {
           final db = ref.read(dbProvider);

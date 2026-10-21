@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/clock.dart';
 import '../data/sqlite/app_database.dart';
 import '../domain/entities/account.dart';
 import '../domain/entities/transaction.dart';
@@ -85,6 +86,15 @@ final repayStatementProvider = Provider(
 /// 還原交易（FR-T3：「最近刪除」還原，F02-FE）。
 final restoreTransactionProvider =
     Provider((ref) => RestoreTransactionUseCase(ref.watch(dbProvider)));
+
+/// 待確認定期交易數（明細頁 badge；F06-FE）。
+final recurringDueCountProvider = Provider<int>((ref) {
+  final db = ref.watch(dbProvider);
+  final now = Clock.now();
+  return db
+      .dueSchedules(DateTime(now.year, now.month, now.day + 1).millisecondsSinceEpoch - 1)
+      .length;
+});
 
 /// 未封存帳戶（快記/總覽）。
 final activeAccountsProvider = Provider((ref) =>

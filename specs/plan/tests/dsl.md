@@ -361,6 +361,7 @@
 | `Then 顯示「{text}」（唯讀）` | 被覆蓋內容唯讀檢視（F07-FE S6） |
 | `Then 顯示「待確認 {n}」badge` | find.byKey(recurring-badge) 文字（FR-T5 到期未確認數；F06-FE S1） |
 | `Then 顯示「待確認清單」含「{name} {amt}」` | RecurringQueuePage 標題＋項目（F06-FE S1） |
+| `Given 待確認清單含「{name} {amt}」` | 同上（前置語意——啟動檢查已產生佇列；F06-FE S2/S3 前置） |
 | `And 顯示「下期 {date} 提醒」` | next_due 月/日顯示（確認/跳過後推進呈現；F06-FE S2/S3） |
 | `Then 顯示「已暫停提醒」` | paused 項標示（逾期 3 次；F06-FE S4） |
 | `Given 本期{cat}已支出 {amount}` | fixture 直寫本期 expense（F05-FE） |
