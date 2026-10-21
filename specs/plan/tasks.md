@@ -60,15 +60,15 @@
 
 | 任務 ID | Helper | 內容 | 對應 dsl.md 掛鉤 | 狀態 |
 |---|---|---|---|---|
-| T-H1 | 記憶體 DB fixture | drift in-memory（測試關 SQLCipher）、每 Scenario 重建、seed API | BE Given「已重置記憶體資料庫」 | ☐ |
-| T-H2 | Fake clock | 凍結/快轉時間（結帳日、預算週期、逾期、30 天還原） | 「模擬系統時間為 {dt}」 | ☐ |
-| T-H3 | In-memory CloudStorageAdapter | list/upload/download/delete 假實作，可控成功/失敗/延遲/斷線 | BE「模擬雲端…」、FE @sync | ☐ |
-| T-H4 | Notification spy | 攔截通知、斷言編號/內容/次數（N-1~N-10） | 「通知 spy 收到 N-{n} 恰 {k} 次」 | ☐ |
-| T-H5 | 測試資料集 Builder | acceptance 前置條件一鍵建立（帳戶/分類/交易/預算/卡/定期） | 所有 Given 資料步驟 | ☐ |
-| T-H6 | 發票測資 fixtures | 77 碼左 QR 字串、右 QR deflate+Base32 產生器、OCR 文字/圖片 fixtures | F03 BE/FE | ☐ |
-| T-H7 | Gherkin Runner | BE：自製 runner 掛 flutter_test；FE：flutter_gherkin 設定（tag 過濾） | — | ☐ |
-| T-H8 | FE 掛鉤 | lifecycle 模擬（背景秒數）、鍵盤/快捷鍵注入、截圖報告 | FE「App 切至背景」「Ctrl+N」 | ☐ |
-| T-H9 | **truth 對齊測試** | ①schema snapshot ↔ `data-spec.dbml` 解析比對 ②pubspec 依賴版本 ↔ `techstack.md` §2；落差即紅燈 | §5 對齊清單的自動化 | ☐ |
+| T-H1 | 記憶體 DB fixture | drift in-memory（測試關 SQLCipher）、每 Scenario 重建、seed API | BE Given「已重置記憶體資料庫」 | ✅（sqlite3 直連——TR-7；9622009/b557029） |
+| T-H2 | Fake clock | 凍結/快轉時間（結帳日、預算週期、逾期、30 天還原） | 「模擬系統時間為 {dt}」 | ✅ |
+| T-H3 | In-memory CloudStorageAdapter | list/upload/download/delete 假實作，可控成功/失敗/延遲/斷線 | BE「模擬雲端…」、FE @sync | ✅（雙裝置拓撲） |
+| T-H4 | Notification spy | 攔截通知、斷言編號/內容/次數（N-1~N-10） | 「通知 spy 收到 N-{n} 恰 {k} 次」 | ✅ |
+| T-H5 | 測試資料集 Builder | acceptance 前置條件一鍵建立（帳戶/分類/交易/預算/卡/定期） | 所有 Given 資料步驟 | ✅（DbFixture） |
+| T-H6 | 發票測資 fixtures | 77 碼左 QR 字串、右 QR deflate+Base32 產生器、OCR 文字/圖片 fixtures | F03 BE/FE | ✅（InvoiceQrFixtures＋OcrReceiptFixtures） |
+| T-H7 | Gherkin Runner | BE：自製 runner 掛 flutter_test；FE：flutter_gherkin 設定（tag 過濾） | — | ✅（自製 runner——TR-9） |
+| T-H8 | FE 掛鉤 | lifecycle 模擬（背景秒數）、鍵盤/快捷鍵注入、截圖報告 | FE「App 切至背景」「Ctrl+N」 | 🟢（pressShortcut 落地 F03-FE；pumpBackground F08 啟用） |
+| T-H9 | **truth 對齊測試** | ①schema snapshot ↔ `data-spec.dbml` 解析比對 ②pubspec 依賴版本 ↔ `techstack.md` §2；落差即紅燈 | §5 對齊清單的自動化 | ✅（CI＋本地；v1~v5 全覆蓋） |
 
 ---
 
@@ -94,10 +94,10 @@
 
 | 任務 ID | 環節 | 內容 | 狀態 |
 |---|---|---|---|
-| T-S1 | M1 migration | v1 建表 + schema 回歸測試（v0 空 DB → v1）＋ truth 對齊（T-H9 基線） | ☐ |
-| T-S2 | M2 migration | v2 預算/FTS5 + bigram 寫入觸發器/服務邏輯 + 回歸測試（v1→v2 資料保留） | ☐ |
-| T-S3 | M3 migration | v3 信用卡/帳單 + 回歸測試（既有交易 settlement_status 預設 none） | ☐ |
-| T-S4 | M4 migration | v4 attachments + 回歸測試 | ☐ |
+| T-S1 | M1 migration | v1 建表 + schema 回歸測試（v0 空 DB → v1）＋ truth 對齊（T-H9 基線） | ✅ |
+| T-S2 | M2 migration | v2 預算/FTS5 + bigram 寫入觸發器/服務邏輯 + 回歸測試（v1→v2 資料保留） | ✅ |
+| T-S3 | M3 migration | v3 信用卡/帳單 + 回歸測試（既有交易 settlement_status 預設 none） | ✅ |
+| T-S4 | M4 migration | v4 attachments + 回歸測試 | ✅ |
 | T-S5 | M5/M6 migration | v5 sync_events（F07 衝突事件，M5 已落地）＋recurring_transactions（M6 使用）＋回歸測試（已落地：直達 v5／v4 升級／冪等） | 🔵（表與遷移已完成；recurring 業務屬 M6） |
 
 ---
