@@ -2,7 +2,7 @@
 
 | 項目 | 內容 |
 |---|---|
-| 文件版本 | v1.1（F06-FE：§3 Given 2＋When 3＋Then 4 句型登記——待確認 badge/清單/下期提醒/暫停標示；v1.0 F06-BE：Given 3＋When 4＋Then 12 句型登記——RecurringService 提醒確認制；v0.9 F07-FE：§3 Given 6＋When 6＋Then 12 句型登記；「同步中…」回饋斷言法（tap 後 pump 未 settle）；v0.8 F07-BE：§2.1 Given 8＋§2.2 When 7＋§2.3 Then 14 句型登記——SyncCoordinator/BundleApplier/BackupService；Outline 匯入結果分列綁定） |
+| 文件版本 | v1.5（F09-FE：§3 Given 4＋When 3＋Then 6 句型登記——資料管理三重防護/加驗身分/已清空；v1.4 F09-BE：Given 3＋When 3＋Then 9 句型登記——WipeService 清空/雲端刪除/不復活；v1.3 F08-FE：§3 Given 3＋When 8＋Then 8 句型登記——鎖定畫面/Face ID seam/PIN 重設/隱私遮蔽；v1.2 F08-BE：§2 Given 6＋When 6＋Then 8 句型登記——AppLockController 門檻邊界/生物辨識退場/PIN 重設授權與拒絕路徑；v1.1 F06-FE：§3 Given 2＋When 3＋Then 4 句型登記——待確認 badge/清單/下期提醒/暫停標示；v1.0 F06-BE：Given 3＋When 4＋Then 12 句型登記——RecurringService 提醒確認制；v0.9 F07-FE：§3 Given 6＋When 6＋Then 12 句型登記；「同步中…」回饋斷言法（tap 後 pump 未 settle）；v0.8 F07-BE：§2.1 Given 8＋§2.2 When 7＋§2.3 Then 14 句型登記——SyncCoordinator/BundleApplier/BackupService；Outline 匯入結果分列綁定） |
 | 用途 | 前端／後端 `.feature` 檔的**步驟句型唯一登記處**。新步驟必須先登記於本檔再實作綁定；未登記句型視為違規 |
 | 綁定 | 前端：自製 Gherkin runner + integration_test（TR-9 過渡；同 T-H7）｜後端：自製 Gherkin runner + flutter_test |
 
@@ -85,6 +85,14 @@
 | `Given 已建立定期交易「{name}」每月 {day} 日金額 {amt}` | recurring_transactions 種資（frequency=monthly、anchor/next_due=當月 day 日；F06 Background） |
 | `Given 待確認佇列含「{name} {date}」` | 觸發到期檢查後之佇列（next_due ≤ today 動態推導；F06 S2~S4 前置） |
 | `Given 模擬系統時間為 {date} 並觸發到期檢查（第 {n} 次）` | Clock 凍結＋RecurringService.runCheck（逾期計數前置；F06 S5） |
+| `Given App 鎖設定: PIN={pin}、生物辨識 {state}、門檻 {n} 秒` | settings lock.* 寫入＋AppLockController 建構（PIN 雜湊存儲；F08 Background） |
+| `Given App 於 {time} 切至背景` | Clock 凍結＋onBackground（背景時刻記錄；F08 S1） |
+| `Given 生物辨識失敗計數 = {n}` | AppLockController 失敗計數預置（F08 S2） |
+| `Given 已連結雲端` | settings sync.account 有值（PIN 重設授權前提；F08 S3） |
+| `Given 未連結雲端` | settings sync.account 空（F08 S4） |
+| `Given 帳本含 {n} 筆交易與 {m} 張附件` | fixture 直寫（交易×n＋附件×m＋blobs 檔；F09 Background） |
+| `Given 已連結雲端（雲端含 vault/ops/backups）` | 預置雲端佈局（同步+備份各一次；F09 S2） |
+| `Given 已連結雲端且裝置B 存在` | 裝置B 建立（同帳號空間；F09 S3） |
 
 ### 2.2 When（動作）
 
@@ -137,6 +145,14 @@
 | `When 按下「本次跳過」` | RecurringService.skip——不入帳＋next_due 推進（FR-T5） |
 | `When 刪除排程` | RecurringService.delete——墓標（deleted_at＋oplog 墓標；不再提醒） |
 | `When 模擬系統時間為 {date} 並觸發到期檢查` | Clock 凍結＋runCheck（逾期序列驅動；F06 S5） |
+| `When 執行清空資料（含雲端={flag}）` | WipeService.wipe（本地全表清空＋附件刪除；含雲端→LedgerSync/ 全刪；F09 S1/S2） |
+| `When 執行清空資料（含雲端={flag}，身分驗證通過）` | 同上＋身分驗證前提（FR-O3；F09 S2） |
+| `When 裝置B 執行 SyncCoordinator.pull 與 push` | 裝置B 同步（vault 缺→CloudWipedException 不復活；F09 S3） |
+| `When 背景時長 = {n} 秒 返回` | Clock 快轉＋shouldLockOnResume（門檻邊界判定；F08 S1） |
+| `When 失敗 {n} 次` | AppLockController.onBiometricFail ×n（F08 S2） |
+| `When 累計失敗 {n} 次` | 同上（累計語意） |
+| `When 重新登入同一雲端帳號（token 驗證通過）` | PIN 重設授權 seam（token 驗證→canResetPin；FR-X5） |
+| `When 嘗試「忘記 PIN」` | canResetPin 查詢（未連雲端→false；F08 S4） |
 | `When 執行清空資料（含雲端）` | WipeService |
 | `When 裝置{d}（同一帳號）執行 SyncCoordinator.pull 與 push` | 切換當前裝置＋SyncCoordinator（pull 套用 peers＋push 未打包；F07 S1/S2） |
 | `When 連續記錄 {n} 筆交易` | 該裝置連寫 n 筆（oplog 未打包；批次合併測資） |
@@ -212,6 +228,21 @@
 | `And next_due_date 不再產生提醒` | 再 runCheck→N-7 不增（刪除後） |
 | `And reminder_count = {n} 且 paused = true` | 同期逾期計數與暫停旗標（FR-T5：≥3 停止推播） |
 | `Then 通知 spy 收到 N-{n} 恰 {k} 次（第 {m} 次不發）` | 既有 spy 斷言之語意註記變體（逾期暫停） |
+| `Then 鎖定需求 = {bool}` | shouldLockOnResume 判定（≥門檻鎖定；AC-09 邊界） |
+| `Then 仍允許生物辨識重試` | biometricFailures < 3（F08 S2） |
+| `Then 鎖定策略 = 僅 PIN（停用生物辨識本次解鎖）` | biometricFailures ≥ 3 → biometricAllowed=false（FR-X1 退場） |
+| `Then 允許設定新 PIN` | canResetPin=true（雲端 token 驗證通過；FR-X5） |
+| `And 本地資料未清空（交易筆數不變）` | 重設前後交易計數一致（資料零損失） |
+| `Then 僅提供「重置 App」` | canResetPin=false＋唯一路徑為重置（無繞過分支——FR-X5） |
+| `And 不存在繞過 PIN 且保留資料的路徑（斷言無此分支）` | controller 介面無 unlock-without-credential 方法（介面枚舉斷言——安全設計檢驗） |
+| `Then 交易/帳戶/分類/附件全部清空` | 各表計數 0（WipeService；FR-O3） |
+| `And 附件檔案已刪除` | blobs 目錄清空（F09 S1） |
+| `And 回到首次啟動狀態` | 全表空（下次啟動播種將重跑——FR-O3） |
+| `Then 本地資料全部清空` | 同全清空（已連雲端語意；F09 S2） |
+| `And 雲端 LedgerSync/ 整個資料夾已刪除（vault/devices/ops/backups 皆無）` | adapter 根清單空（F09 S2） |
+| `And 雲端資料已清除` | 同上（裝置B 前置斷言；F09 S3） |
+| `Then 顯示「雲端資料已不存在」` | CloudWipedException 訊息（SyncCoordinator pull 偵測 vault 缺；F09 S3） |
+| `And 裝置B 不會把舊資料同步回來` | pull 拋後 push 未執行（ops/ 仍空——不復活；FR-O3） |
 | `Then 效能：入庫耗時 {ms}ms < 300ms（P95）` | StopWatch P95（F01-BE NFR-01；{ms} 為計畫預記值，以實測 P95 < 300 斷言） |
 | `Then 預設帳戶 = 「{name}」` / `Then 預設帳戶 = 第一個未封存帳戶` | QuickEntryPreset 輸出（FR-Q4） |
 | `Then 預設帳戶為空（待帳戶建立）` | preset.account == null（DBG-003：空帳本不崩潰） |
@@ -283,6 +314,13 @@
 | `Given 同步狀態頁有 {n} 筆衝突事件（被覆蓋內容「{text}」）` | db 直寫 sync_events（AC-07 呈現前置；F07-FE S6） |
 | `Given 已建立定期交易「{name}」每月 {day} 日金額 {amt}（提醒確認制）` | FE fixture 直寫 recurring（同 BE 語意；F06-FE Background） |
 | `Given 房租連續 3 次開啟 App 皆未處理（{dates}）` | 逐日凍結＋重啟（啟動檢查觸發 reminder 累計；F06-FE S4） |
+| `Given App 鎖已啟用（PIN {pin} + Face ID、門檻 {n} 秒）` | FE Background：AppLockController 接線（鎖定覆蓋層啟用；F08-FE） |
+| `Given App 已連結雲端帳號` | settings sync.account（還原/重設前提；F08-FE） |
+| `Given 於鎖定畫面` | 鎖定覆蓋層呈現中（F08-FE S4） |
+| `Given App 鎖已啟用（PIN {pin}）` | controller 於 harness override 建構（寫入 pin_hash；F09-FE） |
+| `Given 帳本含 {n} 筆交易` | fixture 直寫帳戶＋交易×n（F09-FE） |
+| `Given App 未連結雲端` | settings sync.account=''（清空警告語意分流；F09-FE S1） |
+| `Given App 已連結雲端` | settings sync.account=email（清空加驗身分語意；F09-FE S2） |
 
 ### 3.2 When（動作）
 
@@ -321,7 +359,18 @@
 | `When 按下 badge` | 點擊待確認 badge（key recurring-badge；F06-FE S1） |
 | `When 將金額改為 {amt} 並按下「確認入帳」` | 待確認清單金額欄＋確認鈕（key recurring-amount/confirm-recurring；F06-FE S2） |
 | `When 開啟待確認清單` | 導航 RecurringQueuePage（F06-FE S4） |
+| `When App 切至背景 {n} 秒後返回` | lifecycle 模擬＋AppLockController 門檻判定（T-H8 pumpBackground 落地；F08-FE S1/S2） |
+| `When 使用 Face ID 成功解鎖` | fake biometric seam 成功回呼（F08-FE S1） |
+| `When Face ID 連續失敗 {n} 次` | fake biometric 失敗×n（退場機制；F08-FE S3） |
+| `When 輸入 PIN {pin}` | PIN 鍵盤輸入（key pin-input；F08-FE S3）／警告層下一步→資料管理 PIN 欄（key wipe-pin-input；F09-FE S1——同句型雙綁定，依頁面 context） |
+| `When 按下「忘記 PIN」` | 鎖定畫面入口（key forgot-pin；F08-FE S4） |
+| `When 設定新 PIN {pin}` | 新 PIN 設定（key new-pin-input＋確認；F08-FE S4） |
+| `When 按下 👁 遮蔽開關` | 隱私遮蔽切換（key privacy-toggle；FR-X3；F08-FE S5） |
 | `When 按下檢視` | 衝突事件詳情（F07-FE S6） |
+| `When 設定→資料管理→按下「清空資料」` | 導航資料管理頁＋點擊（key wipe-start；F09-FE S1——設定入口接線屬 F07-FE 回頭項，harness 以 Navigator.push 等價驅動） |
+| `When 設定→資料管理→按下「清空資料」並輸入 PIN 與確認文字` | 同上全流程（警告→PIN→確認文字；**先於短句型註冊**；F09-FE S2） |
+| `When 輸入錯誤文字「{text}」` | 確認文字欄輸入不符文字＋送出（key wipe-confirm-input/submit；F09-FE S1） |
+| `When 重新登入完成` | fake OAuth seam 完成（key wipe-oauth-button；F09-FE S2） |
 
 ### 3.3 Then（斷言）
 
@@ -358,6 +407,13 @@
 | `Then 顯示「還原完成」（帳戶/交易/分類/預算）` | bootstrap 結果回饋（AC-08；F07-FE S4） |
 | `Then 顯示「此帳號沒有可還原的資料」` | 異帳號空備份（FR-Y2；F07-FE S5） |
 | `Then 顯示「{n} 筆衝突」` | sync_events 計數（AC-07；F07-FE S6） |
+| `Then 顯示「鎖定畫面」` | 鎖定覆蓋層（key lock-screen；不可透視——遮蔽底層內容；AC-09） |
+| `Then 顯示「離開前的畫面」且資料完整` | 解鎖後恢復原路由（lock overlay 移除） |
+| `Then 顯示「PIN 輸入鍵盤」` | 退場後 PIN 輸入 UI（key pin-input；FR-X1 退場） |
+| `Then 顯示「設定新 PIN」` | 重設流程（key new-pin；FR-X5） |
+| `Then 顯示「資料完整保留」（{n} 筆交易）` | 還原/重設後交易計數（資料零損失；FR-X5） |
+| `Then 金額全部顯示為 ●●●●` | 隱私遮蔽態（金額 widget 全遮蔽；FR-X3） |
+| `Then 顯示「{amount}」（原金額）` | 遮蔽關閉還原（F08-FE S5） |
 | `Then 顯示「{text}」（唯讀）` | 被覆蓋內容唯讀檢視（F07-FE S6） |
 | `Then 顯示「待確認 {n}」badge` | find.byKey(recurring-badge) 文字（FR-T5 到期未確認數；F06-FE S1） |
 | `Then 顯示「待確認清單」含「{name} {amt}」` | RecurringQueuePage 標題＋項目（F06-FE S1） |
@@ -371,6 +427,12 @@
 | `When 開啟預算頁` | 導航至預算分頁（M2 主殼第三分頁，SDD §8 IA） |
 | `When 開啟統計頁並選擇 {month} 月` | 導航至統計分頁＋月份選擇器（M2 主殼第四分頁；F10-FE S1） |
 | `Then 月趨勢圖 {m1} 月 = {v1}、{m2} 月 = {v2}` | 月趨勢值文字（千分位；有資料月份，F10-FE S1） |
+| `Then 顯示「將刪除所有資料且無雲端可還原」警告` | 資料管理警告層文案（未連雲端變體；FR-O3 第一層；F09-FE S1） |
+| `Then 顯示「可先匯出備份檔」入口` | 防呆備份入口（key wipe-backup-entry；驗收 S9.2 邊界；F09-FE S1） |
+| `Then 顯示「確認文字輸入框」` | 第三層確認欄（key wipe-confirm-input；F09-FE S1） |
+| `Then 顯示「確認文字不符」且無法繼續` | 錯誤回饋＋停留確認層＋資料未清（F09-FE S1） |
+| `Then 顯示「重新登入雲端帳號」要求` | 加驗身分層（key wipe-oauth-button；S9.2 #1；F09-FE S2） |
+| `Then 顯示「已清空」並回到首次啟動引導` | 完成回饋＋pop 主殼空帳本（獨立引導頁屬上架前 UI 統整；F09-FE S2） |
 | `When 篩選 期間={period}、分類={cat}` | 明細頁篩選列：期間/分類選擇器（F10-FE S2） |
 | `When 關鍵字輸入「{kw}」` | 篩選關鍵字欄輸入（FTS 即時套用） |
 | `Then 僅顯示 {n} 筆（三條件交集）` | TxTile 計數（AND 交集） |

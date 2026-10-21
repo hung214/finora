@@ -10,6 +10,12 @@ import '../providers.dart';
 
 /// 雲端同步 UI 狀態（F07-FE；SDD §7.1 帳號授權式同步——**無同步密碼**）。
 
+/// settings 讀取函式（LockScreen 等 UI 判定用——避免直接 import db 層細節）。
+final dbSettingReader = Provider<String? Function(String)>((ref) {
+  final db = ref.watch(dbProvider);
+  return (key) => db.getSetting(key);
+});
+
 /// 雲端 adapter（FR-Y7：Google Drive appDataFolder——生產由 main() 以
 /// GoogleDriveAdapter override；測試以 InMemoryCloudAdapter override。
 /// 同 dbProvider 注入約定）。

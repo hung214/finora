@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../application/lock/lock_fe_state.dart';
 import '../../../application/budgets/budget_evaluator.dart';
 import '../../../application/providers.dart';
 import '../../../core/version.dart';
@@ -10,6 +11,7 @@ import '../../screens/budget/budget_page.dart';
 import '../../screens/credit_card/credit_card_page.dart';
 import '../../screens/demo/demo_gallery_page.dart';
 import '../../screens/scan/scan_page.dart';
+import '../settings/settings_hub_page.dart';
 
 /// 總覽頁（M1 精簡）：帳戶餘額＋收入目標卡＋預算進度（SDD 原則 2：衍生值重算）。
 class OverviewPage extends ConsumerWidget {
@@ -29,12 +31,30 @@ class OverviewPage extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('總覽'),
         actions: [
+          // 隱私遮蔽開關（FR-X3；F08-FE S5）。
+          IconButton(
+            key: const Key('privacy-toggle'),
+            tooltip: '遮蔽金額',
+            onPressed: () => ref.read(privacyMaskedProvider.notifier).toggle(),
+            icon: Icon(ref.watch(privacyMaskedProvider)
+                ? Icons.visibility_off
+                : Icons.visibility),
+          ),
           // 掃描入口（FR-S6：獨立於快記大鈕；F03 S1）。
           IconButton(
             key: const Key('scan-entry'),
             tooltip: '掃描',
             onPressed: () => openScanFlow(context, ref),
             icon: const Icon(Icons.document_scanner_outlined),
+          ),
+          // 設定入口（M7 恢復——PM 2026-10-21 決策含雲端同步；f07 harness
+          // 回頭時補 app-settings → settings-sync 導航步）。
+          IconButton(
+            key: const Key('app-settings'),
+            tooltip: '設定',
+            onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const SettingsHubPage())),
+            icon: const Icon(Icons.settings_outlined),
           ),
           IconButton(
             tooltip: 'UI Demo（設計參考）',
@@ -48,6 +68,14 @@ class OverviewPage extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(12),
         children: [
+          if (accounts.isEmpty)
+            // 空狀態（M7 UI 統整；正常首啟由播種建現金帳戶——僅防護性提示）。
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.all(12),
+                child: Text('尚無帳戶'),
+              ),
+            ),
           for (final row in accounts)
             Card(
               child: ListTile(
@@ -60,8 +88,10 @@ class OverviewPage extends ConsumerWidget {
                 leading: const Icon(Icons.account_balance_wallet_outlined),
                 title: Text(row.name),
                 trailing: Text(
-                  // F02-FE S2：餘額千分位顯示（10,400）。
-                  '餘額 ${NumberFormat('#,###').format(calc.assetBalance(account: accountEntity(row), txs: txs))}',
+                  // F02-FE S2：餘額千分位顯示；F08-FE S5：隱私遮蔽（●●●●）。
+                  ref.watch(privacyMaskedProvider)
+                      ? '餘額 ●●●●'
+                      : '餘額 ${NumberFormat('#,###').format(calc.assetBalance(account: accountEntity(row), txs: txs))}',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
