@@ -15,12 +15,14 @@ import 'package:ledger_sync/data/sqlite/app_database.dart';
 import 'package:ledger_sync/domain/entities/transaction_draft.dart';
 import 'package:ledger_sync/domain/services/invoice_qr_parser.dart';
 import 'package:ledger_sync/domain/services/receipt_field_extractor.dart';
+import 'package:ledger_sync/application/sync/sync_coordinator.dart';
 import 'package:ledger_sync/presentation/app_shell.dart';
 import 'package:ledger_sync/presentation/screens/scan/import_page.dart';
 import 'package:ledger_sync/presentation/screens/scan/review_page.dart';
 import 'package:ledger_sync/presentation/screens/scan/scan_page.dart';
 
 import '../../integration_test/helpers/hooks.dart';
+import '../../test/helpers/in_memory_cloud_adapter.dart';
 import '../../test/helpers/db_fixture.dart';
 import '../../test/helpers/gherkin/gherkin.dart';
 import '../../test/helpers/invoice_qr_fixtures.dart';
@@ -297,6 +299,9 @@ Future<void> _ensureApp(_World w) async {
   final container = ProviderContainer(overrides: [
     dbProvider.overrideWithValue(w.db!),
     blobsDirProvider.overrideWithValue(blobsDir),
+    // 啟動同步鉤子（FR-Y11 afterSave——F07-BE 接線）防 UnimplementedError。
+    syncCoordinatorProvider.overrideWithValue(
+        SyncCoordinator(w.db!, InMemoryCloudAdapter(), deviceId: 'd-A')),
     // 匯入管線回放（T-H6 fixture 1 OCR——FR-S6 桌面路徑；平台檔案選擇屬生產接線）。
     importPipelineProvider.overrideWithValue(() async {
       final ext = ReceiptFieldExtractor.extract(OcrReceiptFixtures.text(1));

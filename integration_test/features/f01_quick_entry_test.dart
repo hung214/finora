@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:ledger_sync/application/providers.dart';
 import 'package:ledger_sync/core/clock.dart';
 import 'package:ledger_sync/data/sqlite/app_database.dart';
+import 'package:ledger_sync/application/sync/sync_coordinator.dart';
 import 'package:ledger_sync/presentation/app_shell.dart';
 import 'package:ledger_sync/presentation/screens/ledger/ledger_page.dart';
 import 'package:ledger_sync/presentation/screens/overview/overview_page.dart';
@@ -14,6 +15,7 @@ import 'package:ledger_sync/presentation/screens/quick_entry/quick_date_time_pic
 import 'package:ledger_sync/presentation/screens/quick_entry/quick_entry_controller.dart';
 import 'package:ledger_sync/presentation/screens/quick_entry/quick_entry_page.dart';
 
+import '../../test/helpers/in_memory_cloud_adapter.dart';
 import '../../test/helpers/db_fixture.dart';
 import '../../test/helpers/gherkin/gherkin.dart';
 
@@ -319,6 +321,9 @@ Future<void> _ensureApp(_World w) async {
   if (w.pumped) return;
   final container = ProviderContainer(overrides: [
     dbProvider.overrideWithValue(w.db!),
+    // 啟動同步鉤子（FR-Y11 afterSave——F07-BE 接線）防 UnimplementedError。
+    syncCoordinatorProvider.overrideWithValue(
+        SyncCoordinator(w.db!, InMemoryCloudAdapter(), deviceId: 'd-A')),
   ]);
   w.containers.add(container);
   w.container = container;
