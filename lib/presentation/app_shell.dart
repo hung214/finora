@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/version.dart';
+import 'screens/lock/lock_gate.dart';
 import 'screens/main_shell_page.dart';
 
 /// M1 主殼 App（真實介面）。
@@ -24,7 +25,7 @@ class AppShell extends StatelessWidget {
         colorSchemeSeed: const Color(0xFF0B7A75),
         brightness: Brightness.dark,
       ),
-      home: const MainShellPage(),
+      home: const LockGate(child: MainShellPage()),
     );
   }
 }
