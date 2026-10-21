@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../../application/budgets/budget_evaluator.dart';
 import '../../../application/providers.dart';
 import '../../../data/sqlite/app_database.dart';
+import '../../theme/app_theme.dart';
 
 /// 預算頁（FR-B2~B7 呈現面；M2 新增分頁）。
 ///
@@ -53,14 +54,15 @@ class BudgetProgressBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = AppTokens.of(context);
     final over = usageMinor > amountMinor;
     final progressColor =
-        over ? Colors.red : (usageMinor * 5 >= amountMinor * 4 ? Colors.orange : null);
+        over ? tokens.danger : (usageMinor * 5 >= amountMinor * 4 ? tokens.warning : null);
     return LinearProgressIndicator(
       key: Key('budget-progress-$name'),
       value: amountMinor <= 0 ? 0 : min(usageMinor / amountMinor, 1.0),
       color: progressColor,
-      backgroundColor: Colors.grey.shade300,
+      backgroundColor: tokens.track,
     );
   }
 }
@@ -106,7 +108,7 @@ class _BudgetCard extends ConsumerWidget {
                     style: Theme.of(context)
                         .textTheme
                         .labelMedium
-                        ?.copyWith(color: Colors.deepPurple),
+                        ?.copyWith(color: AppTokens.of(context).pending),
                   ),
               ],
             ),
@@ -126,7 +128,7 @@ class _BudgetCard extends ConsumerWidget {
                   style: Theme.of(context)
                       .textTheme
                       .labelLarge
-                      ?.copyWith(color: Colors.red),
+                      ?.copyWith(color: AppTokens.of(context).danger),
                 ),
               ),
           ],

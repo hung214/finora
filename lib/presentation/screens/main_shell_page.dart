@@ -8,7 +8,6 @@ import 'ledger/ledger_page.dart';
 import 'overview/overview_page.dart';
 import 'quick_entry/quick_entry_page.dart';
 import 'scan/scan_page.dart';
-import 'settings/settings_sync_page.dart';
 import '../../application/sync/sync_fe_state.dart';
 import 'stats/stats_page.dart';
 
@@ -57,10 +56,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> {
         MaterialPageRoute<void>(builder: (_) => const QuickEntryPage()),
       );
 
-  // ignore: unused_element —— F07-FE 回頭恢復入口（M5 暫停）
-  void _openSettings() => Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => const SettingsSyncPage()),
-      );
+  // 設定入口已移至總覽 AppBar（SettingsHubPage——M7 恢復，PM 2026-10-21）。
 
   /// 掃描入口（FR-S6：桌面快捷鍵 ⌘⇧S/Ctrl+Shift+S；無相機→匯入）。
   void _openScan() => openScanFlow(context, ref);

@@ -9,6 +9,7 @@ import '../../../application/wipe/wipe_service.dart';
 import '../../../application/scan/scan_state.dart';
 import '../../../application/sync/sync_fe_state.dart';
 import '../../../application/lock/lock_fe_state.dart';
+import '../../theme/app_theme.dart';
 
 /// 資料管理頁（FR-O3；驗收 S9.1/S9.2）：清空資料三重防護——
 /// ①警告（未連雲端「無雲端可還原」＋可先匯出備份檔入口）②PIN ③確認文字；
@@ -221,7 +222,9 @@ class _DataManagementPageState extends ConsumerState<DataManagementPage> {
             obscureText: true,
             keyboardType: TextInputType.number,
           ),
-          if (_pinError) const Text('PIN 不正確', style: TextStyle(color: Colors.red)),
+          if (_pinError)
+            Text('PIN 不正確',
+                style: TextStyle(color: AppTokens.of(context).danger)),
           const SizedBox(height: 12),
           FilledButton(
             key: const Key('wipe-pin-submit'),
@@ -254,7 +257,8 @@ class _DataManagementPageState extends ConsumerState<DataManagementPage> {
             controller: _confirmController,
           ),
           if (_confirmError)
-            const Text('確認文字不符', style: TextStyle(color: Colors.red)),
+            Text('確認文字不符',
+                style: TextStyle(color: AppTokens.of(context).danger)),
           const SizedBox(height: 12),
           FilledButton(
             key: const Key('wipe-confirm-submit'),
@@ -277,7 +281,8 @@ class _DataManagementPageState extends ConsumerState<DataManagementPage> {
           const SizedBox(height: 8),
           const Text('清空將連雲端 LedgerSync/ 一併刪除——須重新驗證身分。'),
           if (_oauthError)
-            const Text('帳號不符，已取消', style: TextStyle(color: Colors.red)),
+            Text('帳號不符，已取消',
+                style: TextStyle(color: AppTokens.of(context).danger)),
           const SizedBox(height: 12),
           FilledButton(
             key: const Key('wipe-oauth-button'),

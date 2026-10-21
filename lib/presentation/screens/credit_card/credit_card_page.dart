@@ -8,6 +8,7 @@ import '../../../core/clock.dart';
 import '../../../data/sqlite/app_database.dart';
 import '../../../domain/entities/account.dart';
 import '../../../domain/services/balance_calculator.dart';
+import '../../theme/app_theme.dart';
 import 'card_settings_page.dart';
 
 /// 信用卡頁（FR-C1/C3/C4/C6 呈現面；M3）。
@@ -92,14 +93,18 @@ class _CreditCardPageState extends ConsumerState<CreditCardPage> {
                 _Badge(
                   label: badge,
                   color: badge == '逾期'
-                      ? Colors.red
-                      : (badge == '已繳' ? Colors.green : Colors.orange),
+                      ? AppTokens.of(context).danger
+                      : (badge == '已繳'
+                          ? AppTokens.of(context).success
+                          : AppTokens.of(context).warning),
                 ),
                 if (badge == '逾期')
-                  const Padding(
-                    padding: EdgeInsets.only(left: 8),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8),
                     child: Text('v1 不計息',
-                        style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: AppTokens.of(context).subText)),
                   ),
               ]),
             ),

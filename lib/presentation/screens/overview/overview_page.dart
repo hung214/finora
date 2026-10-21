@@ -11,6 +11,7 @@ import '../../screens/budget/budget_page.dart';
 import '../../screens/credit_card/credit_card_page.dart';
 import '../../screens/demo/demo_gallery_page.dart';
 import '../../screens/scan/scan_page.dart';
+import '../settings/settings_hub_page.dart';
 
 /// 總覽頁（M1 精簡）：帳戶餘額＋收入目標卡＋預算進度（SDD 原則 2：衍生值重算）。
 class OverviewPage extends ConsumerWidget {
@@ -46,6 +47,15 @@ class OverviewPage extends ConsumerWidget {
             onPressed: () => openScanFlow(context, ref),
             icon: const Icon(Icons.document_scanner_outlined),
           ),
+          // 設定入口（M7 恢復——PM 2026-10-21 決策含雲端同步；f07 harness
+          // 回頭時補 app-settings → settings-sync 導航步）。
+          IconButton(
+            key: const Key('app-settings'),
+            tooltip: '設定',
+            onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const SettingsHubPage())),
+            icon: const Icon(Icons.settings_outlined),
+          ),
           IconButton(
             tooltip: 'UI Demo（設計參考）',
             onPressed: () => Navigator.of(context).push(
@@ -58,6 +68,14 @@ class OverviewPage extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(12),
         children: [
+          if (accounts.isEmpty)
+            // 空狀態（M7 UI 統整；正常首啟由播種建現金帳戶——僅防護性提示）。
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.all(12),
+                child: Text('尚無帳戶'),
+              ),
+            ),
           for (final row in accounts)
             Card(
               child: ListTile(
