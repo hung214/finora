@@ -33,6 +33,12 @@ final oauthProvider = Provider<Future<String?> Function()>((ref) {
 final syncAccountProvider = NotifierProvider<SyncAccountNotifier, String?>(
     SyncAccountNotifier.new);
 
+/// 雲端可用狀態（FR-Y7）：adapter.isConfigured——憑證未就緒時
+/// [SettingsSyncPage] 開頁即顯示說明卡（不必點了才知道）。載入前以
+/// true 樂觀呈現（避免閃爍）；測試注入之 adapter 回 true（不出卡）。
+final cloudConfiguredProvider = FutureProvider<bool>(
+    (ref) => ref.watch(cloudAdapterProvider).isConfigured());
+
 class SyncAccountNotifier extends Notifier<String?> {
   @override
   String? build() => ref.watch(dbProvider).getSetting('sync.account');

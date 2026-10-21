@@ -21,6 +21,14 @@ class SettingsHubPage extends StatelessWidget {
       appBar: AppBar(title: const Text('設定')),
       body: ListView(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+            child: Text('同步',
+                style: Theme.of(context)
+                    .textTheme
+                    .labelLarge
+                    ?.copyWith(color: Theme.of(context).colorScheme.primary)),
+          ),
           ListTile(
             key: const Key('settings-sync'),
             leading: const Icon(Icons.cloud_sync_outlined),
@@ -29,6 +37,15 @@ class SettingsHubPage extends StatelessWidget {
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(builder: (_) => const SettingsSyncPage())),
+          ),
+          const Divider(height: 1, indent: 16, endIndent: 16),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+            child: Text('資料',
+                style: Theme.of(context)
+                    .textTheme
+                    .labelLarge
+                    ?.copyWith(color: Theme.of(context).colorScheme.primary)),
           ),
           ListTile(
             key: const Key('settings-data-management'),

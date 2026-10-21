@@ -118,11 +118,34 @@ class _SettingsSyncPageState extends ConsumerState<SettingsSyncPage> {
     final pending = ref.watch(pendingOpsProvider);
     final lastSync = ref.watch(lastSyncAtProvider);
     final conflicts = ref.watch(syncEventsProvider);
+    // 憑證未就緒（UnconfiguredCloudAdapter）——開頁即說明（不用點了才知道）。
+    final configured = ref.watch(cloudConfiguredProvider).valueOrNull ?? true;
     return Scaffold(
       appBar: AppBar(title: const Text('雲端與同步')),
       body: ListView(
         padding: const EdgeInsets.all(12),
         children: [
+          if (!configured) ...[
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  children: [
+                    Icon(Icons.cloud_off_outlined,
+                        color: Theme.of(context).colorScheme.error),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        '雲端功能尚未設定——Google 憑證未就緒。'
+                        '本地記帳不受影響；憑證就緒後可於此連結雲端同步與備份。',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
           if (_restoring) ...[
             // 還原登入步（驗收 S7.4 #1→#2）：無論是否已連結，選「從雲端
             // 還原」後一律導向 Google 登入（FR-Y2 兩步互動）。
@@ -155,7 +178,8 @@ class _SettingsSyncPageState extends ConsumerState<SettingsSyncPage> {
               Center(
                 child: FilledButton.icon(
                   key: const Key('sync-link'),
-                  onPressed: _beginLink,
+                  // 憑證未就緒：停用（說明卡已解釋原因——避免死路）。
+                  onPressed: configured ? _beginLink : null,
                   icon: const Icon(Icons.link),
                   label: const Text('連結 Google Drive'),
                 ),
