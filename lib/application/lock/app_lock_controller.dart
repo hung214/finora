@@ -53,9 +53,10 @@ class AppLockController {
   void onBackground() => _backgroundAt = Clock.now();
 
   /// 返回時判定：背景時長 ≥ 門檻 → 鎖定需求（AC-09 邊界：30s 精準）。
+  /// **純查詢**（同背景會話可多次邊界探測——29/30/31s 遞增；背景時刻保留，
+  /// 由解鎖成功或重新前景操作重置）。
   bool shouldLockOnResume() {
     final bg = _backgroundAt;
-    _backgroundAt = null; // 判定即消費（返回後恢復前台語意）
     if (bg == null) return false;
     final elapsed = Clock.now().difference(bg).inSeconds;
     return elapsed >= thresholdSec;
