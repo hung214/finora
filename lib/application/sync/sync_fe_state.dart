@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/clock.dart';
+
 import '../../data/sqlite/app_database.dart';
 import '../../platform/cloud/cloud_storage_adapter.dart';
 import '../providers.dart';
@@ -36,7 +38,7 @@ class SyncAccountNotifier extends Notifier<String?> {
 
   void unlink() {
     ref.watch(dbProvider).setSetting('sync.account', '');
-    state = null;
+    state = null; // UI 判定以 state 為準（settings 存空字串＝歷史紀錄）
   }
 }
 
@@ -79,8 +81,9 @@ class SyncEventsNotifier extends Notifier<List<SyncEventRow>> {
 /// SyncSettingsPage 與啟動同步共用；container 供 widget 外呼叫）。
 void afterSyncRefresh(ProviderContainer container) {
 
+  // T-H2 單一時間來源：Clock（凍結時跟隨——acceptance「上次同步 今天 09:00」）。
   container.read(dbProvider).setSetting(
-      'sync.last_at', '${DateTime.now().millisecondsSinceEpoch}');
+      'sync.last_at', '${Clock.now().millisecondsSinceEpoch}');
   container.read(pendingOpsProvider.notifier).refresh();
   container.read(lastSyncAtProvider.notifier).refresh();
   container.read(syncEventsProvider.notifier).refresh();

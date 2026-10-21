@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../application/providers.dart';
 import 'budget/budget_page.dart';
 import 'ledger/ledger_page.dart';
 import 'overview/overview_page.dart';
 import 'quick_entry/quick_entry_page.dart';
 import 'scan/scan_page.dart';
+import 'settings/settings_sync_page.dart';
+import '../../application/sync/sync_fe_state.dart';
 import 'stats/stats_page.dart';
 
 /// 主殼（SDD §8 IA；RWD 響應式——單碼庫雙殼，ui/08-desktop-shell 雛型落地）：
@@ -31,8 +34,29 @@ class MainShellPage extends ConsumerStatefulWidget {
 class _MainShellPageState extends ConsumerState<MainShellPage> {
   int _tab = 0;
 
+  @override
+  void initState() {
+    super.initState();
+    // FR-Y11 啟動同步：已連結雲端時同步一次（fire-and-forget；M5 BE 已驗協議）。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if ((ref.read(dbProvider).getSetting('sync.account') ?? '').isNotEmpty) {
+        ref.read(syncCoordinatorProvider).sync().then((_) {
+          final db = ref.read(dbProvider);
+          db.setSetting('sync.last_at', '${DateTime.now().millisecondsSinceEpoch}');
+          ref.read(pendingOpsProvider.notifier).refresh();
+          ref.read(lastSyncAtProvider.notifier).refresh();
+          ref.read(syncEventsProvider.notifier).refresh();
+        }).catchError((_) {});
+      }
+    });
+  }
+
   void _openQuickEntry() => Navigator.of(context).push(
         MaterialPageRoute<void>(builder: (_) => const QuickEntryPage()),
+      );
+
+  void _openSettings() => Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => const SettingsSyncPage()),
       );
 
   /// 掃描入口（FR-S6：桌面快捷鍵 ⌘⇧S/Ctrl+Shift+S；無相機→匯入）。
@@ -74,11 +98,25 @@ class _MainShellPageState extends ConsumerState<MainShellPage> {
                 // 手機殼：底部 NavigationBar。
                 return Scaffold(
                   body: body,
-                  floatingActionButton: FloatingActionButton(
-                    key: const Key('fab-quick-entry'),
-                    tooltip: '快記',
-                    onPressed: _openQuickEntry,
-                    child: const Icon(Icons.add),
+                  floatingActionButton: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      FloatingActionButton.small(
+                        key: const Key('app-settings'),
+                        tooltip: '設定',
+                        heroTag: 'settings',
+                        onPressed: _openSettings,
+                        child: const Icon(Icons.settings_outlined),
+                      ),
+                      const SizedBox(height: 8),
+                      FloatingActionButton(
+                        key: const Key('fab-quick-entry'),
+                        tooltip: '快記',
+                        heroTag: 'quick',
+                        onPressed: _openQuickEntry,
+                        child: const Icon(Icons.add),
+                      ),
+                    ],
                   ),
                   bottomNavigationBar: NavigationBar(
                     selectedIndex: _tab,
@@ -112,6 +150,13 @@ class _MainShellPageState extends ConsumerState<MainShellPage> {
                               tooltip: '快記（⌘N）',
                               onPressed: _openQuickEntry,
                               child: const Icon(Icons.add),
+                            ),
+                            const SizedBox(height: 8),
+                            IconButton(
+                              key: const Key('app-settings'),
+                              tooltip: '設定',
+                              onPressed: _openSettings,
+                              icon: const Icon(Icons.settings_outlined),
                             ),
                           ],
                         ),

@@ -41,16 +41,27 @@ class SyncCoordinator {
   /// M5 為可變欄位 seam——情境切換）。
   String networkType = 'wifi';
 
+  /// 重入閘（M5-FE：啟動鉤子×手動「立即同步」併發防護——進行中呼叫直接
+  /// 跳過，避免循環觸發與 race；SDD §5.5.3 冪等語意下安全）。
+  bool _syncRunning = false;
+
   static const _vaultPath = 'vault.json';
   String _manifestPath(String id) => 'devices/$id.json';
   String _bundlePath(String id, int seq) =>
       'ops/$id/${seq.toString().padLeft(8, '0')}.opbundle';
 
   /// 同步回合（情境觸發點）：pull 套用 peers → push 未打包。
+  /// 重入保護：進行中時後到呼叫直接跳過（返回即完成的已完成 Future）。
   Future<void> sync() async {
-    await _ensureVault();
-    await pull();
-    await push();
+    if (_syncRunning) return;
+    _syncRunning = true;
+    try {
+      await _ensureVault();
+      await pull();
+      await push();
+    } finally {
+      _syncRunning = false;
+    }
   }
 
   /// vault 首建（§5.5.1：僅首次寫入一次）。

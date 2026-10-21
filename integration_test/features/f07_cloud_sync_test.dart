@@ -64,20 +64,36 @@ class _AccountScopedAdapter implements CloudStorageAdapter {
   InMemoryCloudAdapter spaceOf(String email) =>
       _spaces.putIfAbsent(email, InMemoryCloudAdapter.new);
 
+  /// 節流（5ms/操作）：模擬網路延遲——「同步中…」回饋的時序窗（tap 後
+  /// pump() 未 settle 斷言需要 sync 尚未完成；fake 立即 resolve 會一閃即逝）。
+  Future<void> _pace() => Future.delayed(const Duration(milliseconds: 5));
+
   @override
   Future<bool> isConfigured() async => true;
 
   @override
-  Future<List<String>> list(String folder) => _space.list(folder);
+  Future<List<String>> list(String folder) async {
+    await _pace();
+    return _space.list(folder);
+  }
 
   @override
-  Future<void> upload(String path, Uint8List bytes) => _space.upload(path, bytes);
+  Future<void> upload(String path, Uint8List bytes) async {
+    await _pace();
+    await _space.upload(path, bytes);
+  }
 
   @override
-  Future<Uint8List?> download(String path) => _space.download(path);
+  Future<Uint8List?> download(String path) async {
+    await _pace();
+    return _space.download(path);
+  }
 
   @override
-  Future<void> delete(String path) => _space.delete(path);
+  Future<void> delete(String path) async {
+    await _pace();
+    await _space.delete(path);
+  }
 }
 
 class _World {
@@ -109,6 +125,9 @@ void _bind(GherkinRunner runner, _World w) {
   runner.on(r'模擬雲端為 in-memory adapter 且已連結（Google 帳號 {email}）$', (p) {
     w.oauthEmail = p['email']!;
     w.scopedCloud.currentEmail = p['email']!;
+    // 已連結語意：settings 落帳號（pump 後 syncAccountProvider 讀取；
+    // 啟動同步鉤子據此觸發）。
+    w.db!.setSetting('sync.account', p['email']!);
   });
 
   // ── Given ────────────────────────────────────────────────
@@ -120,6 +139,11 @@ void _bind(GherkinRunner runner, _World w) {
 
   runner.on(r'已有 {n} 筆未同步變更$', (p) async {
     await _ensureApp(w);
+    if (w.db!.allAccounts().isEmpty) {
+      // 情境無「已建立帳戶」步驟——本地背景帳戶（同 M5 BE ensureDevice 慣例）。
+      DbFixture.seedAccount(w.db!,
+          id: 'a-0', type: 'cash', name: '現金', opening: 1000);
+    }
     final n = int.parse(p['n']!);
     for (var i = 0; i < n; i++) {
       await DbFixture.seedTx(w.db!,
@@ -128,8 +152,7 @@ void _bind(GherkinRunner runner, _World w) {
           amountMinor: 100 * (i + 1),
           accountId: w.db!.allAccounts().first.id,
           occurredAt: Clock.now().millisecondsSinceEpoch);
-      w.db!.appendOp(opFor('transactions', 'tx-pending-$i', newHlc('d-A'),
-          w.db!.transactionById('tx-pending-$i')!.toSnapshot()));
+      // seedTx 已含 oplog 整列快照（packed_seq=null）——勿重複 append。
     }
     w.container!.read(pendingOpsProvider.notifier).refresh();
     await w.tester.pumpAndSettle();
@@ -181,12 +204,17 @@ void _bind(GherkinRunner runner, _World w) {
   });
 
   runner.on(r'按下「立即同步」$', (p) async {
+    await _openSettingsSync(w); // 已連結→同步操作區
     await w.tester.tap(find.byKey(const Key('sync-now')));
     await w.tester.pump(); // 渲染「同步中…」frame（未 settle）
   });
 
   runner.on(r'關閉並重新啟動 App$', (p) async {
     // 同 db 重建（未同步變更留 oplog）＋啟動同步鉤子（FR-Y11）。
+    // 凍結「今天 09:00」：last_at 落於此時刻（acceptance S3 顯示契約）。
+    final now = Clock.now();
+    final frozen = DateTime(now.year, now.month, now.day, 9, 0);
+    Clock.freeze(frozen);
     w.pumped = false;
     await _ensureApp(w);
   });
@@ -234,9 +262,9 @@ void _bind(GherkinRunner runner, _World w) {
     expect(w.tester.any(find.text('連結成功')), isTrue, reason: 'FR-Y7 授權完成');
   });
 
-  runner.on(r'顯示「同步中…」$', (p) {
+  runner.on(r'顯示「同步中…」$', (p) async {
     expect(w.tester.any(find.text('同步中…')), isTrue, reason: 'FR-Y11 進行中回饋');
-    w.tester.pumpAndSettle();
+    await w.tester.pumpAndSettle();
   });
 
   runner.on(r'顯示「已同步 {n} 筆變更」$', (p) {
@@ -249,7 +277,11 @@ void _bind(GherkinRunner runner, _World w) {
         reason: 'FR-Y11 待同步計數');
   });
 
-  runner.on(r'顯示「上次同步 今天 {time}」$', (p) {
+  runner.on(r'顯示「上次同步 今天 {time}」$', (p) async {
+    // 「上次同步」呈現於設定同步頁——重啟後在主殼，須先開頁。
+    if (w.tester.any(find.byType(SettingsSyncPage)) != true) {
+      await _openSettingsSync(w);
+    }
     expect(w.tester.any(find.text('上次同步 今天 ${p['time']!}')), isTrue,
         reason: 'FR-Y11 啟動同步觸發（last_at 格式化）');
   });
@@ -304,7 +336,9 @@ Future<void> _ensureApp(_World w) async {
   w.container = container;
   await w.tester.pumpWidget(
     KeyedSubtree(
-      key: ValueKey('app-shell-${w.dbs.length}'),
+      // key 帶 container 序數：同情境內「關閉並重新啟動」（S3）時 dbs 不變，
+      // 須強制重建以重跑 initState 啟動鉤子（DBG-007 教訓）。
+      key: ValueKey('app-shell-${w.containers.length}'),
       child: UncontrolledProviderScope(container: container, child: const AppShell()),
     ),
   );
