@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../application/lock/lock_fe_state.dart';
 import '../../../application/budgets/budget_evaluator.dart';
 import '../../../application/providers.dart';
 import '../../../core/version.dart';
@@ -29,6 +30,15 @@ class OverviewPage extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('總覽'),
         actions: [
+          // 隱私遮蔽開關（FR-X3；F08-FE S5）。
+          IconButton(
+            key: const Key('privacy-toggle'),
+            tooltip: '遮蔽金額',
+            onPressed: () => ref.read(privacyMaskedProvider.notifier).toggle(),
+            icon: Icon(ref.watch(privacyMaskedProvider)
+                ? Icons.visibility_off
+                : Icons.visibility),
+          ),
           // 掃描入口（FR-S6：獨立於快記大鈕；F03 S1）。
           IconButton(
             key: const Key('scan-entry'),
@@ -60,8 +70,10 @@ class OverviewPage extends ConsumerWidget {
                 leading: const Icon(Icons.account_balance_wallet_outlined),
                 title: Text(row.name),
                 trailing: Text(
-                  // F02-FE S2：餘額千分位顯示（10,400）。
-                  '餘額 ${NumberFormat('#,###').format(calc.assetBalance(account: accountEntity(row), txs: txs))}',
+                  // F02-FE S2：餘額千分位顯示；F08-FE S5：隱私遮蔽（●●●●）。
+                  ref.watch(privacyMaskedProvider)
+                      ? '餘額 ●●●●'
+                      : '餘額 ${NumberFormat('#,###').format(calc.assetBalance(account: accountEntity(row), txs: txs))}',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),

@@ -9,17 +9,18 @@
 /// integration_test`），單元測試無法驗證；M1 FE 首跑時以 F01-S1.11 / F08 情境啟用。
 library;
 
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// 模擬切背景 [duration] 後返回前景（驅動 AppLockController 判定）。
+/// 模擬切背景 [duration] 後返回前景（驅動 AppLockController 判定——
+/// lifecycle 事件經 TestWidgetsFlutterBinding 注入，LockGate observer 接收）。
 Future<void> pumpBackground(WidgetTester tester, Duration duration) async {
-  // TODO(M1-F08): 透過 TestWidgetsFlutterBinding 生命周期事件模擬：
-  //   binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
-  //   await tester.pump(duration);
-  //   binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-  //   await tester.pump();
-  throw UnimplementedError('M1 FE 首跑時實作（T-H8）');
+  final binding = tester.binding;
+  binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+  await tester.pump(duration);
+  binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+  await tester.pump();
 }
 
 /// 桌面快捷鍵注入（以 Keyboard key event 模擬 Ctrl+N / Ctrl+Shift+S 等）。
