@@ -17,7 +17,8 @@ class SettingsSyncPage extends ConsumerStatefulWidget {
 }
 
 class _SettingsSyncPageState extends ConsumerState<SettingsSyncPage> {
-  bool _linking = false; // OAuth 流程中
+  bool _linking = false; // 連結 OAuth 流程中（等待「同意授權」）
+  bool _restoring = false; // 還原 OAuth 流程中（S7.4 #1：導向 Google 登入）
   bool _linkSuccess = false; // 授權完成（連結成功＋兩步驟驗證建議）
   bool _syncing = false;
   String? _syncResult; // 「已同步 N 筆變更」
@@ -49,27 +50,34 @@ class _SettingsSyncPageState extends ConsumerState<SettingsSyncPage> {
     });
   }
 
-  /// 從雲端還原（FR-Y2/AC-08）：登入（同帳號）→ bootstrap → 結果回饋。
-  Future<void> _restore() async {
-    setState(() {
-      _syncing = true;
-      _restoreResult = null;
-      _error = null;
-    });
+  /// 從雲端還原第一步（FR-Y2/AC-08；驗收 S7.4 #1）：導向 Google 登入
+  /// （兩步互動——與連結流程一致；還原前須先登入同帳號）。
+  void _beginRestore() => setState(() {
+        _restoring = true;
+        _restoreResult = null;
+        _error = null;
+      });
+
+  /// 從雲端還原第二步（S7.4 #2）：登入 → bootstrap → 結果回饋。
+  Future<void> _approveRestore() async {
     final email = await ref.read(oauthProvider)();
     if (!mounted) return;
     if (email == null) {
-      setState(() => _syncing = false);
+      setState(() => _restoring = false); // 取消
       return;
     }
+    setState(() {
+      _restoring = false;
+      _syncing = true;
+      _restoreResult = null;
+    });
     ref.read(syncAccountProvider.notifier).link(email);
     await ref.read(syncCoordinatorProvider).bootstrap();
     if (!mounted) return;
     final hasData = ref.read(dbProvider).allAccounts().isNotEmpty;
     setState(() {
       _syncing = false;
-      _restoreResult =
-          hasData ? '還原完成' : '此帳號沒有可還原的資料';
+      _restoreResult = hasData ? '還原完成' : '此帳號沒有可還原的資料';
     });
   }
 
@@ -104,7 +112,21 @@ class _SettingsSyncPageState extends ConsumerState<SettingsSyncPage> {
       body: ListView(
         padding: const EdgeInsets.all(12),
         children: [
-          if (!_linked) ...[
+          if (_restoring) ...[
+            // 還原登入步（驗收 S7.4 #1→#2）：無論是否已連結，選「從雲端
+            // 還原」後一律導向 Google 登入（FR-Y2 兩步互動）。
+            const Center(child: CircularProgressIndicator()),
+            const SizedBox(height: 12),
+            const Center(
+                child: Text('Google 登入', key: Key('google-signin'))),
+            Center(
+              child: FilledButton(
+                key: const Key('oauth-approve'),
+                onPressed: _approveRestore,
+                child: const Text('同意授權'),
+              ),
+            ),
+          ] else if (!_linked) ...[
             // 未連結（FR-Y7 授權式；無同步密碼 UI）。
             if (_linking) ...[
               const Center(child: CircularProgressIndicator()),
@@ -185,13 +207,10 @@ class _SettingsSyncPageState extends ConsumerState<SettingsSyncPage> {
             ),
             OutlinedButton.icon(
               key: const Key('restore-cloud'),
-              onPressed: _syncing ? null : _restore,
+              onPressed: _syncing ? null : _beginRestore,
               icon: const Icon(Icons.restore),
               label: const Text('從雲端還原'),
             ),
-          ],
-          if (_linking && _linked) ...[
-            // 還原流程之登入步（oauth-approve 於未連結分支外亦可用）。
           ],
           if (_restoreResult != null)
             Padding(
