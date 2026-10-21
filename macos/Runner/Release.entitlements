@@ -4,5 +4,9 @@
 <dict>
 	<key>com.apple.security.app-sandbox</key>
 	<true/>
+	<!-- 雲端同步（FR-Y7）：連外至 Google Drive／OAuth 端點——沙箱必要。
+	     缺此 entitlement 時 Release 版無法建立對外連線（同步/OAuth 失敗）。 -->
+	<key>com.apple.security.network.client</key>
+	<true/>
 </dict>
 </plist>

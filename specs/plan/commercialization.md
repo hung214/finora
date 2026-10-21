@@ -17,6 +17,8 @@
 
 ### 1.2 ⚠️ PM 動作清單（Google Cloud Console，建議 M5 期間啟動——審核有時程）
 
+> **統一入口**：跨項目的 PM 待辦（憑證／帳號／決策／驗收）彙整於 **`specs/plan/pm-actions.md`**——本節為 Google 憑證之詳細版；兩處如有出入以 `pm-actions.md` 為準。
+
 | # | 步驟 | 說明 | 估時 |
 |---|---|---|---|
 | 1 | 建立 Google Cloud 專案 | 專案名建議「LedgerSync」 | 5 分鐘 |

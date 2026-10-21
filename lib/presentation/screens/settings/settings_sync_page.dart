@@ -39,7 +39,18 @@ class _SettingsSyncPageState extends ConsumerState<SettingsSyncPage> {
     final email = await ref.read(oauthProvider)();
     if (!mounted) return;
     if (email == null) {
-      setState(() => _linking = false);
+      // 未設定（憑證未就緒）或使用者取消——給明確回饋（避免靜默無反應）。
+      var configured = true;
+      try {
+        configured = await ref.read(cloudAdapterProvider).isConfigured();
+      } catch (_) {
+        configured = false;
+      }
+      if (!mounted) return;
+      setState(() {
+        _linking = false;
+        _error = configured ? '未完成授權（已取消）' : '雲端功能尚未設定（Google 憑證未就緒）';
+      });
       return;
     }
     ref.read(syncAccountProvider.notifier).link(email);

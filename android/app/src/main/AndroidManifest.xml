@@ -1,4 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 雲端同步（FR-Y7）：連外至 Google Drive／OAuth 端點。
+         注意：Flutter 範本僅在 debug/profile manifest 內建 INTERNET；release
+         使用本 manifest——缺此權限時 release 版無法連網（同步/OAuth 失敗）。 -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="ledger_sync"
         android:name="${applicationName}"
