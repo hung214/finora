@@ -4,6 +4,7 @@ import 'dart:io';
 import '../../core/hlc.dart';
 import '../../data/sqlite/app_database.dart';
 import '../../platform/cloud/cloud_storage_adapter.dart';
+import '../wipe/wipe_service.dart' show CloudWipedException;
 import 'bundle_applier.dart';
 import 'backup_service.dart';
 
@@ -76,7 +77,12 @@ class SyncCoordinator {
 
   /// pull：各 peer manifest → cursor+1..last_seq bundle 依序套用。
   /// （list 回資料夾內相對檔名——manifest 讀取須拼回完整路徑。）
+  /// vault 缺 → CloudWipedException（FR-O3「不復活」：其他裝置 pull 偵測
+  /// 雲端已重置 → 停止同步，**不 push 舊資料**）。
   Future<void> pull() async {
+    if (await _cloud.download(_vaultPath) == null) {
+      throw const CloudWipedException('雲端資料已不存在');
+    }
     final manifestFiles = await _cloud.list('devices');
     for (final file in manifestFiles) {
       final peer = file.replaceAll('.json', '');
