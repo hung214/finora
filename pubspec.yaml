@@ -1,7 +1,7 @@
 name: ledger_sync
 description: "LedgerSync — 本地優先跨平台記帳 App（規格：SPEC v0.3 / techstack v0.3.1）"
 publish_to: 'none'
-version: 0.4.12+1
+version: 0.4.13+1
 
 environment:
   sdk: ^3.13.5
@@ -17,6 +17,7 @@ dependencies:
   sqlcipher_flutter_libs: ">=0.6.0 <1.0.0" # DB 加密（FR-X2；SP-1 驗證四平台）
   cryptography: ^2.9.0            # AES-256-GCM（D8；Argon2id 備份檔密碼用）
   intl: ">=0.19.0 <0.22.0"        # 多語系/幣別格式
+  fl_chart: ^0.69.0               # 圖表：甜甜圈/月趨勢（D10；techstack §2.2）
   uuid: ^4.6.0                    # UUIDv7（實體 ID）
   cupertino_icons: ^1.0.8
   path_provider: ^2.1.6
