@@ -168,7 +168,10 @@ void _bind(GherkinRunner runner, _World w) {
     await _seedCloudData(w, p['email']!);
   });
 
-  runner.on(r'同步狀態頁有 {n} 筆衝突事件（被覆蓋內容「{text}」）$', (p) {
+  runner.on(r'同步狀態頁有 {n} 筆衝突事件（被覆蓋內容「{text}」）$', (p) async {
+    // 本情境須先 pump（Background 已換新 db／pumped=false——未 pump 則
+    // container 為前一情境殘留、樹也停在舊頁）。
+    await _ensureApp(w);
     final db = w.db!;
     final n = int.parse(p['n']!);
     for (var i = 0; i < n; i++) {
@@ -187,20 +190,23 @@ void _bind(GherkinRunner runner, _World w) {
       ));
     }
     w.container!.read(syncEventsProvider.notifier).refresh();
+    await w.tester.pumpAndSettle();
   });
 
   // ── When：導航與互動 ─────────────────────────────────────
   runner.on(r'設定→雲端與同步→按下「連結 Google Drive」$', (p) async {
     await _ensureApp(w);
     await _openSettingsSync(w);
-    await w.tester.tap(find.byKey(const Key('sync-link')));
-    await w.tester.pumpAndSettle();
+    await _tapUntil(w, find.byKey(const Key('sync-link')),
+        () => w.tester.any(find.byKey(const Key('google-signin'))));
   });
 
   runner.on(r'完成登入並同意授權$', (p) async {
     // fake OAuth 畫面：同意授權鈕（oauthProvider seam 回 email）。
-    await w.tester.tap(find.byKey(const Key('oauth-approve')));
-    await w.tester.pumpAndSettle();
+    await _tapUntil(w, find.byKey(const Key('oauth-approve')),
+        () =>
+            w.tester.any(find.text('連結成功')) ||
+            w.tester.any(find.byKey(const Key('sync-now'))));
   });
 
   runner.on(r'按下「立即同步」$', (p) async {
@@ -223,33 +229,42 @@ void _bind(GherkinRunner runner, _World w) {
     w.pumped = false;
     await _ensureApp(w);
     await _openSettingsSync(w);
-    await w.tester.tap(find.byKey(const Key('restore-cloud')));
-    await w.tester.pumpAndSettle();
+    // 還原第一步（S7.4 #1）：導向 Google 登入。
+    await _tapUntil(w, find.byKey(const Key('restore-cloud')),
+        () => w.tester.any(find.byKey(const Key('google-signin'))));
   });
 
   runner.on(r'登入同一帳號$', (p) async {
-    await w.tester.tap(find.byKey(const Key('oauth-approve')));
-    await w.tester.pumpAndSettle();
+    // 還原第二步（S7.4 #2）：bootstrap → 結果回饋。
+    await _tapUntil(w, find.byKey(const Key('oauth-approve')),
+        () => w.tester.any(find.text('還原完成')) ||
+            w.tester.any(find.text('此帳號沒有可還原的資料')));
   });
 
   runner.on(r'選擇「從雲端還原」並登入帳號 {email}$', (p) async {
     w.oauthEmail = p['email']!;
     w.scopedCloud.currentEmail = p['email']!;
-    await w.tester.tap(find.byKey(const Key('restore-cloud')));
-    await w.tester.pumpAndSettle();
-    await w.tester.tap(find.byKey(const Key('oauth-approve')));
-    await w.tester.pumpAndSettle();
+    // Given 僅預置雲端資料（停在主殼）——本步語意為在同步設定頁操作，
+    // 故先導航（等價驅動；原型 harness 遺漏此步＝S5 未驗之因）。
+    await _openSettingsSync(w);
+    await _tapUntil(w, find.byKey(const Key('restore-cloud')),
+        () => w.tester.any(find.byKey(const Key('google-signin'))));
+    await _tapUntil(w, find.byKey(const Key('oauth-approve')),
+        () => w.tester.any(find.text('還原完成')) ||
+            w.tester.any(find.text('此帳號沒有可還原的資料')));
   });
 
   runner.on(r'開啟同步狀態頁$', (p) async {
+    await _ensureApp(w); // 本情境須先 pump（同 Given 說明）
     await _openSettingsSync(w);
-    await w.tester.tap(find.byKey(const Key('sync-conflicts-entry')));
-    await w.tester.pumpAndSettle();
+    await _tapUntil(w, find.byKey(const Key('sync-conflicts-entry')),
+        () => w.tester.any(find.byKey(const Key('conflict-view-0'))));
   });
 
   runner.on(r'按下檢視$', (p) async {
-    await w.tester.tap(find.byKey(const Key('conflict-view-0')).first);
-    await w.tester.pumpAndSettle();
+    // 衝突列為唯讀快照（無導航）；此步確保列可見（Then 斷言內容）。
+    await _tapUntil(w, find.byKey(const Key('conflict-view-0')).first,
+        () => w.tester.any(find.byKey(const Key('conflict-view-0'))));
   });
 
   // ── Then ─────────────────────────────────────────────────
@@ -264,7 +279,12 @@ void _bind(GherkinRunner runner, _World w) {
 
   runner.on(r'顯示「同步中…」$', (p) async {
     expect(w.tester.any(find.text('同步中…')), isTrue, reason: 'FR-Y11 進行中回饋');
-    await w.tester.pumpAndSettle();
+    // 等待同步完成（僅同步步驟；bounded——避免節流下無限等待）。
+    for (var i = 0; i < 25; i++) {
+      if (w.tester.any(find.byKey(const Key('sync-result')))) break;
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      await w.tester.pump(const Duration(milliseconds: 100));
+    }
   });
 
   runner.on(r'顯示「已同步 {n} 筆變更」$', (p) {
@@ -353,8 +373,31 @@ Future<void> _ensureApp(_World w) async {
   }
 }
 
+/// 穩健 tap（macOS 遮擋節流韌性）：tap→pump；若 [until] 未成立（視窗被
+/// 遮擋時 display link 暫停→render tree 陳舊→tap 落空），真實等待後重試。
+/// 正常情況第一次即成立（零額外延遲）；僅失效時才等待重試。
+/// 證據：聚焦除錯測試（integration_test/debug_f07_s1_test.dart）顯示
+/// oauth-approve 在樹上、rect 正確，但 hitTest 路徑為空＝frame 陳舊。
+Future<void> _tapUntil(_World w, Finder f, bool Function() until,
+    {int retries = 12}) async {
+  for (var i = 0; i <= retries; i++) {
+    if (w.tester.any(f)) {
+      await w.tester.tap(f, warnIfMissed: false);
+    }
+    await w.tester.pump(const Duration(milliseconds: 150));
+    if (until()) return;
+    // frame 陳舊——讓 OS 有真實時間重新排程 frame 後重試。
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    await w.tester.pump(const Duration(milliseconds: 150));
+  }
+  expect(until(), isTrue, reason: 'tap 未生效（重試 ${retries + 1} 次）：$f');
+}
+
 Future<void> _openSettingsSync(_World w) async {
   await w.tester.tap(find.byKey(const Key('app-settings')));
+  await w.tester.pumpAndSettle();
+  // M7 設定入口已恢復為 Hub（SettingsHubPage）——補一步「雲端同步」。
+  await w.tester.tap(find.byKey(const Key('settings-sync')));
   await w.tester.pumpAndSettle();
   expect(w.tester.any(find.byType(SettingsSyncPage)), isTrue,
       reason: '設定同步頁應已開啟');
