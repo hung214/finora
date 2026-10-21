@@ -313,6 +313,9 @@ Future<void> _ensureApp(_World w) async {
   ]);
   w.containers.add(container);
   w.container = container;
+  // 情境預設相機可用（行動語意；S6「無相機裝置」Given 顯式設 false——
+  // macOS 測試行程 Platform 判定為桌面，須覆寫才能驗掃描頁/權限流）。
+  container.read(cameraAvailableProvider.notifier).set(true);
   await w.tester.pumpWidget(
     KeyedSubtree(
       key: ValueKey('app-shell-${w.dbs.length}'),

@@ -7,6 +7,7 @@ import '../../../application/reports/csv_exporter.dart';
 import '../../../application/reports/search_service.dart';
 import '../../../data/sqlite/app_database.dart';
 import 'recent_deletions_page.dart';
+import '../scan/scan_page.dart';
 
 /// 明細頁（FR-R3 呈現面）：未刪除交易列表＋複合篩選（期間/分類/關鍵字，
 /// AND 語意＋chips 可逐一移除＋清除全部）＋匯出 CSV（FR-R4）。
@@ -48,6 +49,13 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
       appBar: AppBar(
         title: const Text('明細'),
         actions: [
+          // 掃描入口（FR-S6：獨立於快記大鈕；F03 S1）。
+          IconButton(
+            key: const Key('scan-entry'),
+            tooltip: '掃描',
+            onPressed: () => openScanFlow(context, ref),
+            icon: const Icon(Icons.document_scanner_outlined),
+          ),
           TextButton(
             key: const Key('export-csv'),
             onPressed: () => _exportCsv(context, rows),
