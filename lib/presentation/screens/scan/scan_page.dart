@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../application/scan/scan_state.dart';
 import 'import_page.dart';
+import 'review_page.dart';
 
 /// 掃描入口路由（FR-S6）：相機可用 → 掃描頁；無相機裝置 → 相簿/檔案匯入。
 Future<void> openScanFlow(BuildContext context, WidgetRef ref) {
@@ -15,12 +16,184 @@ Future<void> openScanFlow(BuildContext context, WidgetRef ref) {
 }
 
 /// 掃描頁（FR-S6/S7）：狀態機——權限閘→掃描中（計數＋縮圖列）→完成掃描
-/// →確認清單（ReviewPage）。相機預覽區為行動端 mobile_scanner 接線點
-/// （SP-2b；M4 FE 情境以解析結果注入驗 UI 流程，dsl「影像回放注入」）。
+/// →確認清單（ReviewPage）。
+///
+/// 相機預覽區為行動端 mobile_scanner 接線點（SP-2b；M4 FE 情境以解析結果
+/// 注入 scanDraftsProvider 驗 UI 流程，dsl「影像回放注入」——掃描器回呼
+/// 契約＝`scanDraftsProvider.add`）。
 class ScanPage extends ConsumerWidget {
   const ScanPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) =>
-      throw UnimplementedError('F03-FE 紅燈 stub：ScanPage');
+  Widget build(BuildContext context, WidgetRef ref) {
+    final permission = ref.watch(cameraPermissionProvider);
+    return Scaffold(
+      appBar: AppBar(title: const Text('掃描')),
+      body: switch (permission) {
+        CameraPermissionState.notDetermined => const _PermissionGate(),
+        CameraPermissionState.denied => const _PermissionDenied(),
+        CameraPermissionState.granted => const _ScanningBody(),
+      },
+    );
+  }
+}
+
+/// 權限請求（F03-FE S2：未授權 → 請求 → 拒絕 → 引導，不離開 App）。
+class _PermissionGate extends ConsumerWidget {
+  const _PermissionGate();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.photo_camera_outlined, size: 56),
+          const SizedBox(height: 12),
+          const Text('權限請求', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text('掃描發票需要相機權限'),
+          const SizedBox(height: 16),
+          FilledButton(
+            key: const Key('perm-allow'),
+            onPressed: () => ref.read(cameraPermissionProvider.notifier).allow(),
+            child: const Text('允許'),
+          ),
+          TextButton(
+            key: const Key('perm-deny'),
+            onPressed: () => ref.read(cameraPermissionProvider.notifier).deny(),
+            child: const Text('拒絕'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 權限拒絕後引導（FR-S6：有恢復路徑、不離開 App）。
+class _PermissionDenied extends StatelessWidget {
+  const _PermissionDenied();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.no_photography_outlined, size: 56),
+          const SizedBox(height: 12),
+          const Text('前往設定開啟權限',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text('相機權限已被拒絕——請至系統設定開啟後重試'),
+          const SizedBox(height: 16),
+          OutlinedButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('返回'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 掃描中（FR-S7 連拍）：相機預覽佔位＋已掃計數＋縮圖列＋完成掃描。
+class _ScanningBody extends ConsumerWidget {
+  const _ScanningBody();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final items = ref.watch(scanDraftsProvider);
+    return Column(
+      children: [
+        // 相機預覽佔位（行動端 mobile_scanner 接線點，SP-2b）。
+        Expanded(
+          child: Container(
+            margin: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            alignment: Alignment.center,
+            child: const Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.center_focus_weak, size: 48),
+                Text('對準發票 QR code'),
+              ],
+            ),
+          ),
+        ),
+        Text('已掃 ${items.length} 張', key: const Key('scan-count'),
+            style: Theme.of(context).textTheme.titleMedium),
+        if (items.isNotEmpty)
+          SizedBox(
+            height: 96,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.all(8),
+              children: [
+                for (var i = 0; i < items.length; i++)
+                  _Thumbnail(item: items[i], index: i),
+              ],
+            ),
+          ),
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child: SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              key: const Key('scan-finish'),
+              onPressed: items.isEmpty
+                  ? null
+                  : () {
+                      final drafts = List<ScannedItem>.of(items);
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => ReviewPage(items: drafts),
+                        ),
+                      );
+                    },
+              child: const Text('完成掃描'),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// 掃描縮圖（FR-S7：即時縮圖列表）。
+class _Thumbnail extends StatelessWidget {
+  const _Thumbnail({required this.item, required this.index});
+
+  final ScannedItem item;
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    final draft = item.draft;
+    final total = draft.totalMinor.value;
+    return Container(
+      key: Key('scan-thumbnail-$index'),
+      width: 88,
+      margin: const EdgeInsets.only(right: 8),
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            draft.merchant.value ?? '（未辨識）',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.labelSmall,
+          ),
+          Text(total == null ? '—' : '$total 元',
+              style: Theme.of(context).textTheme.labelMedium),
+        ],
+      ),
+    );
+  }
 }
