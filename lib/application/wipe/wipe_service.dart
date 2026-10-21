@@ -16,10 +16,12 @@ class CloudWipedException implements Exception {
 /// 資料清除服務（FR-O3；SDD §7.3）：本地全表清空＋附件檔案刪除；
 /// 含雲端 → LedgerSync/ 整個資料夾刪除（vault/devices/ops/blobs/backups）。
 class WipeService {
-  WipeService(this._db, this._cloud, {this.blobsDir});
+  WipeService(this._db, {this.cloud, this.blobsDir});
 
   final AppDatabase _db;
-  final CloudStorageAdapter _cloud;
+
+  /// 雲端 adapter（null＋含雲端=false＝未連結語意——頁面層無須注入）。
+  final CloudStorageAdapter? cloud;
 
   /// 本地 blobs 目錄（附件檔案；null＝略）。
   final Directory? blobsDir;
@@ -46,9 +48,13 @@ class WipeService {
     }
     // 雲端：根清單逐一刪除（adapter 無 rmdir——逐檔；資料夾語意由路徑前綴）。
     if (includeCloud) {
-      final all = await _cloud.list('');
+      final adapter = cloud;
+      if (adapter == null) {
+        throw const FormatException('含雲端清空須提供雲端 adapter');
+      }
+      final all = await adapter.list('');
       for (final path in all) {
-        await _cloud.delete(path);
+        await adapter.delete(path);
       }
     }
   }

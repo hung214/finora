@@ -2,7 +2,7 @@
 
 | 項目 | 內容 |
 |---|---|
-| 文件版本 | v1.4（F09-BE：Given 3＋When 3＋Then 9 句型登記——WipeService 清空/雲端刪除/不復活；v1.3 F08-FE：§3 Given 3＋When 8＋Then 8 句型登記——鎖定畫面/Face ID seam/PIN 重設/隱私遮蔽；v1.2 F08-BE：§2 Given 6＋When 6＋Then 8 句型登記——AppLockController 門檻邊界/生物辨識退場/PIN 重設授權與拒絕路徑；v1.1 F06-FE：§3 Given 2＋When 3＋Then 4 句型登記——待確認 badge/清單/下期提醒/暫停標示；v1.0 F06-BE：Given 3＋When 4＋Then 12 句型登記——RecurringService 提醒確認制；v0.9 F07-FE：§3 Given 6＋When 6＋Then 12 句型登記；「同步中…」回饋斷言法（tap 後 pump 未 settle）；v0.8 F07-BE：§2.1 Given 8＋§2.2 When 7＋§2.3 Then 14 句型登記——SyncCoordinator/BundleApplier/BackupService；Outline 匯入結果分列綁定） |
+| 文件版本 | v1.5（F09-FE：§3 Given 4＋When 3＋Then 6 句型登記——資料管理三重防護/加驗身分/已清空；v1.4 F09-BE：Given 3＋When 3＋Then 9 句型登記——WipeService 清空/雲端刪除/不復活；v1.3 F08-FE：§3 Given 3＋When 8＋Then 8 句型登記——鎖定畫面/Face ID seam/PIN 重設/隱私遮蔽；v1.2 F08-BE：§2 Given 6＋When 6＋Then 8 句型登記——AppLockController 門檻邊界/生物辨識退場/PIN 重設授權與拒絕路徑；v1.1 F06-FE：§3 Given 2＋When 3＋Then 4 句型登記——待確認 badge/清單/下期提醒/暫停標示；v1.0 F06-BE：Given 3＋When 4＋Then 12 句型登記——RecurringService 提醒確認制；v0.9 F07-FE：§3 Given 6＋When 6＋Then 12 句型登記；「同步中…」回饋斷言法（tap 後 pump 未 settle）；v0.8 F07-BE：§2.1 Given 8＋§2.2 When 7＋§2.3 Then 14 句型登記——SyncCoordinator/BundleApplier/BackupService；Outline 匯入結果分列綁定） |
 | 用途 | 前端／後端 `.feature` 檔的**步驟句型唯一登記處**。新步驟必須先登記於本檔再實作綁定；未登記句型視為違規 |
 | 綁定 | 前端：自製 Gherkin runner + integration_test（TR-9 過渡；同 T-H7）｜後端：自製 Gherkin runner + flutter_test |
 
@@ -317,6 +317,10 @@
 | `Given App 鎖已啟用（PIN {pin} + Face ID、門檻 {n} 秒）` | FE Background：AppLockController 接線（鎖定覆蓋層啟用；F08-FE） |
 | `Given App 已連結雲端帳號` | settings sync.account（還原/重設前提；F08-FE） |
 | `Given 於鎖定畫面` | 鎖定覆蓋層呈現中（F08-FE S4） |
+| `Given App 鎖已啟用（PIN {pin}）` | controller 於 harness override 建構（寫入 pin_hash；F09-FE） |
+| `Given 帳本含 {n} 筆交易` | fixture 直寫帳戶＋交易×n（F09-FE） |
+| `Given App 未連結雲端` | settings sync.account=''（清空警告語意分流；F09-FE S1） |
+| `Given App 已連結雲端` | settings sync.account=email（清空加驗身分語意；F09-FE S2） |
 
 ### 3.2 When（動作）
 
@@ -358,11 +362,15 @@
 | `When App 切至背景 {n} 秒後返回` | lifecycle 模擬＋AppLockController 門檻判定（T-H8 pumpBackground 落地；F08-FE S1/S2） |
 | `When 使用 Face ID 成功解鎖` | fake biometric seam 成功回呼（F08-FE S1） |
 | `When Face ID 連續失敗 {n} 次` | fake biometric 失敗×n（退場機制；F08-FE S3） |
-| `When 輸入 PIN {pin}` | PIN 鍵盤輸入（key pin-input；F08-FE S3） |
+| `When 輸入 PIN {pin}` | PIN 鍵盤輸入（key pin-input；F08-FE S3）／警告層下一步→資料管理 PIN 欄（key wipe-pin-input；F09-FE S1——同句型雙綁定，依頁面 context） |
 | `When 按下「忘記 PIN」` | 鎖定畫面入口（key forgot-pin；F08-FE S4） |
 | `When 設定新 PIN {pin}` | 新 PIN 設定（key new-pin-input＋確認；F08-FE S4） |
 | `When 按下 👁 遮蔽開關` | 隱私遮蔽切換（key privacy-toggle；FR-X3；F08-FE S5） |
 | `When 按下檢視` | 衝突事件詳情（F07-FE S6） |
+| `When 設定→資料管理→按下「清空資料」` | 導航資料管理頁＋點擊（key wipe-start；F09-FE S1——設定入口接線屬 F07-FE 回頭項，harness 以 Navigator.push 等價驅動） |
+| `When 設定→資料管理→按下「清空資料」並輸入 PIN 與確認文字` | 同上全流程（警告→PIN→確認文字；**先於短句型註冊**；F09-FE S2） |
+| `When 輸入錯誤文字「{text}」` | 確認文字欄輸入不符文字＋送出（key wipe-confirm-input/submit；F09-FE S1） |
+| `When 重新登入完成` | fake OAuth seam 完成（key wipe-oauth-button；F09-FE S2） |
 
 ### 3.3 Then（斷言）
 
@@ -419,6 +427,12 @@
 | `When 開啟預算頁` | 導航至預算分頁（M2 主殼第三分頁，SDD §8 IA） |
 | `When 開啟統計頁並選擇 {month} 月` | 導航至統計分頁＋月份選擇器（M2 主殼第四分頁；F10-FE S1） |
 | `Then 月趨勢圖 {m1} 月 = {v1}、{m2} 月 = {v2}` | 月趨勢值文字（千分位；有資料月份，F10-FE S1） |
+| `Then 顯示「將刪除所有資料且無雲端可還原」警告` | 資料管理警告層文案（未連雲端變體；FR-O3 第一層；F09-FE S1） |
+| `Then 顯示「可先匯出備份檔」入口` | 防呆備份入口（key wipe-backup-entry；驗收 S9.2 邊界；F09-FE S1） |
+| `Then 顯示「確認文字輸入框」` | 第三層確認欄（key wipe-confirm-input；F09-FE S1） |
+| `Then 顯示「確認文字不符」且無法繼續` | 錯誤回饋＋停留確認層＋資料未清（F09-FE S1） |
+| `Then 顯示「重新登入雲端帳號」要求` | 加驗身分層（key wipe-oauth-button；S9.2 #1；F09-FE S2） |
+| `Then 顯示「已清空」並回到首次啟動引導` | 完成回饋＋pop 主殼空帳本（獨立引導頁屬上架前 UI 統整；F09-FE S2） |
 | `When 篩選 期間={period}、分類={cat}` | 明細頁篩選列：期間/分類選擇器（F10-FE S2） |
 | `When 關鍵字輸入「{kw}」` | 篩選關鍵字欄輸入（FTS 即時套用） |
 | `Then 僅顯示 {n} 筆（三條件交集）` | TxTile 計數（AND 交集） |
