@@ -20,30 +20,31 @@
 
 | 欄位 | 內容 |
 |---|---|
-| 更新時間 | 2026-10-22（**M5 收尾完成**併入 main——v0.4.11 已 tag；95 unit 綠） |
-| 階段 | **M5 收尾完成**（F07-FE 6/6——DBG-007 三項複合缺陷修正；merge 39b5a26；**v0.4.11 已 tag** 四平台建置中、部署驗證通過）。**M1~M7＋M5 全數完成**。剩：Google OAuth 送審＋生產接線、acceptance 走查簽核、PM 決策項（見阻塞） |
-| 當前分支 | **main**（39b5a26 已 push；功能分支 F07-cloud-sync-fe 待刪）；遠端僅 main＋session/handoff＋歷史功能分支 |
-| 當前任務 | 下輪：①**Google OAuth 送審＋GoogleDriveAdapter 骨架**——**F07 生產接線**：`main()` 目前未 override `cloudAdapterProvider`／`oauthProvider`／`syncCoordinatorProvider`（雲端功能正式包仍為 seam 狀態，上線前必須接）②acceptance 走查簽核（F08/F09 簽核區＋PM 深色走查）③PM 決策：首次啟動引導頁／NFR-03 定義／F03 測資複核 |
-| 紅綠燈狀態 | main 上 `dart analyze` 0＋**unit 95 全綠**；FE：**逐檔全回歸 10/10 綠**（f01~f10 含 f07 6/6）；M5 部署驗證 ✅（Release 48.0MB＋Info.plist 0.4.11＋二次啟動 DBG-004 回歸＋RSS 110.3MB＋乾淨退出） |
+| 更新時間 | 2026-10-22（**雲端生產接線＋連網權限**併入 main——v0.4.12 已 tag；104 unit 綠） |
+| 階段 | **M1~M7＋M5 全數完成**，並已完成**雲端生產接線**（GoogleDriveAdapter／降級／main() 注入／三平台連網權限——v0.4.12）。**上架僅剩外部相依（PM 憑證／帳號）＋驗收走查單**：見 **`specs/plan/pm-actions.md`**（唯一 PM 入口文件） |
+| 當前分支 | **main**（51cbbcb 已 push）；本地 feature/cloud-production-wiring 待刪；遠端僅 main／session/handoff |
+| 當前任務 | **下輪起點＝`specs/plan/pm-actions.md`**：①PM 啟動 Google OAuth 送審（§1.1，等待數天~數週＝關鍵路徑）②憑證到位後接 `DriveApi` 實作（googleapis Drive v3）＋OAuth 登入（google_sign_in／loopback）＋套件追加（**需 PM 簽核 techstack**）＋真機端對端③簽章／商店 listing／隱私政策網頁（§2）④驗收走查簽核（§5）⑤待決策 5 項（§4，含首次啟動引導頁） |
+| 紅綠燈狀態 | main 上 `dart analyze` 0＋**unit 104 全綠**（95＋Drive adapter 9）；FE：**逐檔全回歸 10/10**（f01~f10）；v0.4.12 部署驗證 ✅（Release 48.1MB＋Info.plist 0.4.12＋二次啟動 DBG-004 回歸＋RSS 125.1MB＋**沙箱容器路徑確認**`.../Data/Documents/ledger_sync/{blobs,ledger.db}`） |
 | 工作區 | 乾淨（文件回寫後 commit） |
-| truth 對齊 | techstack v0.3.7；dsl **v1.5**；data-spec v0.3.2；debug.md **DBG-007**（新增）；acceptance F03 測資字串修正仍待 PM 複核 |
-| 環境筆記 | 延續上輪全部。新增（M5 收尾／DBG-007）：①**macOS 遮擋節流**——視窗非前景/被遮擋時 display link 暫停→render tree 陳舊→`tap` 落空（症狀：spinner 永動＋`pumpAndSettle` 10 分逾時；證據：聚焦測試顯示按鈕在樹上、rect 正確、`hitTestOnBinding` **空路徑**）。解法＝`_tapUntil`（tap→pump→未生效才真實等待重試，正常零延遲）。**建議抽為共用 harness helper（未來 feature 採用）** ②**harness 情境須自足**：每個 Scenario 的 Given/When 都要 `_ensureApp`（否則 container 為前一情境殘留、樹停舊頁——S5/S6 曾因此 0 widgets）③**規格要看兩步互動**：還原流程（S7.4）與連結流程皆為「導向登入→同意授權」兩步，實作勿一步吞 ④`_openSettingsSync` 走 Hub 兩層（app-settings→settings-sync）⑤磁碟滿重演（flutter clean 清 8.3GB）⑥`AppDatabase.close()` 冪等（雙重關閉安全） |
-| 阻塞／待決 | ①gh 未安裝（Release 下載驗證）②acceptance F03 測資字串修正待 PM 複核③SP-1 SQLCipher④SP-2b mobile_scanner 行動相機（F03 走查前）⑤SP-4 Argon2id（F08 PIN 雜湊現為 FNV 最小實作——TODO 已標）⑥多幣別 900 待 PM⑦notify_enabled=off 語意待 PM⑧**Google OAuth 送審＋DriveAdapter 骨架＋main() 生產接線**（PM 憑證申請並行——最高優先）⑨**NFR-03 規格未定義**（research.md 提及無出處）⑩**首次啟動引導頁（新建/還原/匯入）決策**（F09 完成頁文案承諾但實際首啟自動播種）⑪深色模式 PM 走查（UI 統整決策 C） |
+| truth 對齊 | techstack v0.3.7（**待追加 googleapis／googleapis_auth／google_sign_in——需 PM 簽核**）；dsl v1.5；data-spec v0.3.2；debug.md DBG-001~007 結案；新增 `pm-actions.md` v0.1 |
+| 環境筆記 | 延續上輪全部。新增（v0.4.12）：①**Flutter macOS App 預設沙箱**——資料在 `~/Library/Containers/<bundle-id>/Data/Documents/`（非 `~/Documents`）；**沙箱須 `com.apple.security.network.client` 才能連外**（原缺→Release 連不出去）②**Android release 需在 main manifest 加 `INTERNET`**（Flutter 範本只在 debug/profile 內建）——「程式對但連不出去」首查清單見 pm-actions §1.4③`_tapUntil` 穩健 tap（macOS 遮擋節流；未生效才真實等待）④harness 每個 Scenario 都要 `_ensureApp`⑤`Uuid().v7()` 可 const |
+| 阻塞／待決 | ①**Google 憑證（PM）**——最高優先；DriveApi／OAuth 實作待其到位②商店帳號＋簽章（Apple/Google）③gh 未安裝（Release 下載驗證）④acceptance F03 測資字串修正待 PM 複核⑤SP-1 SQLCipher⑥SP-2b 行動相機（F03 走查前）⑦SP-4 Argon2id（PIN FNV）⑧多幣別 900／notify_enabled=off 語意⑨NFR-03 定義⑩首次啟動引導頁決策⑪深色模式 PM 走查 |
 
-## 3. 下一步（M5 收尾完成；剩生產接線與驗收）
+## 3. 下一步（唯一入口：`specs/plan/pm-actions.md`）
 
-### 3.1 F07-FE 回頭（✅ 已完成——保留供追溯）
-0. ✅ harness 導航補步：`_openSettingsSync`→`app-settings`→`settings-sync`（Hub 兩層）。
-1. ✅ S1 卡點＝**macOS 遮擋節流**（非 rebuild 競爭）——證據：聚焦除錯測試顯示 oauth-approve 在樹上、rect 正確、`hitTestOnBinding` **空路徑**（frame 陳舊）；解法 `_tapUntil`（穩健 tap：未生效才真實等待重試）。
-2. ✅ S3「上次同步 今天 09:00」重驗通過；**S4 還原／S5 異帳號／S6 衝突檢視皆補齊並驗證**——修 3 項複合缺陷（見 DBG-007）：①還原缺「導向 Google 登入」步（實作一步 vs 規格 S7.4 兩步）②S5 缺導航（停在主殼）③S6 缺 `_ensureApp`（pump 遺漏）。
-3. ✅ 環境/缺陷既有修（NSAppSleepDisabled／SyncCoordinator 重入閘／afterSyncRefresh Clock／seedTx 勿重複 appendOp）維持。
-4. ✅ FE 6/6 全綠（00:12）→ FE 全回歸 10/10 → 部署驗證 → merge 39b5a26 → **tag v0.4.11**。
+### 3.1 已完成（追溯；F07-FE 回頭／DBG-007）
+0. ✅ harness 導航補步（`app-settings`→`settings-sync` Hub 兩層）。
+1. ✅ S1 卡點＝**macOS 遮擋節流**（非 rebuild 競爭）——證據：聚焦除錯測試顯示按鈕在樹上、rect 正確、`hitTestOnBinding` **空路徑**；解法 `_tapUntil`。
+2. ✅ **S4 還原／S5 異帳號／S6 衝突檢視全數補齊並驗證**——DBG-007 三項複合缺陷（還原缺登入步／S5 缺導航／S6 缺 `_ensureApp`）。
+3. ✅ F07-FE 6/6 → FE 全回歸 10/10 → 部署驗證 → merge 39b5a26 → tag v0.4.11。
+4. ✅ 雲端生產接線＋三平台連網權限 → merge 51cbbcb → tag v0.4.12。
 
-### 3.2 優先順序（建議，待 PM 指定）
-1. **Google OAuth 送審＋GoogleDriveAdapter 骨架＋`main()` 生產接線**（commercialization.md §4-#9）——**最高優先**：`cloudAdapterProvider`／`oauthProvider`／`syncCoordinatorProvider` 目前未 override（雲端功能正式包仍為 seam 狀態，上線前必須接）；PM 憑證申請並行。
-2. **acceptance 走查簽核**：F08/F09 簽核區空白——QA 走查＋PM 複核（含 SP-2b 行動相機 F03 前置）；深色模式 PM 走查。
-3. **PM 決策項**：首次啟動引導頁（新建/還原/匯入）／NFR-03 定義／acceptance F03 測資字串複核。
-4. **v0.4.11 Release 確認**：tag 已建立、四平台建置中——產物齊全＋下載驗證（gh 未安裝）。
+### 3.2 下一步（依 `pm-actions.md`）
+1. **PM：啟動 Google OAuth 送審**（pm-actions §1.1）——等待最久＝關鍵路徑。
+2. **憑證到位後（開發）**：`DriveApi` 實作（googleapis Drive v3）＋OAuth 登入（google_sign_in／loopback）＋套件追加（techstack 需 PM 簽核）＋真機端對端驗證。
+3. **上架工程**：簽章（Apple notarization／Android keystore）＋商店 listing＋隱私政策網頁（pm-actions §2）。
+4. **驗收走查簽核**：F08/F09 簽核區＋四平台實機＋深色模式（pm-actions §5）。
+5. **待 PM 決策**（pm-actions §4）：首次啟動引導頁／NFR-03／F03 測資複核／語意項。
 
 ### 通用 harness/UI 教訓（跨功能累積，持續生效）
 - **macOS 遮擋節流 → 穩健 tap**：視窗非前景/被遮擋時 display link 暫停，render tree 陳舊 → 裸 `tap` 落空（症狀：spinner 永動、`pumpAndSettle` 逾時）。用 `_tapUntil`（tap→pump→未生效才真實等待重試，正常零延遲）——**建議抽為共用 helper**。
@@ -69,6 +70,7 @@
 
 | 日期 | 摘要 | 分支 | 狀態 |
 |---|---|---|---|
+| 2026-10-22 | **雲端生產接線＋三平台連網權限（v0.4.12）**：修**上架阻斷**——`main()` 原未 override 四個 provider（cloudAdapter／oauth／syncCoordinator／blobsDir）→ 正式包點「連結 Google Drive」或掃描附件會拋 `UnimplementedError`。①**GoogleDriveAdapter**（Drive v3 appDataFolder：路徑↔fileId 映射／lazy 建夾／同名覆寫冪等／`list('')` 遞迴全路徑＋`list(folder)` 直接子檔名——對齊 SyncCoordinator／WipeService 既有契約）＋`DriveApi` seam＋**9 單元測試**（fake DriveApi 可驗；憑證到位只需換 DriveApi 實作）②**UnconfiguredCloudAdapter** 降級（未設憑證不崩、不假裝成功）＋`googleOAuthSignIn` seam③`main()` 接線：blobsDir（`<docs>/ledger_sync/blobs`）／deviceId（首次產生並持久化 `settings.device.id`）／cloud／oauth／syncCoordinator④**三平台連網權限**（部署驗證時發現「程式對但連不出去」）：**macOS 沙箱缺 `network.client`**（Release 版無法連外）→ 補 Debug/Release entitlements（Debug 另需 `network.server` 供 OAuth loopback 監聽）；**Android release 用 main manifest 無 `INTERNET`** → 補；iOS/Windows 預設即可⑤SettingsSyncPage 未設定明確提示⑥**`specs/plan/pm-actions.md`**（PM 行動清單：Google 憑證 6 步＋現成識別碼／商店帳號簽章／待決策／需提供資訊彙總／憑證注入／執行順序）＋commercialization 交叉引用。驗證：**104 unit 綠**＋analyze 0＋**FE 全回歸 10/10**＋部署驗證（Release 48.1MB＋Info.plist 0.4.12＋二次啟動＋沙箱容器路徑 `blobs`/`ledger.db` 確認）→ merge → **tag v0.4.12** | feature/cloud-production-wiring → main | ✅（雲端接線完成；待 PM 憑證續接 DriveApi／OAuth 實作） |
 | 2026-10-22 | **M5 收尾：F07-FE 6/6 全綠＋DBG-007 結案併入 main＋v0.4.11**：**DBG-007（三項複合缺陷）**①**產品修正**——`SettingsSyncPage._restore()` 一步直呼 `oauthProvider()`，未渲染 Google 登入（違反驗收 **S7.4 #1→#2** 兩步規格；半成品空區塊佐證）→ 拆 `_beginRestore`（導向登入 UI）／`_approveRestore`（登入→bootstrap→結果）②**harness 修正**（M5 暫停時 S4/S5/S6 未驗，缺陷未發現）——Hub 導航補步（app-settings→settings-sync）、S5 補導航（原停在主殼→restore-cloud 不可達）、S6 衝突 Given 與「開啟同步狀態頁」補 `_ensureApp`（pump 遺漏→container 殘留）③**環境韌性**——macOS **遮擋節流**：視窗非前景時 display link 暫停→render tree 陳舊→tap 落空→spinner 永動→`pumpAndSettle` 10 分逾時（聚焦除錯測試證據：按鈕在樹上、rect 正確、`hitTestOnBinding` **空路徑**）→ `_tapUntil` 穩健 tap（未生效才真實等待重試）＋S2 同步 bounded 等待；**除錯方法**：聚焦重現測試（`debug_f07_s1_test.dart`，用後刪）＋密集 dump（keys/rect/hitTest）取代猜測。F07-FE **6/6 全綠（00:12）**→ **FE 全回歸逐檔 10/10**（f01~f10）→ 部署驗證通過（Release 48.0MB＋Info.plist 0.4.11＋二次啟動 DBG-004 回歸＋RSS 110.3MB）→ merge 39b5a26 → **tag v0.4.11 自動建立**；95 unit 綠＋analyze 0。**M1~M7＋M5 全數完成** | feature/F07-cloud-sync-fe → main | ✅（M5 完；剩 Google OAuth 生產接線＋驗收走查） |
 | 2026-10-21 | **M7 完成：F08 App 鎖＋F09 資料管理＋效能複測＋UI 統整併入 main＋v0.4.10**：F08-BE 4/4（AppLockController 門檻邊界/生物辨識退場/PIN 重設——無繞過方法）＋F08-FE 5/5（LockGate lifecycle 鎖定閘＋LockScreen／忘記 PIN 重設資料零損失／隱私遮蔽 ●●●●＋pumpBackground）；**F09-BE 3/3**（WipeService 本地全表清空＋附件＋雲端 LedgerSync/ 全刪＋CloudWipedException＋**不復活閘修復**：正式路徑全走 sync()，_ensureVault 先重建 vault 致復活（S9.2 #5 Critical）——device.ever_synced 旗標（pull 成功後武裝；bootstrap 亦武裝）＋vault 缺→sync() 直接拋；首次連結不誤判＋2 回歸測試）＋**F09-FE 2/2**（DataManagementPage 狀態機：警告/PIN/確認文字＋已連雲端加驗身分「帳號不符拒絕」＋「已清空」）；dsl v1.2~v1.5；**UI 統整（PM 簽核三決策）**：`app_theme.dart` AppTokens 定稿（danger=Colors.red／warning=Colors.orange 恆等 F05-FE 斷言＋success/pending/subText/divider/track/cardBg/bg 深淺雙組）＋ad-hoc 10 處清零＋空狀態（overview 尚無帳戶／stats 尚無資料）＋無障礙盤點（6 IconButton 皆 tooltip＝Semantics 合規）＋**設定入口恢復（SettingsHubPage 雙入口——PM 決策含雲端同步）**；**harness 修復**：F01/F02/F03 補 `syncCoordinatorProvider` override（F07-BE afterSave 接線之潛在紅——M5 起未跑未被發現；「批次 no-op 安全」假設不成立）；**效能複測**（儲存 P95 0ms／10 萬筆聚合 378ms／OCR<3s；NFR-03 規格未定義待 PM）；**磁碟滿重演**（flutter clean 8.3GB）；FE 回歸逐檔 9/10 綠（f07 已知暫停）；**部署驗證通過**（Release 48.0MB＋Info.plist 0.4.10＋二次啟動 DBG-004 回歸＋RSS 137.5MB）→merge d8dd684→**tag v0.4.10 自動建立**（四平台建置中）；95 unit 綠＋analyze 0 | main | ✅（M7 完；F07-FE 回頭＋驗收走查待） |
 | 2026-10-21 | **M6 完成：F06 定期交易（BE 5＋FE 4）併入 main＋v0.4.9**：dsl v1.0/v1.1（BE +19＋FE +9 句型）；**RecurringService**（到期檢查：日粒度判定＋N-7 千分位＋reminder≥3 暫停；確認 source=recurring 不回寫模板＋monthly next_due clamp 月底＋reminder 歸零；跳過推進；軟刪墓標）＋RecurringRow CRUD＋oplog 契約；**RecurringQueuePage**（全活躍排程：到期項操作/非到期「下期 M/d 提醒」/paused 標示）＋明細 badge 恆顯示＋RecurringDueCountNotifier；**F06-BE 5/5＋FE 4/4 全綠**（修 5：日粒度到期/無尾綴變體/recurringById 排除墓標/前綴碰撞 S5 觸發版/短格式日期 regex）＋NSAppSleepDisabled（App Nap 節流修——PM 觀察）；**設定入口暫移**（F07-FE WIP 隔離——main 可發佈性）；部署驗證通過（Release 47.7MB＋0.4.9＋二次啟動）→merge e4cbd63→**tag v0.4.9**；95 unit 綠 | main | ✅（M6 完；M5-FE 回頭＋M7 待開） |
