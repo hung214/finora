@@ -136,7 +136,7 @@ S1-2：T-S1 → T-F01(BE→FE) → T-F02(BE→FE)
 S3-4：T-S2 → T-F05(BE→FE) → T-F10(BE→FE) → 桌面適配（F01-S1.11/F03-S3.9）
 S5  ：T-S3 → T-F04(BE→FE)
 S6-7：T-S4 → T-F03(BE→FE)
-S8  ：F07 之 BE（備份/還原/GC）→ FE（連結/還原/狀態頁）→ Google OAuth 送審
+S8  ：F07 之 BE（備份/還原/GC）✅ → FE（連結/還原/狀態頁）✅ 6/6（2026-10-22 DBG-007 修正後全綠）→ Google OAuth 送審（**待 PM 憑證＋main() 生產接線**：DriveAdapter/oauth/syncCoordinator 三 provider 未 override）
 S9-10：T-S5 → T-F07 其餘（同步/LWW）→ T-F06(BE→FE)
 S11-12：T-F08 ✅ → T-F09 ✅ → 效能複測（NFR-01~03）✅（2026-10-21 實測：儲存 P95 0ms<300ms／10 萬筆報表聚合 378ms<1500ms／關鍵字搜尋<500ms／OCR 單張<3s；**NFR-03 規格未定義——research.md 提及但無出處，待 PM**）→ UI 統整（進行中）→ 上架
   補充（PM 2026-10-20）：UI 統整留到 M7 上架前一次做——Material 3 tokens 定稿＋各頁視覺套用＋深色模式逐頁檢查＋無障礙/空狀態文案；不在各 milestone 中途做（現況各頁樣式 ad-hoc 已知）
