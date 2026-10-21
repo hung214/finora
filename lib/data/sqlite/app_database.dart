@@ -125,6 +125,13 @@ class AppDatabase {
       .map((r) => r['name'] as String)
       .toList();
 
+  /// 唯讀查詢代理（BackupService 快照等服務用；寫入仍走具名方法）。
+  List<Map<String, Object?>> select(String sql, [List<Object?> args = const []]) =>
+      [for (final r in _db.select(sql, args)) Map<String, Object?>.from(r)];
+
+  /// SQL 執行代理（fixture/服務輔助；業務寫入仍走具名方法以保證 oplog 契約）。
+  void execute(String sql, [List<Object?> args = const []]) => _db.execute(sql, args);
+
   void close() {
     if (!_closed) {
       _db.dispose();
@@ -649,6 +656,103 @@ class AppDatabase {
       .map(AttachmentRow.fromRow)
       .toList();
 
+  // ── 同步衝突事件（schema v1 sync_events；FR-Y5/AC-07） ────
+
+  void insertSyncEvent(SyncEventRow e) => _db.execute(
+        'INSERT INTO sync_events (id, entity, entity_id, incoming_hlc, overwritten_row,'
+        ' created_at, read_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [e.id, e.entity, e.entityId, e.incomingHlc, e.overwrittenRow, e.createdAt, e.readAt],
+      );
+
+  List<SyncEventRow> allSyncEvents() => _db
+      .select('SELECT * FROM sync_events ORDER BY created_at, id')
+      .map(SyncEventRow.fromRow)
+      .toList();
+
+  /// 套用遠端整列快照（INSERT OR REPLACE——冪等；SDD §5.5.2 套用端）。
+  /// LWW 判定由 BundleApplier 先行（無 hlc 之關聯表直接冪等覆蓋）。
+  void applySnapshot(String entity, Map<String, Object?> row) {
+    switch (entity) {
+      case 'transactions':
+        _db.execute(_upsert('transactions', 'id', [
+          'kind','amount_minor','currency','fx_rate','account_id','to_account_id',
+          'category_id','merchant','note','tags','occurred_at','source',
+          'split_group_id','settlement_status','installment_plan_id','installment_seq',
+          'created_at','updated_at','hlc','deleted_at',
+        ]), [
+          row['id'], row['kind'], row['amount_minor'], row['currency'], row['fx_rate'],
+          row['account_id'], row['to_account_id'], row['category_id'], row['merchant'],
+          row['note'], row['tags'], row['occurred_at'], row['source'], row['split_group_id'],
+          row['settlement_status'], row['installment_plan_id'], row['installment_seq'],
+          row['created_at'], row['updated_at'], row['hlc'], row['deleted_at'],
+        ]);
+      case 'accounts':
+        _db.execute(_upsert('accounts', 'id', [
+          'type','name','currency','opening_amount_minor','color','icon','sort_order',
+          'archived','created_at','updated_at','hlc','deleted_at',
+        ]), [
+          row['id'], row['type'], row['name'], row['currency'], row['opening_amount_minor'],
+          row['color'], row['icon'], row['sort_order'], row['archived'],
+          row['created_at'], row['updated_at'], row['hlc'], row['deleted_at'],
+        ]);
+      case 'categories':
+        _db.execute(_upsert('categories', 'id', [
+          'kind','parent_id','name','icon','color','sort_order','is_system',
+          'created_at','updated_at','hlc','deleted_at',
+        ]), [
+          row['id'], row['kind'], row['parent_id'], row['name'], row['icon'],
+          row['color'], row['sort_order'], row['is_system'],
+          row['created_at'], row['updated_at'], row['hlc'], row['deleted_at'],
+        ]);
+      case 'attachments':
+        _db.execute(_upsert('attachments', 'id', [
+          'transaction_id','sha256','mime','byte_size','created_at','hlc','deleted_at',
+        ]), [
+          row['id'], row['transaction_id'], row['sha256'], row['mime'], row['byte_size'],
+          row['created_at'], row['hlc'], row['deleted_at'],
+        ]);
+      case 'budgets':
+        _db.execute(_upsert('budgets', 'id', [
+          'category_id','amount_minor','period_start_day','rollover','created_at',
+          'updated_at','hlc','deleted_at',
+        ]), [
+          row['id'], row['category_id'], row['amount_minor'], row['period_start_day'],
+          row['rollover'], row['created_at'], row['updated_at'], row['hlc'], row['deleted_at'],
+        ]);
+      case 'income_goals':
+        _db.execute(_upsert('income_goals', 'id', [
+          'amount_minor','period_start_day','created_at','updated_at','hlc','deleted_at',
+        ]), [
+          row['id'], row['amount_minor'], row['period_start_day'],
+          row['created_at'], row['updated_at'], row['hlc'], row['deleted_at'],
+        ]);
+      default:
+        throw UnimplementedError('applySnapshot 未支援 entity：$entity（M5 範圍外）');
+    }
+  }
+
+  /// INSERT OR REPLACE SQL（pk + 欄位清單）。
+  String _upsert(String table, String pk, List<String> cols) =>
+      'INSERT OR REPLACE INTO $table ($pk, ${cols.join(', ')})'
+      ' VALUES (${List.filled(cols.length + 1, '?').join(', ')})';
+
+  /// 本機列之 hlc（LWW 判定用；不存在回 null）。
+  String? localHlc(String entity, String id) {
+    final rows = _db.select('SELECT hlc FROM $entity WHERE id = ?', [id]);
+    return rows.isEmpty ? null : rows.first['hlc'] as String?;
+  }
+
+  /// 本機列之整列快照（衝突事件 overwritten_row 用；不存在回 null）。
+  Map<String, Object?>? localRow(String entity, String id) {
+    final rows = _db.select('SELECT * FROM $entity WHERE id = ?', [id]);
+    return rows.isEmpty ? null : Map<String, Object?>.from(rows.first);
+  }
+
+  /// 遠端墓標套用（row=null；實體刪除，oplog 日誌保留）。
+  void applyTombstone(String entity, String id) {
+    _db.execute('DELETE FROM $entity WHERE id = ?', [id]);
+  }
+
   // ── 同步日誌（SDD §5.5） ──────────────────────────────────
 
   void appendOp(OplogRow o) => _db.execute(
@@ -658,6 +762,18 @@ class AppDatabase {
 
   List<OplogRow> allOps() =>
       _db.select('SELECT * FROM oplog ORDER BY seq').map(OplogRow.fromRow).toList();
+
+  /// 未打包 ops（F07 push 資料源：packed_seq IS NULL，SDD §5.5.3）。
+  List<OplogRow> unpackedOps() => _db
+      .select('SELECT * FROM oplog WHERE packed_seq IS NULL ORDER BY seq')
+      .map(OplogRow.fromRow)
+      .toList();
+
+  /// 標記未打包 ops 為已打包（bundle seq；SDD §5.5.3 push 收尾）。
+  void markOpsPacked(int seq) => _db.execute(
+        'UPDATE oplog SET packed_seq = ? WHERE packed_seq IS NULL',
+        [seq],
+      );
 
   /// 交易寫入 + oplog 追加必須同一 transaction（SDD §5.1 儲存事務）。
   ///
@@ -1299,6 +1415,41 @@ class AttachmentRow {
         'hlc': hlc,
         'deleted_at': deletedAt,
       };
+}
+
+/// 同步衝突事件列（schema v1 sync_events；FR-Y5——LWW 落敗被覆蓋內容唯讀快照）。
+class SyncEventRow {
+  const SyncEventRow({
+    required this.id,
+    required this.entity,
+    required this.entityId,
+    required this.incomingHlc,
+    this.overwrittenRow,
+    required this.createdAt,
+    this.readAt,
+  });
+
+  final String id;
+  final String entity;
+  final String entityId;
+
+  /// 勝出的遠端版本。
+  final String incomingHlc;
+
+  /// 被覆蓋內容 JSON 快照（衝突檢視用）。
+  final String? overwrittenRow;
+  final int createdAt;
+  final int? readAt;
+
+  factory SyncEventRow.fromRow(Map<String, Object?> r) => SyncEventRow(
+        id: r['id'] as String,
+        entity: r['entity'] as String,
+        entityId: r['entity_id'] as String,
+        incomingHlc: r['incoming_hlc'] as String,
+        overwrittenRow: r['overwritten_row'] as String?,
+        createdAt: r['created_at'] as int,
+        readAt: r['read_at'] as int?,
+      );
 }
 
 class OplogRow {

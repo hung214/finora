@@ -9,6 +9,8 @@ import 'notifications/notification_service.dart';
 import 'quick_entry/quick_entry_preset_service.dart';
 import 'quick_entry/save_transaction_use_case.dart';
 import 'quick_entry/undo_last_transaction_use_case.dart';
+import 'sync/auto_sync_service.dart';
+import 'sync/sync_coordinator.dart';
 import 'transactions/delete_transaction_use_case.dart';
 import 'transactions/restore_transaction_use_case.dart';
 
@@ -25,10 +27,26 @@ final dbProvider = Provider<AppDatabase>((ref) {
 final quickEntryPresetProvider =
     Provider((ref) => QuickEntryPresetService(ref.watch(dbProvider)));
 
-/// 儲存事務（FR-Q5，SDD §5.1）——入庫後冪等同步預算警示（FR-B4 sync 點①）。
+/// 同步協調器（FR-Y4/Y5；M5）——生產由 main() 以 GoogleDriveAdapter＋
+/// 裝置 id override（同 dbProvider 注入約定）；測試以 InMemoryCloudAdapter override。
+final syncCoordinatorProvider = Provider<SyncCoordinator>((ref) {
+  throw UnimplementedError('syncCoordinatorProvider 須於 main() 或測試 override 注入');
+});
+
+/// 自動同步觸發（FR-Y11）——afterSave 依 sync.mode 分流（每筆自動→立即
+/// sync；節能批次（預設）→生產 timer；僅手動→設定頁）。mode 未設定時為
+/// 節能批次——不觸發 coordinator（override 缺席安全）。
+final autoSyncProvider = Provider(
+    (ref) => AutoSyncService(ref.watch(dbProvider), ref.watch(syncCoordinatorProvider)));
+
+/// 儲存事務（FR-Q5，SDD §5.1）——入庫後冪等同步預算警示（FR-B4 sync 點①）
+/// ＋自動同步觸發（FR-Y11 sync 點②；批次/手動模式下為 no-op）。
 final saveTransactionProvider = Provider((ref) => SaveTransactionUseCase(
       ref.watch(dbProvider),
-      afterSave: () => ref.read(budgetAlertProvider).sync(),
+      afterSave: () {
+        ref.read(budgetAlertProvider).sync();
+        ref.read(autoSyncProvider).onSaved();
+      },
     ));
 
 /// 本機通知（N-1~N-10；預設 no-op——正式 flutter_local_notifications 屬 M2 接線；
