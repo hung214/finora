@@ -2,7 +2,7 @@
 
 | 項目 | 內容 |
 |---|---|
-| 文件版本 | v0.7（F03：§2 BE 19 句型（v0.6）＋§3 FE +20 句型——Given 4/When 7/Then 9＋註冊順序註記；S7 效能句型規格修正照 F10 先例） |
+| 文件版本 | v0.8（F07-BE：§2.1 Given 8＋§2.2 When 7＋§2.3 Then 14 句型登記——SyncCoordinator/BundleApplier/BackupService；Outline 匯入結果分列綁定） |
 | 用途 | 前端／後端 `.feature` 檔的**步驟句型唯一登記處**。新步驟必須先登記於本檔再實作綁定；未登記句型視為違規 |
 | 綁定 | 前端：自製 Gherkin runner + integration_test（TR-9 過渡；同 T-H7）｜後端：自製 Gherkin runner + flutter_test |
 
@@ -74,6 +74,14 @@
 | `Given 已匯入 {n} 萬筆種子交易` | 批次直寫當月（略 oplog——聚合僅讀 transactions；NFR-01 效能測資） |
 | `And 連線已關閉` | in-memory adapter 進入 failing 態（模擬離線） |
 | `Given 一張 4000x3000 原圖 fixture` | T-H6 動態生成原圖 bytes（image 套件 encodePng；F03 S5 附件壓縮輸入） |
+| `Given 模擬雲端為 in-memory adapter 且已連結` | T-H3 adapter 建置＋vault/devices 佈局初始化（SDD §5.5.1；F07 Background——多裝置拓撲：每裝置各自本地 DB，僅經雲端檔案交換） |
+| `Given 裝置{d} 離線記錄 {n} 筆交易（oplog {n} 筆未打包）` | 該裝置 DB fixture 直寫＋oplog（packed_seq=null；未觸發同步） |
+| `Given 同步模式 = {mode}` | settings sync.mode（每筆自動同步/節能批次（預設）/僅手動——FR-Y11） |
+| `Given 附件僅 Wi-Fi 同步 = {state} 且網路 = {network}` | settings backup.attachments_wifi_only＋網路型態 seam（wifi/mobile——FR-Y11 附件分流） |
+| `Given 雲端已有裝置{d} 的 {n} 個 bundle 與 {m} 份快照` | 預置雲端狀態（bundle 產生＋backups 快照；bootstrap 前置） |
+| `Given 備份保留份數 = {n}` | settings backup.keep（FR-Y3 GC） |
+| `Given 裝置{d} 修改交易 {id} 備註為「{note}」並同步` | setTransactionNote＋oplog 整列快照＋push（LWW 前置；F07 S2） |
+| `And 裝置{d} 離線修改交易 {id} 備註為「{note}」（HLC 較新）` | 該裝置修改但未同步（HLC 較新→LWW 勝出方；F07 S2） |
 
 ### 2.2 When（動作）
 
@@ -123,6 +131,13 @@
 | `When 模擬時間快轉 {n} 天並觸發自動備份` | BackupService |
 | `When 觸發定期交易到期檢查` | RecurringService |
 | `When 執行清空資料（含雲端）` | WipeService |
+| `When 裝置{d}（同一帳號）執行 SyncCoordinator.pull 與 push` | 切換當前裝置＋SyncCoordinator（pull 套用 peers＋push 未打包；F07 S1/S2） |
+| `When 連續記錄 {n} 筆交易` | 該裝置連寫 n 筆（oplog 未打包；批次合併測資） |
+| `And 模擬時間快轉 {n} 秒並觸發批次同步` | Clock 快轉秒＋SyncCoordinator（節能批次 30s 觸發點；FR-Y11） |
+| `When 掃描發票入帳（含附件）並觸發同步` | ScannedItem 儲存（source=scan＋附件落 blobs/）＋SyncCoordinator（附件分流前置） |
+| `When 網路 = {network} 並觸發同步` | 網路型態 seam 設定＋SyncCoordinator（附件分流第二段） |
+| `When 模擬時間快轉 {n} 天並觸發自動備份（每日）` | Clock 快轉＋BackupService（>24h 產新備份＋GC；FR-Y3） |
+| `When 匯出備份檔{選項}並於另一環境匯入` | BackupService 匯出（無加密/檔案密碼）→ 新 DB 匯入（Outline；FR-Y6/AC-14） |
 
 ### 2.3 Then（斷言）
 
@@ -166,6 +181,19 @@
 | `Then 裝置 {a} 與裝置 {b} 的重算餘額一致` | 跨 fixture 比對 |
 | `Then 衝突事件 1 筆，被覆蓋內容為 "{text}"` | sync_events |
 | `Then 雲端 backups/ 保留 {n} 份` | fake adapter list |
+| `Then 雲端 ops/{d}/{file} 存在（{n} ops）` | adapter list/download（OpBundle ops 數；SDD §5.5.2；F07 S1/S3） |
+| `Then 裝置{d} 收到 {n} 筆交易` | 該裝置 DB 交易計數（pull 套用結果） |
+| `Then 交易 {id} 備註 = 「{note}」（兩裝置一致）` | 兩裝置 DB 比對（LWW 收斂；F07 S2） |
+| `And oplog 皆已打包（packed_seq 非 null）` | oplog 全列 packed_seq 非 null（每筆模式即時打包） |
+| `Then 雲端僅 {n} 個 bundle（{m} ops，非 {k} 個）` | adapter ops/ 清單計數（批次合併；F07 S4） |
+| `Then 交易已同步且附件暫緩（blobs/ 無新檔）` | 交易 op 已上雲＋adapter blobs/ 空（行動網路分流；FR-Y11） |
+| `Then 雲端 blobs/{name} 存在` | adapter blobs/ 內容定址檔（Wi-Fi 第二段同步；{name} 為字面佔位——實斷言 blobs/ 非空） |
+| `Then 本地收到全部交易/帳戶/分類` | bootstrap 後與來源裝置 DB 比對（FR-Y2） |
+| `And 裝置{d} 的 manifest 已建立（lastSeq = {n}）` | devices/{d}.json 存在＋last_seq 欄位（bootstrap 收尾） |
+| `And 最舊一份已被清理` | backups 清單不含最舊時間戳（GC 連動） |
+| `Then 直接還原成功` | Outline：不加密備份→新 DB 匯入 ok（FR-Y6） |
+| `Then 完整還原成功` | Outline：密碼加密備份＋正確密碼→匯入 ok（cryptography AES-GCM） |
+| `Then 拒絕匯入且本地資料不變` | Outline：錯誤密碼→拋例外＋新 DB 資料零變動（AC-14） |
 | `Then 效能：入庫耗時 {ms}ms < 300ms（P95）` | StopWatch P95（F01-BE NFR-01；{ms} 為計畫預記值，以實測 P95 < 300 斷言） |
 | `Then 預設帳戶 = 「{name}」` / `Then 預設帳戶 = 第一個未封存帳戶` | QuickEntryPreset 輸出（FR-Q4） |
 | `Then 預設帳戶為空（待帳戶建立）` | preset.account == null（DBG-003：空帳本不崩潰） |
