@@ -2,7 +2,7 @@
 
 | 項目 | 內容 |
 |---|---|
-| 文件版本 | v1.0（F06-BE：Given 3＋When 4＋Then 12 句型登記——RecurringService 提醒確認制；v0.9 F07-FE：§3 Given 6＋When 6＋Then 12 句型登記；「同步中…」回饋斷言法（tap 後 pump 未 settle）；v0.8 F07-BE：§2.1 Given 8＋§2.2 When 7＋§2.3 Then 14 句型登記——SyncCoordinator/BundleApplier/BackupService；Outline 匯入結果分列綁定） |
+| 文件版本 | v1.1（F06-FE：§3 Given 2＋When 3＋Then 4 句型登記——待確認 badge/清單/下期提醒/暫停標示；v1.0 F06-BE：Given 3＋When 4＋Then 12 句型登記——RecurringService 提醒確認制；v0.9 F07-FE：§3 Given 6＋When 6＋Then 12 句型登記；「同步中…」回饋斷言法（tap 後 pump 未 settle）；v0.8 F07-BE：§2.1 Given 8＋§2.2 When 7＋§2.3 Then 14 句型登記——SyncCoordinator/BundleApplier/BackupService；Outline 匯入結果分列綁定） |
 | 用途 | 前端／後端 `.feature` 檔的**步驟句型唯一登記處**。新步驟必須先登記於本檔再實作綁定；未登記句型視為違規 |
 | 綁定 | 前端：自製 Gherkin runner + integration_test（TR-9 過渡；同 T-H7）｜後端：自製 Gherkin runner + flutter_test |
 
@@ -281,6 +281,8 @@
 | `Given 模擬雲端已有帳本資料` | 預置 bundle＋backups（還原流程前置；F07-FE S4） |
 | `Given 模擬雲端已有帳本資料（帳號 {email}）` | 同上——異帳號空間（F07-FE S5） |
 | `Given 同步狀態頁有 {n} 筆衝突事件（被覆蓋內容「{text}」）` | db 直寫 sync_events（AC-07 呈現前置；F07-FE S6） |
+| `Given 已建立定期交易「{name}」每月 {day} 日金額 {amt}（提醒確認制）` | FE fixture 直寫 recurring（同 BE 語意；F06-FE Background） |
+| `Given 房租連續 3 次開啟 App 皆未處理（{dates}）` | 逐日凍結＋重啟（啟動檢查觸發 reminder 累計；F06-FE S4） |
 
 ### 3.2 When（動作）
 
@@ -316,6 +318,9 @@
 | `And 登入同一帳號` | fake OAuth 同 email（F07-FE S4） |
 | `When 選擇「從雲端還原」並登入帳號 {email}` | 還原＋異帳號 OAuth（F07-FE S5） |
 | `When 開啟同步狀態頁` | 導航衝突檢視（key sync-conflicts-entry；F07-FE S6） |
+| `When 按下 badge` | 點擊待確認 badge（key recurring-badge；F06-FE S1） |
+| `When 將金額改為 {amt} 並按下「確認入帳」` | 待確認清單金額欄＋確認鈕（key recurring-amount/confirm-recurring；F06-FE S2） |
+| `When 開啟待確認清單` | 導航 RecurringQueuePage（F06-FE S4） |
 | `When 按下檢視` | 衝突事件詳情（F07-FE S6） |
 
 ### 3.3 Then（斷言）
@@ -354,6 +359,10 @@
 | `Then 顯示「此帳號沒有可還原的資料」` | 異帳號空備份（FR-Y2；F07-FE S5） |
 | `Then 顯示「{n} 筆衝突」` | sync_events 計數（AC-07；F07-FE S6） |
 | `Then 顯示「{text}」（唯讀）` | 被覆蓋內容唯讀檢視（F07-FE S6） |
+| `Then 顯示「待確認 {n}」badge` | find.byKey(recurring-badge) 文字（FR-T5 到期未確認數；F06-FE S1） |
+| `Then 顯示「待確認清單」含「{name} {amt}」` | RecurringQueuePage 標題＋項目（F06-FE S1） |
+| `And 顯示「下期 {date} 提醒」` | next_due 月/日顯示（確認/跳過後推進呈現；F06-FE S2/S3） |
+| `Then 顯示「已暫停提醒」` | paused 項標示（逾期 3 次；F06-FE S4） |
 | `Given 本期{cat}已支出 {amount}` | fixture 直寫本期 expense（F05-FE） |
 | `Given 本期{cat}含信用卡預扣 {amount}` | fixture 直寫本期 pending expense（F05-FE S5.3） |
 | `Given 收入目標 {goal} 且本月已入帳 {achieved}` | income_goals＋fixture 直寫本月 income（F05-FE S5.4） |
