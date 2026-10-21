@@ -1,12 +1,5 @@
-import 'dart:convert';
-
-import 'package:uuid/uuid.dart';
-
-import '../../core/clock.dart';
-import '../../core/hlc.dart';
 import '../../data/sqlite/app_database.dart';
 import '../notifications/notification_service.dart';
-import '../quick_entry/save_transaction_use_case.dart';
 
 /// 定期交易排程服務（FR-T5 提醒確認制；AC-12）——**未確認不入帳**。
 ///
@@ -20,7 +13,9 @@ import '../quick_entry/save_transaction_use_case.dart';
 class RecurringService {
   RecurringService(this._db, this._notification);
 
+  // ignore: unused_field —— 紅燈 stub：runCheck/confirm 實作（F06 綠燈）後使用
   final AppDatabase _db;
+  // ignore: unused_field —— 紅燈 stub：runCheck 實作（F06 綠燈）後使用
   final NotificationService _notification;
 
   /// 到期檢查（觸發點：dsl「觸發定期交易到期檢查」）。
