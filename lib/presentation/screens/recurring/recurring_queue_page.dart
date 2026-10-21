@@ -39,10 +39,13 @@ class _RecurringQueuePageState extends ConsumerState<RecurringQueuePage> {
   @override
   Widget build(BuildContext context) {
     final db = ref.watch(dbProvider);
-    final rows = db.dueSchedules(
+    // 全活躍排程：到期項（≤今天）帶確認/跳過操作；非到期項帶「下期 M/d 提醒」
+    // 預告（FR-T5 呈現面——確認/跳過後推進到下期仍可見，F06-FE S2/S3 契約）。
+    final rows = db.allRecurring();
+    final endOfDay =
         DateTime(Clock.now().year, Clock.now().month, Clock.now().day + 1)
                 .millisecondsSinceEpoch -
-            1);
+            1;
     return Scaffold(
       appBar: AppBar(title: const Text('待確認清單', key: Key('recurring-queue-title'))),
       body: rows.isEmpty
@@ -70,45 +73,54 @@ class _RecurringQueuePageState extends ConsumerState<RecurringQueuePage> {
                                 key: Key('paused-${r.id}'),
                                 style: TextStyle(
                                     color: Theme.of(context).colorScheme.error)),
-                          const SizedBox(height: 8),
-                          TextField(
-                            key: Key('recurring-amount-${r.id}'),
-                            controller: _ctrl(r),
-                            decoration:
-                                const InputDecoration(labelText: '金額（元）'),
-                            keyboardType: TextInputType.number,
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              FilledButton(
-                                key: Key('confirm-recurring-${r.id}'),
-                                onPressed: () {
-                                  final amount = int.tryParse(_ctrl(r).text
-                                      .replaceAll(',', ''));
-                                  if (amount == null || amount <= 0) return;
-                                  _service.confirm(
-                                    scheduleId: r.id,
-                                    amountMinor: amount,
-                                    date: DateTime(Clock.now().year,
-                                        Clock.now().month, Clock.now().day),
-                                  );
-                                  ref.read(ledgerProvider.notifier).refresh();
-                                  setState(() {});
-                                },
-                                child: const Text('確認入帳'),
-                              ),
-                              const SizedBox(width: 8),
-                              OutlinedButton(
-                                key: Key('skip-recurring-${r.id}'),
-                                onPressed: () {
-                                  _service.skip(scheduleId: r.id);
-                                  setState(() {});
-                                },
-                                child: const Text('本次跳過'),
-                              ),
-                            ],
-                          ),
+                          if (r.nextDueDate <= endOfDay) ...[
+                            // 到期項：金額可改＋確認/跳過（AC-12）。
+                            const SizedBox(height: 8),
+                            TextField(
+                              key: Key('recurring-amount-${r.id}'),
+                              controller: _ctrl(r),
+                              decoration:
+                                  const InputDecoration(labelText: '金額（元）'),
+                              keyboardType: TextInputType.number,
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                FilledButton(
+                                  key: Key('confirm-recurring-${r.id}'),
+                                  onPressed: () {
+                                    final amount = int.tryParse(_ctrl(r).text
+                                        .replaceAll(',', ''));
+                                    if (amount == null || amount <= 0) return;
+                                    _service.confirm(
+                                      scheduleId: r.id,
+                                      amountMinor: amount,
+                                      date: DateTime(Clock.now().year,
+                                          Clock.now().month, Clock.now().day),
+                                    );
+                                    ref.read(ledgerProvider.notifier).refresh();
+                                    ref
+                                        .read(recurringDueCountProvider.notifier)
+                                        .refresh();
+                                    setState(() {});
+                                  },
+                                  child: const Text('確認入帳'),
+                                ),
+                                const SizedBox(width: 8),
+                                OutlinedButton(
+                                  key: Key('skip-recurring-${r.id}'),
+                                  onPressed: () {
+                                    _service.skip(scheduleId: r.id);
+                                    ref
+                                        .read(recurringDueCountProvider.notifier)
+                                        .refresh();
+                                    setState(() {});
+                                  },
+                                  child: const Text('本次跳過'),
+                                ),
+                              ],
+                            ),
+                          ],
                         ],
                       ),
                     ),

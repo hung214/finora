@@ -140,19 +140,27 @@ void _bind(GherkinRunner runner, _World w) {
         reason: '待確認清單應已開啟');
   });
 
-  runner.on(r'待確認清單含「{name} {amt}」$', (p) {
-    // 前置語意：啟動檢查已產生佇列（_ensureApp 鉤子已跑）——斷言佇列資料在。
+  runner.on(r'待確認清單含「{name} {amt}」$', (p) async {
+    // 前置語意＝清單呈現（啟動檢查已產生佇列）——主動開頁（跨情境殘樹防護）。
+    await _ensureApp(w);
+    await _openQueue(w);
     final r = w.db!.recurringById(w.recurringIds[p['name']!]!);
     expect(r, isNotNull, reason: '佇列應含到期排程');
   });
 
   runner.on(r'將金額改為 {amt} 並按下「確認入帳」$', (p) async {
     final r = w.db!.recurringById(w.recurringIds.values.first)!;
-    await w.tester.enterText(
-        find.byKey(Key('recurring-amount-${r.id}')), p['amt']!.replaceAll(',', ''));
+    final amountKey = Key('recurring-amount-${r.id}');
+    final confirmKey = Key('confirm-recurring-${r.id}');
+    // ignore: avoid_print
+    print('DEBUG confirm: id=${r.id} amountKey=${w.tester.any(find.byKey(amountKey))} '
+        'confirmKey=${w.tester.any(find.byKey(confirmKey))}');
+    await w.tester.enterText(find.byKey(amountKey), p['amt']!.replaceAll(',', ''));
     await w.tester.pump();
-    await w.tester.tap(find.byKey(Key('confirm-recurring-${r.id}')));
+    await w.tester.tap(find.byKey(confirmKey));
     await w.tester.pumpAndSettle();
+    // ignore: avoid_print
+    print('DEBUG confirm: txs=${w.db!.allTransactions().length}');
   });
 
   runner.on(r'按下「本次跳過」$', (p) async {
@@ -163,13 +171,15 @@ void _bind(GherkinRunner runner, _World w) {
 
   runner.on(r'房租連續 3 次開啟 App 皆未處理（{dates}）$', (p) async {
     // 逐日凍結＋重啟（新 container——啟動檢查累計 reminder_count）。
-    final dates = RegExp(r'\d{4}/\d{2}/\d{2}')
+    // feature 日期為短格式「6/1、6/2、6/3」——年取凍結基準（Clock.now 之年）。
+    final base = Clock.now();
+    final days = RegExp(r'(\d{1,2})/(\d{1,2})')
         .allMatches(p['dates']!)
-        .map((m) => m.group(0)!)
+        .map((m) => DateTime(
+            base.year, int.parse(m.group(1)!), int.parse(m.group(2)!), 9))
         .toList();
-    for (final date in dates) {
-      final d = _dateTime(date);
-      Clock.freeze(DateTime(d.year, d.month, d.day, 9));
+    for (final day in days) {
+      Clock.freeze(day);
       w.pumped = false;
       await _ensureApp(w);
       await w.tester.pumpAndSettle();
@@ -213,7 +223,11 @@ void _bind(GherkinRunner runner, _World w) {
     }
   });
 
-  runner.on(r'顯示「下期 {date} 提醒」$', (p) {
+  runner.on(r'顯示「下期 {date} 提醒」$', (p) async {
+    // 「下期 M/d 提醒」呈現於待確認清單項——斷言前確保頁面開啟。
+    if (w.tester.any(find.byType(RecurringQueuePage)) != true) {
+      await _openQueue(w);
+    }
     expect(w.tester.any(find.text('下期 ${p['date']!} 提醒', skipOffstage: false)),
         isTrue, reason: 'FR-T5：下期推進呈現');
   });

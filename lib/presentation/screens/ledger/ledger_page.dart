@@ -54,9 +54,8 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
       appBar: AppBar(
         title: const Text('明細'),
         actions: [
-          // 待確認定期交易 badge（FR-T5 呈現面；F06-FE S1）。
-          if (dueCount > 0)
-            TextButton(
+          // 待確認定期交易 badge（FR-T5 呈現面；F06-FE——0 亦顯示，S2 契約）。
+          TextButton(
               key: const Key('recurring-badge'),
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(

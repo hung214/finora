@@ -87,14 +87,26 @@ final repayStatementProvider = Provider(
 final restoreTransactionProvider =
     Provider((ref) => RestoreTransactionUseCase(ref.watch(dbProvider)));
 
-/// 待確認定期交易數（明細頁 badge；F06-FE）。
-final recurringDueCountProvider = Provider<int>((ref) {
-  final db = ref.watch(dbProvider);
-  final now = Clock.now();
-  return db
-      .dueSchedules(DateTime(now.year, now.month, now.day + 1).millisecondsSinceEpoch - 1)
-      .length;
-});
+/// 待確認定期交易數（明細頁 badge；F06-FE）——確認/跳過後 refresh。
+final recurringDueCountProvider =
+    NotifierProvider<RecurringDueCountNotifier, int>(RecurringDueCountNotifier.new);
+
+class RecurringDueCountNotifier extends Notifier<int> {
+  @override
+  int build() => _collect();
+
+  int _collect() {
+    final db = ref.watch(dbProvider);
+    final now = Clock.now();
+    return db
+        .dueSchedules(
+            DateTime(now.year, now.month, now.day + 1).millisecondsSinceEpoch - 1)
+        .length;
+  }
+
+  /// 確認/跳過後刷新（RecurringQueuePage 呼叫）。
+  void refresh() => state = _collect();
+}
 
 /// 未封存帳戶（快記/總覽）。
 final activeAccountsProvider = Provider((ref) =>
