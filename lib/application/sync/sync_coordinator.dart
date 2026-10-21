@@ -47,18 +47,32 @@ class SyncCoordinator {
   bool _syncRunning = false;
 
   static const _vaultPath = 'vault.json';
+  static const _everSyncedKey = 'device.ever_synced';
   String _manifestPath(String id) => 'devices/$id.json';
   String _bundlePath(String id, int seq) =>
       'ops/$id/${seq.toString().padLeft(8, '0')}.opbundle';
 
   /// 同步回合（情境觸發點）：pull 套用 peers → push 未打包。
   /// 重入保護：進行中時後到呼叫直接跳過（返回即完成的已完成 Future）。
+  ///
+  /// 不復活閘（FR-O3；驗收 S9.2 #5——Critical 防線）：曾完成同步
+  /// （device.ever_synced；settings 為本地表不入 oplog——per-device 語意）
+  /// 而 vault.json 已不存在 → 雲端已被清空 → 拋 CloudWipedException：
+  /// 不重建 vault、不 pull、**不 push 舊資料**。首次連結無旗標仍走
+  /// _ensureVault 建置（新裝置/新帳本正常路徑）。
   Future<void> sync() async {
     if (_syncRunning) return;
     _syncRunning = true;
     try {
+      if (await _cloud.download(_vaultPath) == null &&
+          _db.getSetting(_everSyncedKey) == 'true') {
+        throw const CloudWipedException('雲端資料已不存在');
+      }
       await _ensureVault();
       await pull();
+      // 武裝時機：pull 成功＝已確認 vault 在雲端（_ensureVault 上傳失敗會
+      // 拋例外不到此——避免「建置未落雲」誤判雲端已清空）。
+      _db.setSetting(_everSyncedKey, 'true');
       await push();
     } finally {
       _syncRunning = false;
@@ -171,6 +185,9 @@ class SyncCoordinator {
       }
     }
     await pull(); // 自備份時間點後之 bundles（M5 全量 replay 冪等）
+    // 武裝不復活閘（FR-O3）：bootstrap 已觀察到 vault——之後雲端被清空時，
+    // 本裝置下次 sync() 須偵測而非重建 vault 推回舊資料。
+    _db.setSetting(_everSyncedKey, 'true');
     await writeJson(_manifestPath(deviceId), {
       'app_ver': 'dev',
       'schema_ver': _db.schemaVersion,
