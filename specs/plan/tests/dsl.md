@@ -2,7 +2,7 @@
 
 | 項目 | 內容 |
 |---|---|
-| 文件版本 | v1.2（F08-BE：§2 Given 6＋When 6＋Then 8 句型登記——AppLockController 門檻邊界/生物辨識退場/PIN 重設授權與拒絕路徑；v1.1 F06-FE：§3 Given 2＋When 3＋Then 4 句型登記——待確認 badge/清單/下期提醒/暫停標示；v1.0 F06-BE：Given 3＋When 4＋Then 12 句型登記——RecurringService 提醒確認制；v0.9 F07-FE：§3 Given 6＋When 6＋Then 12 句型登記；「同步中…」回饋斷言法（tap 後 pump 未 settle）；v0.8 F07-BE：§2.1 Given 8＋§2.2 When 7＋§2.3 Then 14 句型登記——SyncCoordinator/BundleApplier/BackupService；Outline 匯入結果分列綁定） |
+| 文件版本 | v1.3（F08-FE：§3 Given 3＋When 8＋Then 8 句型登記——鎖定畫面/Face ID seam/PIN 重設/隱私遮蔽；v1.2 F08-BE：§2 Given 6＋When 6＋Then 8 句型登記——AppLockController 門檻邊界/生物辨識退場/PIN 重設授權與拒絕路徑；v1.1 F06-FE：§3 Given 2＋When 3＋Then 4 句型登記——待確認 badge/清單/下期提醒/暫停標示；v1.0 F06-BE：Given 3＋When 4＋Then 12 句型登記——RecurringService 提醒確認制；v0.9 F07-FE：§3 Given 6＋When 6＋Then 12 句型登記；「同步中…」回饋斷言法（tap 後 pump 未 settle）；v0.8 F07-BE：§2.1 Given 8＋§2.2 When 7＋§2.3 Then 14 句型登記——SyncCoordinator/BundleApplier/BackupService；Outline 匯入結果分列綁定） |
 | 用途 | 前端／後端 `.feature` 檔的**步驟句型唯一登記處**。新步驟必須先登記於本檔再實作綁定；未登記句型視為違規 |
 | 綁定 | 前端：自製 Gherkin runner + integration_test（TR-9 過渡；同 T-H7）｜後端：自製 Gherkin runner + flutter_test |
 
@@ -300,6 +300,9 @@
 | `Given 同步狀態頁有 {n} 筆衝突事件（被覆蓋內容「{text}」）` | db 直寫 sync_events（AC-07 呈現前置；F07-FE S6） |
 | `Given 已建立定期交易「{name}」每月 {day} 日金額 {amt}（提醒確認制）` | FE fixture 直寫 recurring（同 BE 語意；F06-FE Background） |
 | `Given 房租連續 3 次開啟 App 皆未處理（{dates}）` | 逐日凍結＋重啟（啟動檢查觸發 reminder 累計；F06-FE S4） |
+| `Given App 鎖已啟用（PIN {pin} + Face ID、門檻 {n} 秒）` | FE Background：AppLockController 接線（鎖定覆蓋層啟用；F08-FE） |
+| `Given App 已連結雲端帳號` | settings sync.account（還原/重設前提；F08-FE） |
+| `Given 於鎖定畫面` | 鎖定覆蓋層呈現中（F08-FE S4） |
 
 ### 3.2 When（動作）
 
@@ -338,6 +341,13 @@
 | `When 按下 badge` | 點擊待確認 badge（key recurring-badge；F06-FE S1） |
 | `When 將金額改為 {amt} 並按下「確認入帳」` | 待確認清單金額欄＋確認鈕（key recurring-amount/confirm-recurring；F06-FE S2） |
 | `When 開啟待確認清單` | 導航 RecurringQueuePage（F06-FE S4） |
+| `When App 切至背景 {n} 秒後返回` | lifecycle 模擬＋AppLockController 門檻判定（T-H8 pumpBackground 落地；F08-FE S1/S2） |
+| `When 使用 Face ID 成功解鎖` | fake biometric seam 成功回呼（F08-FE S1） |
+| `When Face ID 連續失敗 {n} 次` | fake biometric 失敗×n（退場機制；F08-FE S3） |
+| `When 輸入 PIN {pin}` | PIN 鍵盤輸入（key pin-input；F08-FE S3） |
+| `When 按下「忘記 PIN」` | 鎖定畫面入口（key forgot-pin；F08-FE S4） |
+| `When 設定新 PIN {pin}` | 新 PIN 設定（key new-pin-input＋確認；F08-FE S4） |
+| `When 按下 👁 遮蔽開關` | 隱私遮蔽切換（key privacy-toggle；FR-X3；F08-FE S5） |
 | `When 按下檢視` | 衝突事件詳情（F07-FE S6） |
 
 ### 3.3 Then（斷言）
@@ -375,6 +385,13 @@
 | `Then 顯示「還原完成」（帳戶/交易/分類/預算）` | bootstrap 結果回饋（AC-08；F07-FE S4） |
 | `Then 顯示「此帳號沒有可還原的資料」` | 異帳號空備份（FR-Y2；F07-FE S5） |
 | `Then 顯示「{n} 筆衝突」` | sync_events 計數（AC-07；F07-FE S6） |
+| `Then 顯示「鎖定畫面」` | 鎖定覆蓋層（key lock-screen；不可透視——遮蔽底層內容；AC-09） |
+| `Then 顯示「離開前的畫面」且資料完整` | 解鎖後恢復原路由（lock overlay 移除） |
+| `Then 顯示「PIN 輸入鍵盤」` | 退場後 PIN 輸入 UI（key pin-input；FR-X1 退場） |
+| `Then 顯示「設定新 PIN」` | 重設流程（key new-pin；FR-X5） |
+| `Then 顯示「資料完整保留」（{n} 筆交易）` | 還原/重設後交易計數（資料零損失；FR-X5） |
+| `Then 金額全部顯示為 ●●●●` | 隱私遮蔽態（金額 widget 全遮蔽；FR-X3） |
+| `Then 顯示「{amount}」（原金額）` | 遮蔽關閉還原（F08-FE S5） |
 | `Then 顯示「{text}」（唯讀）` | 被覆蓋內容唯讀檢視（F07-FE S6） |
 | `Then 顯示「待確認 {n}」badge` | find.byKey(recurring-badge) 文字（FR-T5 到期未確認數；F06-FE S1） |
 | `Then 顯示「待確認清單」含「{name} {amt}」` | RecurringQueuePage 標題＋項目（F06-FE S1） |
