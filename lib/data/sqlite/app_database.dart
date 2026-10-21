@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';
 
 import 'package:sqlite3/open.dart';
 import 'package:sqlite3/sqlite3.dart';
 
+import '../../core/clock.dart';
 import '../../core/text_index.dart';
 import 'schema.dart';
 
@@ -630,6 +632,108 @@ class AppDatabase {
         _db.select('SELECT * FROM statements WHERE id = ?', [id]).map(StatementRow.fromRow).toList();
     return rows.isEmpty ? null : rows.first;
   }
+
+  // ── 定期交易排程（FR-T5，schema v5；recurring_transactions 屬 sync_entity） ──
+
+  void insertRecurring(RecurringRow r) => _db.execute(
+        'INSERT INTO recurring_transactions (id, name, kind, amount_minor, account_id,'
+        ' category_id, frequency, interval_days, anchor_date, end_type, end_count,'
+        ' end_date, next_due_date, reminder_count, paused, created_at, updated_at,'
+        ' hlc, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          r.id, r.name, r.kind, r.amountMinor, r.accountId, r.categoryId,
+          r.frequency, r.intervalDays, r.anchorDate, r.endType, r.endCount,
+          r.endDate, r.nextDueDate, r.reminderCount, r.paused ? 1 : 0,
+          r.createdAt, r.updatedAt, r.hlc, r.deletedAt,
+        ],
+      );
+
+  /// 排程寫入＋oplog 於同一 transaction（recurring 屬 sync_entity）。
+  void insertRecurringWithOplog(RecurringRow r, OplogRow o) {
+    _db.execute('BEGIN');
+    try {
+      insertRecurring(r);
+      appendOp(o);
+      _db.execute('COMMIT');
+    } catch (_) {
+      _db.execute('ROLLBACK');
+      rethrow;
+    }
+  }
+
+  List<RecurringRow> allRecurring() => _db
+      .select('SELECT * FROM recurring_transactions WHERE deleted_at IS NULL'
+          ' ORDER BY next_due_date')
+      .map(RecurringRow.fromRow)
+      .toList();
+
+  RecurringRow? recurringById(String id) {
+    final rows = _db.select('SELECT * FROM recurring_transactions WHERE id = ?', [id]);
+    return rows.isEmpty ? null : RecurringRow.fromRow(rows.first);
+  }
+
+  /// 到期未確認佇列（next_due ≤ today；排除暫停/刪除——確認仍可、推播停）。
+  List<RecurringRow> dueSchedules(int todayMs) => _db
+      .select('SELECT * FROM recurring_transactions'
+          ' WHERE deleted_at IS NULL AND paused = 0 AND next_due_date <= ?'
+          ' ORDER BY next_due_date', [todayMs])
+      .map(RecurringRow.fromRow)
+      .toList();
+
+  /// 提醒計數+1；達 3 → paused=true（FR-T5：≥3 停止推播）＋oplog 快照。
+  void incrementReminder(String id, String hlc) {
+    _db.execute(
+      'UPDATE recurring_transactions SET reminder_count = reminder_count + 1,'
+      ' paused = CASE WHEN reminder_count + 1 >= 3 THEN 1 ELSE paused END,'
+      ' updated_at = ?, hlc = ? WHERE id = ?',
+      [Clock.now().millisecondsSinceEpoch, hlc, id],
+    );
+    appendOp(oplogForRecurring(recurringById(id)!));
+  }
+
+  void resetReminder(String id, String hlc) {
+    _db.execute(
+      'UPDATE recurring_transactions SET reminder_count = 0, paused = 0,'
+      ' updated_at = ?, hlc = ? WHERE id = ?',
+      [Clock.now().millisecondsSinceEpoch, hlc, id],
+    );
+    appendOp(oplogForRecurring(recurringById(id)!));
+  }
+
+  /// next_due 推進（確認/跳過共用）＋oplog 快照。
+  void advanceNextDue(String id, int nextDueMs, String hlc) {
+    _db.execute(
+      'UPDATE recurring_transactions SET next_due_date = ?, updated_at = ?, hlc = ?'
+      ' WHERE id = ?',
+      [nextDueMs, Clock.now().millisecondsSinceEpoch, hlc, id],
+    );
+    appendOp(oplogForRecurring(recurringById(id)!));
+  }
+
+  /// 軟刪除排程（墓標＋oplog 墓標 payload=null——刪除後不再提醒，FR-T5）。
+  void softDeleteRecurring(String id, String hlc) {
+    _db.execute(
+      'UPDATE recurring_transactions SET deleted_at = ?, updated_at = ?, hlc = ?'
+      ' WHERE id = ?',
+      [Clock.now().millisecondsSinceEpoch, Clock.now().millisecondsSinceEpoch, hlc, id],
+    );
+    appendOp(OplogRow(
+      entity: 'recurring_transactions',
+      entityId: id,
+      hlc: hlc,
+      payload: null,
+      packedSeq: null,
+    ));
+  }
+
+  /// 排程列之 oplog 快照（整列；SDD §5.5.4）。
+  OplogRow oplogForRecurring(RecurringRow r) => OplogRow(
+        entity: 'recurring_transactions',
+        entityId: r.id,
+        hlc: r.hlc,
+        payload: jsonEncode(r.toSnapshot()),
+        packedSeq: null,
+      );
 
   // ── 附件（FR-S4，schema v4；attachments 屬 sync_entity） ──
 
@@ -1444,6 +1548,110 @@ class AttachmentRow {
         'mime': mime,
         'byte_size': byteSize,
         'created_at': createdAt,
+        'hlc': hlc,
+        'deleted_at': deletedAt,
+      };
+}
+
+/// 定期交易排程列（schema v5，data-spec.dbml recurring_transactions；FR-T5 提醒確認制）。
+class RecurringRow {
+  const RecurringRow({
+    required this.id,
+    required this.name,
+    required this.kind,
+    required this.amountMinor,
+    required this.accountId,
+    required this.categoryId,
+    required this.frequency,
+    this.intervalDays,
+    required this.anchorDate,
+    required this.endType,
+    this.endCount,
+    this.endDate,
+    required this.nextDueDate,
+    required this.reminderCount,
+    required this.paused,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.hlc,
+    this.deletedAt,
+  });
+
+  final String id;
+  final String name;
+
+  /// expense | income（模板語意；確認時可改且不回寫——FR-T5）。
+  final String kind;
+  final int amountMinor;
+  final String accountId;
+  final String categoryId;
+
+  /// daily | weekly | monthly | yearly | custom（custom 用 intervalDays）。
+  final String frequency;
+  final int? intervalDays;
+
+  /// 首次到期日（ms）。
+  final int anchorDate;
+
+  /// never | count | date。
+  final String endType;
+  final int? endCount;
+  final int? endDate;
+
+  /// 下次到期日（ms；確認/跳過後推進）。
+  final int nextDueDate;
+
+  /// 同期已提醒次數；≥3 停止推播（FR-T5）。
+  final int reminderCount;
+
+  /// 逾期 3 次未處理→true（S6.5）。
+  final bool paused;
+  final int createdAt;
+  final int updatedAt;
+  final String hlc;
+  final int? deletedAt;
+
+  factory RecurringRow.fromRow(Map<String, Object?> r) => RecurringRow(
+        id: r['id'] as String,
+        name: r['name'] as String,
+        kind: r['kind'] as String,
+        amountMinor: r['amount_minor'] as int,
+        accountId: r['account_id'] as String,
+        categoryId: r['category_id'] as String,
+        frequency: r['frequency'] as String,
+        intervalDays: r['interval_days'] as int?,
+        anchorDate: r['anchor_date'] as int,
+        endType: r['end_type'] as String,
+        endCount: r['end_count'] as int?,
+        endDate: r['end_date'] as int?,
+        nextDueDate: r['next_due_date'] as int,
+        reminderCount: r['reminder_count'] as int,
+        paused: (r['paused'] as int) == 1,
+        createdAt: r['created_at'] as int,
+        updatedAt: r['updated_at'] as int,
+        hlc: r['hlc'] as String,
+        deletedAt: r['deleted_at'] as int?,
+      );
+
+  /// oplog payload 之整列快照（SDD §5.5.4）。
+  Map<String, Object?> toSnapshot() => {
+        'id': id,
+        'name': name,
+        'kind': kind,
+        'amount_minor': amountMinor,
+        'account_id': accountId,
+        'category_id': categoryId,
+        'frequency': frequency,
+        'interval_days': intervalDays,
+        'anchor_date': anchorDate,
+        'end_type': endType,
+        'end_count': endCount,
+        'end_date': endDate,
+        'next_due_date': nextDueDate,
+        'reminder_count': reminderCount,
+        'paused': paused ? 1 : 0,
+        'created_at': createdAt,
+        'updated_at': updatedAt,
         'hlc': hlc,
         'deleted_at': deletedAt,
       };
