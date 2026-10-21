@@ -119,7 +119,7 @@
 |---|---|---|---|---|---|
 | F01 快記 | T-F01-BE（8：智慧預設規則×4、儲存事務、Undo、離線、效能） | T-F01-FE（7：預填呈現、對話框、Sticky、完成、時間選擇器、復原、桌面快捷鍵） | settings key 命名（settings 表） | M1 | ☐ |
 | F02 交易帳戶 | T-F02-BE（6：金額驗證、轉帳守恆、儲值語意、軟刪除、還款、多幣別）——**6/6 ✅**（多幣別照數學修：餘額 −2,200；fxRate 換算入 BalanceCalculator） | T-F02-FE（6：禁用態、轉帳樣式、儲值文案、最近刪除、拆分＋**S2.9 計算機鍵盤**）——**6/6 ✅**（executeSplit 總額守恆＋TxTile 拆分樣式） | tx_kind/settlement_status enum（✅ schema v1 覆蓋）；fx_rate（✅ TxRow/Tx/BalanceCalculator 換算） | M1/M2 | ✅ |
-| F03 掃描 | T-F03-BE（7：QR 解析、明細合併、回退、OCR 信賴度、附件定址、離線、效能）——**🟢 7/7**（InvoiceQrParser 切片解析＋ReceiptFieldExtractor heuristics＋AttachmentStore 內容定址；techstack v0.3.7 image＋crypto PM 簽核；測資 77 碼規格修正） | T-F03-FE（6：入口、權限、確認清單、高亮、連拍、桌面匯入） | attachments.sha256（blobs 約定）✅ schema v4；測資 fixture=T-H6 | M4 | 🔵（BE 完；FE 待） |
+| F03 掃描 | T-F03-BE（7：QR 解析、明細合併、回退、OCR 信賴度、附件定址、離線、效能）——**🟢 7/7**（InvoiceQrParser 切片解析＋ReceiptFieldExtractor heuristics＋AttachmentStore 內容定址；techstack v0.3.7 image＋crypto PM 簽核；測資 77 碼規格修正） | T-F03-FE（6：入口、權限、確認清單、高亮、連拍、桌面匯入）——**🟢 6/6 macOS 實跑**（scan-entry 雙入口＋ScanPage 狀態機（權限閘/計數/縮圖）＋ReviewPage（總額人工檢視＋高亮擋下＋逐張跳）＋ImportPage＋⌘⇧S 快捷鍵＋📷 附件標記；pressShortcut T-H8 落地） | attachments.sha256（blobs 約定）✅ schema v4；測資 fixture=T-H6 | M4 | ✅（**M4 完成併入 main 69fd736；v0.4.8 已 tag**：FE 回歸 6/6＋部署驗證通過（Release 47.6MB＋二次啟動）；行動相機 mobile_scanner 接線屬 acceptance 走查前補——SP-2b） |
 | F04 信用卡 | T-F04-BE（10：預扣、補算、歸屬 outline、clamp、繳款×2、提醒、逾期、分期、退款、生效日）——**🟢 12 情境執行全綠**（5 服務：BillingCycle/RepayStatement/NotificationCheck/Installment/Refund＋生效日） | T-F04-FE（5：帳單呈現、繳款流程、部分繳、設定顯示、逾期標示）——**🟢 macOS 全綠**（CreditCardPage＋CardSettingsPage＋總覽入口） | **schema v3**（T-S3 ✅）；boundary_rule enum | M3 | ✅（**M3 完成併入 main c1b52b0；v0.4.7 已 tag**：FE 回歸 4/4＋部署驗證通過（Release 47.4MB＋二次啟動）） |
 | F05 預算 | T-F05-BE（5：閾值×2、含預扣、達標率、起始日）——**5/5 ✅**（BudgetAlertService 冪等 sync 點＋notif_state 去重） | T-F05-FE（5：警示色、超支、預扣標籤、達成、通知開關）——**5/5 ✅**（預算分頁＋總覽卡；FE 基線自洽修正 S1 7000/S2 8320） | **schema v2**（T-S2 ✅）；budgets/income_goals | M2 | ✅ |
 | F06 定期交易 | T-F06-BE（5：到期提醒、確認不回寫、跳過、刪除、逾期暫停） | T-F06-FE（4：badge、清單、確認 UI、暫停標示） | **schema v5**（T-S5 先行） | M6 | ☐ |
@@ -178,7 +178,7 @@ S11-12：T-F08 → T-F09 → 效能複測（NFR-01~03）→ 上架
 | Helper | T-H3 雲端 adapter（雙裝置拓撲模擬）＋T-H4 通知 spy＋T-H5 標準資料集＋T-H6 發票測資＋編碼器 | ✅（39be197 紅/f803eb2 綠） |
 | Helper | T-H7 Gherkin runner（BE）＋T-H8 FE 掛鉤（驗證延至 M1 FE 首跑）＋T-H9 truth 對齊測試 | ✅（f803eb2） |
 | Migration | T-S1 schema v1（建表＋建表回歸＋truth 對齊基線，隨 T-H1 完成） | ✅ |
-| Migration | T-S2~T-S5（v2~v5，M2~M6 隨各 feature）——T-S2 ✅（81 綠）｜T-S3 ✅（信用卡/帳單/退款/分期；81 綠）｜T-S4 ✅（attachments＋遷移鏈 v3→v4＋T-H9 擴充；85 綠；merge 6501051）｜T-S5 ☐ |
+| Migration | T-S2~T-S5（v2~v5，M2~M6 隨各 feature）——T-S2 ✅（81 綠）｜T-S3 ✅（信用卡/帳單/退款/分期；81 綠）｜T-S4 ✅（attachments＋遷移鏈 v3→v4＋T-H9 擴充；85 綠；merge 6501051）｜T-S5 ☐（M6） |
 | Feature | T-F01-BE（8 情境：智慧預設×4／儲存事務／Undo／離線／效能——🔴→🟢 完成，每情境一 commit） | ✅（合併 ffadf09） |
 | Feature | T-F01-FE（@P0 6 情境：預填／對話框／Sticky／完成／時間選擇器／復原——🔴→🟢 Windows 實跑全綠；App 主殼+快記頁+明細+總覽落地）＋production 接線（path_provider，techstack v0.3.5 PM 定案） | ✅（S1.11 @P1 @desktop 屬 M2；acceptance 手動情境留 QA 走查） |
 | Feature | T-F02-BE（@BE @P0 5 情境 🔴→🟢：金額驗證／轉帳守恆＋MonthlyStatsService／儲值 transfer 語意／軟刪除＋TombstonePurgeService 30 天／還款＋creditUnpaidTotal；多幣別 @P1 @M2 deferred PM 確認） | ✅（7ef56da） |
