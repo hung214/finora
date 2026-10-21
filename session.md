@@ -20,9 +20,9 @@
 
 | 欄位 | 內容 |
 |---|---|
-| 更新時間 | 2026-10-21（M5 進行中：T-F07-BE 🟢 10/10＋schema v5 落地，交接快照） |
-| 階段 | **M4 完成**（v0.4.8 五產物齊全已驗）＋**M5 進行中**：F07-BE 🟢 **10 情境全綠**（分支 `feature/T-F07-cloud-sync`：SyncCoordinator/BundleApplier/BackupService/AutoSyncService＋**schema v5 落地**（sync_events 提前隨 F07＋recurring_transactions 表一次到位）＋truth dbml v0.3.2（sync_entity 補 income_goals）＋dsl v0.8）；**90 unit 綠**。下一步：T-F07-FE 6 情境→M5 收尾 |
-| 當前分支 | **feature/T-F07-cloud-sync**（自主測快照：6 commits 已 push——truth v0.3.2/dsl v0.8/紅燈基座/schema v5/F07-BE 全綠/tasks 回寫） |
+| 更新時間 | 2026-10-21（F07-FE **PM 決策跳過暫停**——交接快照；90 unit 綠） |
+| 階段 | **M5 暫停中**（F07-BE 🟢 10/10 已完成；**F07-FE WIP 暫停**——S1/S2 綠、S3 修至 lastSyncAt 正確、S4/S5/S6 未驗；卡點＝S1 approve 按鈕 DEBUG 可見但 tap 0 widgets——frame/rebuild 競爭待深查）。**PM 決策：跳過 F07-FE 先做其他**——候選：M6 T-F06 定期交易（schema 已就緒）／M7 T-F08 App 鎖。90 unit 綠 |
+| 當前分支 | **feature/T-F07-cloud-sync**（F07-BE 完成＋F07-FE WIP；15+ commits 已 push；工作區乾淨） |
 | 當前任務 | 下輪：①**truth PR 先行**——dbml sync_entity 補 income_goals（F07 前護欄）②T-F07-BE（8 情境：補同步/LWW/每筆模式/批次/附件分流/bootstrap/GC/備份密碼）③T-F07-FE（6 情境）④Google OAuth 送審 |
 | 紅綠燈狀態 | 分支上 `dart analyze` 0＋**unit 90 全綠**（F07-BE 1 檔＋schema v5 3 測＋既有 86）；FE 未觸（F07-FE 未開工——既有 FE 回歸於 M4 驗過） |
 | 工作區 | 乾淨（文件回寫後 commit） |
@@ -30,13 +30,18 @@
 | 環境筆記 | 延續上輪全部。新增（F03-BE）：①**測試勿對 UUIDv7 字典序順序斷言**（DBG-005）②77 碼長字串以 T-H6 fixture 拼接為準，typo 用腳本替換 ③image 4.12 decodeImage 須 Uint8List ④flaky 排查先落盤再循環重跑。新增（F03-FE/回歸）：①**「flutter test integration_test」多檔併跑不可行**——macOS 多 app instance 起動致 debug connection 斷線（5 檔同掛）——FE 回歸須**逐檔跑** ②**macOS NSWindow autosave frame 跨實例漂移**——Debug/Release 同 bundle id 共享視窗 frame，≥900px 時 LayoutBuilder 分殼為 Rail——harness 導航一律 byKey nav-{分頁}（DBG-006）③**feature 步驟含 `+` 須 regex 跳脫**（左QR\+右QR）④**dsl 登記文字≠feature 實文**——勿自行加尾綴 ⑤**macOS FE 行程 Platform 判定為桌面**——cameraAvailable 預設須顯式 set(true)（僅無相機情境設 false）⑥**Specific 顯示變體先於 generic 註冊** ⑦**pressShortcut 組合鍵注入已落地**（T-H8：修飾鍵先按住→主鍵按下即放→倒序放開）⑧每情境新 KeyedSubtree＋新 container＝Riverpod 狀態自然重置 |
 | 阻塞／待決 | ①gh 未安裝（壞包 v0.4.0/0.4.2 刪除待補）②**acceptance F03 測資字串修正待 PM 複核**③SP-1 SQLCipher④SP-2b mobile_scanner 行動相機（F03 走查前）⑤SP-4 Argon2id（M5 備份密碼先 sha256/循環 32B 最小實作——TODO 已標）⑥多幣別 900 待 PM⑦notify_enabled=off 語意待 PM⑧Google OAuth 接線（F07-FE 連結情境——平台層，FE harness 用 seam）⑨UI 統整＝M7 |
 
-## 3. 下一步（T-F07-FE 6 情境；下次開工照此執行）
+## 3. 下一步（PM 決策：跳過 F07-FE——先做其他；回頭清單見 §3.1）
 
-1. **dsl §3 FE 句型登記**（F07-FE 前置，先讀 specs/plan/tests/frontend/F07_cloud-sync-backup.feature 核對實際步驟文字——教訓：登記文字≠自行加尾綴）：連結（Google OAuth seam）、立即同步、啟動同步、還原、異帳號、衝突檢視（sync_events 呈現——AC-07）。
-2. **UI 構件**：設定/同步頁（SDD §8 IA——「設定同步」頁雛型 07）：連結狀態＋立即同步鈕＋同步模式選擇（每筆/批次/手動）＋衝突事件列表（sync_events 唯讀快照檢視）＋還原入口。syncCoordinatorProvider 生產接線（GoogleDriveAdapter 屬平台接線——FE harness 以 InMemoryCloudAdapter override，同 M5 BE 模式）。
-3. **FE harness**：integration_test/features/f07_cloud_sync_test.dart（照 f04 模式＋syncCoordinatorProvider override）；macOS 逐檔實跑（**勿 `flutter test integration_test` 併跑**——DBG-006 環境筆記）。
-4. FE 全綠後：M5 收尾——全量＋**部署驗證一次**（Release＋啟動冒煙）→bump 0.4.9→`--no-ff` merge main→tag v0.4.9→M6（F06 定期交易——recurring 表已於 v5 落地）。
-5. 休息前照 §1 檢查清單更新本檔。
+### 3.1 F07-FE 回頭清單（恢復時照此）
+1. **卡點**：S1「同意授權」tap 時 oauth-approve 0 widgets——但 DEBUG（tap 前）approve=true/signin=true——**兩行之間按鈕消失**＝frame/rebuild 競爭（_linking 態被翻回 false——疑似 syncAccountProvider/pendingOps 的 provider 重建或 State 重建）。**深查方向**：`tester.allWidgets` dump 比對／暫停 pumpAndSettle／檢查 `SyncAccountNotifier.build` 的 `ref.watch(dbProvider)` 是否因 afterSyncRefresh 的 refresh 鏈重置。
+2. **已完成待驗**：S3 修至 lastSyncAt=09:00 正確（Clock 單一來源）——斷言「上次同步 今天 09:00」未重驗；S4/S5/S6 未驗。
+3. **已修的環境/缺陷**（已 commit）：macOS **NSAppSleepDisabled**（App Nap 節流——PM 觀察「點視窗才動」根因；測試提速 10 倍）／SyncCoordinator **重入閘**（啟動×手動併發防護）／afterSyncRefresh 改 Clock.now()（T-H2 單一時間來源）／seedTx 勿重複 appendOp。
+4. 剩餘：S4 還原/S5 異帳號/S6 衝突檢視 綠燈→FE 全綠→M5 收尾（bump 0.4.9＋部署驗證＋merge）。
+
+### 3.2 跳過後的優先順序（建議，待 PM 指定）
+1. **M6：T-F06 定期交易**（BE 5＋FE 4）——schema v5 recurring_transactions 已落地、地基就緒；完後 bump 0.4.9→部署驗證→merge。
+2. M7：T-F08 App 鎖（BE 4＋FE 5）——獨立無依賴。
+3. GoogleDriveAdapter 骨架（commercialization.md §4-#9——PM 憑證申請並行）。
 
 ### 通用 harness/UI 教訓（跨功能累積，持續生效）
 - CreditCardPage 開頁副作用：initState postFrameCallback 觸發結帳檢查（FR-C3 sync 點）——勿在 build 中 ref.read/invalidate。
@@ -56,6 +61,7 @@
 
 | 日期 | 摘要 | 分支 | 狀態 |
 |---|---|---|---|
+| 2026-10-21 | **F07-FE WIP 暫停（PM 決策：跳過先做其他）**：dsl v0.9（FE +24 句型）＋harness 24 句型（帳號空間 adapter 異帳號語意＋fake OAuth seam）＋**SettingsSyncPage**（連結兩步授權/立即同步「同步中…→已同步 N 筆」/待同步計數/上次同步/衝突入口/從雲端還原）＋SyncConflictsPage＋cloudAdapter/oauthProvider seam；**S1/S2 綠、S3 修至 lastSyncAt=09:00 正確（afterSyncRefresh 改 Clock.now()——T-H2）**；卡點＝S1 approve tap 時 0 widgets（DEBUG 可見→frame/rebuild 競爭，待深查）；**PM 觀察「點視窗才動」→根因 macOS App Nap 節流——NSAppSleepDisabled 修復（測試提速 10 倍）**；SyncCoordinator 重入閘（啟動×手動併發防護）；90 unit 綠；**commercialization.md v0.1**（Google 憑證申請 PM 動作⚠️＋付費四模式＋行動清單） | feature/T-F07-cloud-sync | 🔵（F07-FE WIP 暫停；BE 已完；90 unit 綠） |
 | 2026-10-21 | **M5 開工：T-F07-BE 10 情境全綠＋schema v5 落地**：truth dbml v0.3.2（sync_entity 補 income_goals——F07 護欄先行）＋dsl v0.8（BE +29 句型）；**schema v5**（sync_events 提前隨 F07/M5 衝突事件＋recurring_transactions 表一次到位；T-S5 前段；回歸 3 測＋既有「現行版本」斷言 4→5 維護）；**SyncCoordinator**（vault/devices/ops/blobs 佈局＋pull cursor 套用＋push 打包/manifest/vault 補錄＋附件 Wi-Fi 分流）＋**BundleApplier**（LWW＋衝突 sync_events＋N-8）＋**BackupService**（每日快照 JSON＋AES-GCM 檔案密碼（錯誤密碼拒絕）＋GC 保留份數）＋AutoSyncService（sync.mode 分流接 afterSave）；**綠燈過程修 6 處**（list 相對路徑 vs download 全路徑×2／帳戶 op 基線 packed／衝突事件雙重 insert／spy 斷言全裝置計數／{選項} 中文佔位 runner 不轉（→{option}）／Outline 單數 op 變體）；90 unit 全綠 | feature/T-F07-cloud-sync | 🔵（BE 🟢 10/10；FE 6 情境待開工） |
 | 2026-10-21 | **M4 完成：F03 發票掃描 FE 6/6＋併入 main＋v0.4.8**：T-F03-FE 🔴→🟢 逐情境（掃描雙入口 scan-entry＋ScanPage 狀態機（權限閘「請求/拒絕→前往設定開啟權限」不離開 App＋已掃計數＋縮圖列＋完成掃描）＋ReviewPage（總額一律人工檢視 0/空擋下、低信賴高亮「請確認日期」＋已確認、ChoiceChip 分類/帳戶、「n / N」逐張跳、source=scan＋附件落地）＋ImportPage（匯入管線 seam）＋MainShellPage ⌘⇧S 快捷鍵＋TxTile 📷）；**pressShortcut T-H8 落地**（組合鍵注入）；**DBG-006 結案**（f01 殼相依 finder——macOS NSWindow autosave frame 漂移跨實例共享致 Rail 殼，nav 改 byKey 雙殼相容）；**FE 回歸 6/6 全綠**（macOS 逐檔——併跑多 instance 會掛 debug connection，須逐檔）；FE 全綠→bump 0.4.8→**M4 部署驗證通過**（Release 47.6MB＋Info.plist 0.4.8＋二次啟動無崩潰）→`--no-ff` merge（69fd736）→push main→**tag v0.4.8 自動建立**（四平台 Release 建置中）→分支已刪；main analyze 0＋unit 86 全綠 | main | ✅（M4 完；M5 雲端同步待開——truth PR 補 income_goals 先行） |
 | 2026-10-21 | **M4 開工：T-S4 完成＋T-F03-BE 7/7 全綠＋DBG-005 結案**：T-S4 schema v4（attachments 表＋遷移鏈 v3→v4＋T-H9 擴充＋既有遷移測試「現行版本」斷言 3→4 維護——merge main `6501051`，85 綠）；techstack v0.3.7（image 4.12.0＋crypto 3.0.7 附件壓縮定案，PM 簽核——純 Dart 跨平台位元組一致保內容定址去重）；dsl v0.6（BE +19 句型）；**T-F03-BE 🔴→🟢 逐情境 7 commits**（InvoiceQrParser 77 碼切片/應稅驗證/民國轉西元→parse 雙 QR 合併/回退 null→ReceiptFieldExtractor heuristics 0.7 門檻→AttachmentStore image 縮 1600+JPEG q70+sha256→blobs）；**規格修正**：acceptance＋feature 測資字串 76→77 碼（總計段補 0，對齊欄位對照表與 T-H6；**待 PM 複核**）＋S7 效能句型「入庫耗時」→「OCR 欄位抽取耗時」（F10 先例）；**DBG-005 結案**（save_split 3/50 間歇失敗——根因：測試對 UUIDv7 字典序的順序依賴，NTP slew 時鐘微回退觸發翻轉，Expected 600 Actual 400 證據落盤；斷言改順序無關，10 連跑驗證）；86 unit 全綠 | feature/F03-receipt-scan（未 push） | 🔵（BE 🟢 7/7；FE 6 情境待開工） |
