@@ -57,6 +57,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> {
         MaterialPageRoute<void>(builder: (_) => const QuickEntryPage()),
       );
 
+  // ignore: unused_element —— F07-FE 回頭恢復入口（M5 暫停）
   void _openSettings() => Navigator.of(context).push(
         MaterialPageRoute<void>(builder: (_) => const SettingsSyncPage()),
       );
@@ -100,25 +101,11 @@ class _MainShellPageState extends ConsumerState<MainShellPage> {
                 // 手機殼：底部 NavigationBar。
                 return Scaffold(
                   body: body,
-                  floatingActionButton: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      FloatingActionButton.small(
-                        key: const Key('app-settings'),
-                        tooltip: '設定',
-                        heroTag: 'settings',
-                        onPressed: _openSettings,
-                        child: const Icon(Icons.settings_outlined),
-                      ),
-                      const SizedBox(height: 8),
-                      FloatingActionButton(
-                        key: const Key('fab-quick-entry'),
-                        tooltip: '快記',
-                        heroTag: 'quick',
-                        onPressed: _openQuickEntry,
-                        child: const Icon(Icons.add),
-                      ),
-                    ],
+                  floatingActionButton: FloatingActionButton(
+                    key: const Key('fab-quick-entry'),
+                    tooltip: '快記',
+                    onPressed: _openQuickEntry,
+                    child: const Icon(Icons.add),
                   ),
                   bottomNavigationBar: NavigationBar(
                     selectedIndex: _tab,
@@ -153,13 +140,8 @@ class _MainShellPageState extends ConsumerState<MainShellPage> {
                               onPressed: _openQuickEntry,
                               child: const Icon(Icons.add),
                             ),
-                            const SizedBox(height: 8),
-                            IconButton(
-                              key: const Key('app-settings'),
-                              tooltip: '設定',
-                              onPressed: _openSettings,
-                              icon: const Icon(Icons.settings_outlined),
-                            ),
+
+
                           ],
                         ),
                       ),
