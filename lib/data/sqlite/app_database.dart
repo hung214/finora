@@ -35,7 +35,7 @@ class AppDatabase {
   late final Database _db;
   bool _closed = false;
 
-  int get schemaVersion => SchemaV4.version;
+  int get schemaVersion => SchemaV5.version;
 
   void _migrate() {
     // DBG-004／T-S2：多版本冪等遷移——
@@ -44,7 +44,7 @@ class AppDatabase {
     // ③ 逐版本增量：每版本於交易內全有全無（v1 全量 DDL／v2 增量表）。
     // DDL 字串維持原樣（T-H9 truth 對齊 regex 相容）。
     var current = _db.select('PRAGMA user_version').first.values.first as int;
-    if (current >= SchemaV4.version) return;
+    if (current >= SchemaV5.version) return;
     if (current < 1) {
       final tablesExist = _db
           .select("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'accounts'")
@@ -112,6 +112,19 @@ class AppDatabase {
           _db.execute(s);
         }
         _db.execute('PRAGMA user_version = ${SchemaV4.version}');
+        _db.execute('COMMIT');
+      } catch (_) {
+        _db.execute('ROLLBACK');
+        rethrow;
+      }
+    }
+    if (current < 5) {
+      _db.execute('BEGIN');
+      try {
+        for (final s in SchemaV5.statements) {
+          _db.execute(s);
+        }
+        _db.execute('PRAGMA user_version = ${SchemaV5.version}');
         _db.execute('COMMIT');
       } catch (_) {
         _db.execute('ROLLBACK');
@@ -774,6 +787,25 @@ class AppDatabase {
         'UPDATE oplog SET packed_seq = ? WHERE packed_seq IS NULL',
         [seq],
       );
+
+  /// oplog 是否存在該實體之記錄（衝突偵測：本機曾寫入——FR-Y5）。
+  bool oplogHasEntityId(String entity, String id) => _db
+      .select('SELECT 1 FROM oplog WHERE entity = ? AND entity_id = ? LIMIT 1',
+          [entity, id])
+      .isNotEmpty;
+
+  /// 備份還原之全表清空（匯入前置；oplog 一併還原快照內容）。
+  void clearTable(String table) => _db.execute('DELETE FROM $table');
+
+  /// 備份還原之單列寫入（INSERT OR REPLACE——欄位由快照動態組）。
+  void restoreRow(String table, Map<String, Object?> row) {
+    final cols = row.keys.toList();
+    _db.execute(
+      'INSERT OR REPLACE INTO $table (${cols.join(', ')})'
+      ' VALUES (${List.filled(cols.length, '?').join(', ')})',
+      [for (final c in cols) row[c]],
+    );
+  }
 
   /// 交易寫入 + oplog 追加必須同一 transaction（SDD §5.1 儲存事務）。
   ///

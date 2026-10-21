@@ -137,7 +137,7 @@
 | `When 掃描發票入帳（含附件）並觸發同步` | ScannedItem 儲存（source=scan＋附件落 blobs/）＋SyncCoordinator（附件分流前置） |
 | `When 網路 = {network} 並觸發同步` | 網路型態 seam 設定＋SyncCoordinator（附件分流第二段） |
 | `When 模擬時間快轉 {n} 天並觸發自動備份（每日）` | Clock 快轉＋BackupService（>24h 產新備份＋GC；FR-Y3） |
-| `When 匯出備份檔{選項}並於另一環境匯入` | BackupService 匯出（無加密/檔案密碼）→ 新 DB 匯入（Outline；FR-Y6/AC-14） |
+| `When 匯出備份檔{option}並於另一環境匯入` | BackupService 匯出（無加密/檔案密碼）→ 新 DB 匯入（Outline；FR-Y6/AC-14） |
 
 ### 2.3 Then（斷言）
 

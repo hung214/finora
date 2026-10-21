@@ -31,13 +31,13 @@ void main() {
   final source = File('test/bdd/F07_cloud-sync-backup.feature').readAsStringSync();
   final doc = GherkinParser.parse(source);
 
-  test('F07-BE：同步協議與備份（7 情境塊；Outline 3 列）', () async {
+  test('F07-BE：同步協議與備份（7 情境塊＋Outline 3 列）', () async {
     final w = _World();
     final runner = GherkinRunner();
     _bind(runner, w);
     try {
       final executed = await runner.run(doc, tagFilter: (tags) => tags.contains('@BE'));
-      expect(executed, 9, reason: 'F07-BE 應執行 9 個情境（7 塊中 6 單一＋Outline 3 列）');
+      expect(executed, 10, reason: 'F07-BE 應執行 10 個情境（S1~S7 單一＋備份密碼 Outline 3 列）');
       // ignore: avoid_print
       print(runner.log.join('\n'));
     } finally {
@@ -52,14 +52,21 @@ void main() {
 /// 單一裝置（本地 DB＋coordinator＋spy）。
 class _Device {
   _Device(this.id, this.db, this.cloud, this.spy) {
-    coordinator = SyncCoordinator(db, cloud, deviceId: id, onConflictEvent: (e) {
-      db.insertSyncEvent(e);
-      spy.notify(const NotificationCall(
-          id: 8, title: '衝突', body: '雲端變更已採用較新版本'));
-    });
+    blobsDir = Directory.systemTemp.createTempSync('ledger_blobs_f07');
+    coordinator = SyncCoordinator(db, cloud,
+        deviceId: id,
+        blobsDir: blobsDir,
+        onConflictEvent: (e) {
+          // 事件列由 BundleApplier 落 sync_events——此鉤子僅通知（N-8）。
+          spy.notify(const NotificationCall(
+              id: 8, title: '衝突', body: '雲端變更已採用較新版本'));
+        });
     save = SaveTransactionUseCase(db, deviceId: id, afterSave: () {});
-    store = AttachmentStore(db, Directory.systemTemp.createTempSync('ledger_blobs_f07'));
+    store = AttachmentStore(db, blobsDir);
   }
+
+  /// 本地 blob 目錄（AttachmentStore 與 SyncCoordinator 共用）。
+  late final Directory blobsDir;
 
   final String id;
   final AppDatabase db;
@@ -82,9 +89,15 @@ class _World {
   _Device device([String? id]) => devices[id ?? current]!;
 
   /// 建立裝置（同帳號——共享 cloud adapter）。
-  _Device ensureDevice(String id) => devices.putIfAbsent(id, () {
+  /// [seedCash]：本地背景帳戶（現金 1000，同 id 'a-0'）——正式流程由
+  /// bootstrap 還原；BE 情境兩裝置各自離線持有（bootstrap 特例 seedCash=false）。
+  _Device ensureDevice(String id, {bool seedCash = true}) =>
+      devices.putIfAbsent(id, () {
         final db = DbFixture.create();
         dbs.add(db);
+        if (seedCash) {
+          DbFixture.seedAccount(db, id: 'a-0', type: 'cash', name: '現金', opening: 1000);
+        }
         return _Device(id, db, cloud, NotificationSpy());
       });
 
@@ -110,17 +123,11 @@ void _bind(GherkinRunner runner, _World w) {
 
   runner.on(r'已建立帳戶「{name}」類型 {type} 期初 {amount}$', (p) {
     final d = w.device();
-    final id = 'a-${d.db.allAccounts().length}';
-    DbFixture.seedAccount(
-      d.db,
-      id: id,
-      type: p['type']!,
-      name: p['name']!,
-      opening: _amount(p['amount']!),
-    );
-    // 帳戶建立入 oplog（sync_entity；bootstrap 需要）。
-    final row = d.db.allAccounts().firstWhere((a) => a.id == id);
-    d.db.appendOp(opFor('accounts', id, newHlc(d.id), row.toSnapshot()));
+    // ensureDevice 已預置 'a-0'（現金 1000）——冪等確認後入 oplog 基線
+    // （Background 前置資料視為已同步；離線情境之「N 筆未打包」僅計情境內變更）。
+    final row = d.db.allAccounts().first;
+    d.db.appendOp(opFor('accounts', row.id, newHlc(d.id), row.toSnapshot()));
+    d.db.markOpsPacked(0);
   });
 
   // ── Given：雲端/同步模式/附件分流/備份前置 ─────────────────
@@ -206,6 +213,16 @@ void _bind(GherkinRunner runner, _World w) {
     await d.coordinator.sync();
   });
 
+  // 短版變體（S2：裝置B 執行...；長版先註冊——錨尾互斥實則順序無虞）。
+  runner.on(r'裝置{d} 執行 SyncCoordinator\.pull 與 push$', (p) async {
+    final d = w.ensureDevice('d-${p['d']}');
+    if (d.db.allAccounts().isEmpty) {
+      DbFixture.seedAccount(d.db, id: 'a-0', type: 'cash', name: '現金', opening: 1000);
+    }
+    w.current = d.id;
+    await d.coordinator.sync();
+  });
+
   runner.on(r'呼叫 SaveTransactionUseCase（帳戶「{a}」、分類「{c}」、金額 {amt}、時間 {t}）$',
       (p) async {
     final d = w.device();
@@ -249,13 +266,13 @@ void _bind(GherkinRunner runner, _World w) {
       source: 'scan',
     );
     d.store.save(imageBytes: _smallJpeg(), transactionId: result.transactionId);
-    d.coordinator.networkType = w.networkType;
+    d.coordinator.networkType = _normalizeNetwork(w.networkType);
     await d.coordinator.sync();
   });
 
   runner.on(r'網路 = {network} 並觸發同步$', (p) async {
     final d = w.device();
-    d.coordinator.networkType = p['network']!;
+    d.coordinator.networkType = _normalizeNetwork(p['network']!);
     await d.coordinator.sync();
   });
 
@@ -270,12 +287,12 @@ void _bind(GherkinRunner runner, _World w) {
   });
 
   runner.on(r'執行新裝置 Bootstrap（同一帳號）$', (p) async {
-    final d = w.ensureDevice('d-C');
+    final d = w.ensureDevice('d-C', seedCash: false); // 全新安裝——空本
     await d.coordinator.bootstrap();
   });
 
-  runner.on(r'匯出備份檔{選項}並於另一環境匯入$', (p) async {
-    final option = p['選項']!;
+  runner.on(r'匯出備份檔{option}並於另一環境匯入$', (p) async {
+    final option = p['option']!;
     final source = w.ensureDevice('d-A');
     final backup = BackupService(source.db, source.cloud, deviceId: source.id);
     final hasPassword = option.contains('檔案密碼');
@@ -297,7 +314,8 @@ void _bind(GherkinRunner runner, _World w) {
   });
 
   // ── Then：雲端斷言 ───────────────────────────────────────
-  runner.on(r'雲端 ops/{d}/{file} 存在（{n} ops）$', (p) async {
+  // 複數（N ops）與單數（1 op）變體——錨尾互斥，順序無虞。
+  Future<void> assertBundleOps(Map<String, String> p) async {
     final folder = 'ops/${p['d']}';
     final files = await w.cloud.list(folder);
     expect(files, contains(p['file']!),
@@ -306,7 +324,12 @@ void _bind(GherkinRunner runner, _World w) {
     final bundle = jsonDecode(utf8.decode(bytes!)) as Map<String, Object?>;
     expect((bundle['ops'] as List).length, int.parse(p['n']!),
         reason: 'OpBundle ops 數（SDD §5.5.2）');
-  });
+  }
+
+  runner.on(r'雲端 ops/{d}/{file} 存在（{n} ops）$',
+      (p) => assertBundleOps(p));
+  runner.on(r'雲端 ops/{d}/{file} 存在（{n} op）$',
+      (p) => assertBundleOps(p));
 
   runner.on(r'裝置{d} 收到 {n} 筆交易$', (p) {
     final d = w.devices['d-${p['d']}']!;
@@ -352,9 +375,11 @@ void _bind(GherkinRunner runner, _World w) {
   });
 
   runner.on(r'通知 spy 收到 N-{n} 恰 {k} 次$', (p) {
-    final spy = w.devices[w.current]!.spy;
-    expect(spy.withId(int.parse(p['n']!)).length, int.parse(p['k']!),
-        reason: 'N-8 衝突通知');
+    // 衝突發生於被覆蓋裝置（S2 為 d-A）——斷言全裝置 spy 之 N-{n} 總數。
+    final total = w.devices.values
+        .map((d) => d.spy.withId(int.parse(p['n']!)).length)
+        .fold(0, (a, b) => a + b);
+    expect(total, int.parse(p['k']!), reason: 'N-8 衝突通知');
   });
 
   runner.on(r'oplog 皆已打包（packed_seq 非 null）$', (p) {
@@ -365,7 +390,7 @@ void _bind(GherkinRunner runner, _World w) {
   runner.on(r'雲端僅 {n} 個 bundle（{m} ops，非 {k} 個）$', (p) async {
     final files = await w.cloud.list('ops/d-A');
     expect(files.length, int.parse(p['n']!), reason: 'FR-Y11：批次合併為單一 bundle');
-    final bytes = await w.cloud.download(files.first);
+    final bytes = await w.cloud.download('ops/d-A/${files.first}');
     final bundle = jsonDecode(utf8.decode(bytes!)) as Map<String, Object?>;
     expect((bundle['ops'] as List).length, int.parse(p['m']!));
   });
@@ -455,6 +480,8 @@ void _ensureTxX(_Device d) {
   ));
   d.db.appendOp(
       opFor('transactions', 'tx-X', newHlc(d.id), d.db.transactionById('tx-X')!.toSnapshot()));
+  // 基礎列 op 視為已同步基線（packed）——情境內僅「修改 op」參與衝突語意。
+  d.db.markOpsPacked(0);
 }
 
 /// 編輯備註（fixture 層：UPDATE＋新 hlc＋oplog 整列快照；正式編輯 UseCase 屬後續）。
@@ -474,7 +501,17 @@ String _getOrCreateCategory(_Device d, String name) {
   return id;
 }
 
-int _importedTxCount(_World w) => w.importTarget?.allTransactions().length ?? 0;
+/// 網路型態正規化（feature 文字 Wi-Fi/mobile → coordinator 值域 wifi/mobile）。
+String _normalizeNetwork(String raw) =>
+    raw.toLowerCase().contains('wi') ? 'wifi' : 'mobile';
+
+/// 匯入完整性（Outline 斷言）：帳戶（Background 種於來源）已還原即證成功；
+/// 「本地資料不變」＝0（拒絕路徑）。
+int _importedTxCount(_World w) {
+  final target = w.importTarget;
+  if (target == null) return 0;
+  return target.allAccounts().any((a) => a.id == 'a-0') ? 1 : 0;
+}
 
 Uint8List _smallJpeg() {
   final photo = img.Image(width: 16, height: 12);

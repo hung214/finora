@@ -14,7 +14,7 @@ void main() {
   test('全新 DB：直達 schema v4（M1 六表＋v2 三表＋v3 五表＋attachments）', () {
     final db = AppDatabase.inMemory();
     addTearDown(db.close);
-    expect(db.schemaVersion, 4, reason: 'T-S4：schema v4（附件）');
+    expect(db.schemaVersion, 5, reason: '遷移鏈現達 v5（T-S5）——T-S4 表清單不變');
     final tables = db.tableNames();
     for (final t in [
       'accounts',
@@ -62,7 +62,7 @@ void main() {
 
     final db = AppDatabase.open(path);
     addTearDown(db.close);
-    expect(db.schemaVersion, 4, reason: '開啟舊檔應自動升級至 v4');
+    expect(db.schemaVersion, 5, reason: '開啟舊檔自動升級至現行版本（遷移鏈）');
     expect(db.tableNames(), contains('attachments'), reason: '升級後不得缺新表');
     expect(
       db.allAccounts().firstWhere((a) => a.id == 'a1').openingAmountMinor,
@@ -77,11 +77,11 @@ void main() {
     final path = '${dir.path}/ledger.db';
 
     var db = AppDatabase.open(path);
-    expect(db.schemaVersion, 4);
+    expect(db.schemaVersion, 5);
     db.close();
 
     db = AppDatabase.open(path);
     addTearDown(db.close);
-    expect(db.schemaVersion, 4, reason: '二次開啟維持 v4');
+    expect(db.schemaVersion, 5, reason: '二次開啟維持現行版本（v5）');
   });
 }

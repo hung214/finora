@@ -1,59 +1,175 @@
 import 'dart:convert';
+import 'dart:io';
 
-import 'package:uuid/uuid.dart';
-
-import '../../core/clock.dart';
 import '../../core/hlc.dart';
 import '../../data/sqlite/app_database.dart';
 import '../../platform/cloud/cloud_storage_adapter.dart';
+import 'bundle_applier.dart';
+import 'backup_service.dart';
 
 /// 同步協調器（SDD §5.5.3 SyncCoordinator——檔案式 OpLog 合併）。
 ///
-/// 佈局（§5.5.1）：vault.json（首次建置）＋devices/{id}.json（每裝置
-/// manifest：last_seq/ack_seq）＋ops/{id}/{seq:08d}.opbundle＋blobs/{sha256}
-/// ＋backups/{ts}.db。M5 無加密（.enc 僅 P2 選用，FR-Y7）。
+/// 佈局（§5.5.1）：vault.json（首次建置，僅寫一次）＋devices/{id}.json
+/// （每裝置 manifest：last_seq/ack_seq）＋ops/{id}/{seq:08d}.opbundle
+/// ＋blobs/{sha256}＋backups/{ts}.db。M5 無加密（.enc 僅 P2 選用，FR-Y7）。
 ///
-/// 流程：pull（每 peer 下載 cursor+1..last_seq 套用）→ push（未打包 oplog
-/// → bundle(seq=last_seq+1) → 上傳＋manifest）；冪等（同 seq 覆蓋＋cursor 跳過）。
+/// 流程：pull（每 peer 下載 cursor+1..last_seq 依序套用）→ push（未打包
+/// oplog → bundle(seq=last_seq+1) → 上傳＋manifest＋附件分流上傳）。
+/// 冪等：同 seq 覆蓋同名內容＋套用端 cursor 跳過重複（§5.5.3）。
+///
+/// ⚠️ 同步合併模組：待雙重 review（research §1.3）。
 class SyncCoordinator {
   SyncCoordinator(
     this._db,
     this._cloud, {
     required this.deviceId,
+    this.blobsDir,
     this.onConflictEvent,
   });
 
-  // ignore: unused_field —— 紅燈 stub：pull/push 實作（F07 綠燈）後使用
   final AppDatabase _db;
-  // ignore: unused_field —— 紅燈 stub：pull/push 實作（F07 綠燈）後使用
   final CloudStorageAdapter _cloud;
   final String deviceId;
+
+  /// 本地 blob 目錄（附件上傳源；同 AttachmentStore 目錄——null＝跳過附件段）。
+  final Directory? blobsDir;
+
+  /// 衝突通知鉤子（N-8；測試 spy／正式通知）。
+  final void Function(SyncEventRow event)? onConflictEvent;
 
   /// 網路型態（FR-Y11 附件分流：wifi | mobile；生產由 connectivity 判定，
   /// M5 為可變欄位 seam——情境切換）。
   String networkType = 'wifi';
 
-  /// 衝突通知鉤子（N-8；測試 spy／正式通知）。
-  final void Function(SyncEventRow event)? onConflictEvent;
-
-  // ignore: unused_field —— 紅燈 stub：pull/push 實作（F07 綠燈）後使用
   static const _vaultPath = 'vault.json';
   String _manifestPath(String id) => 'devices/$id.json';
-  // ignore: unused_element —— 紅燈 stub：pull/push 實作（F07 綠燈）後使用
-  String _bundlePath(String id, int seq) => 'ops/$id/${seq.toString().padLeft(8, '0')}.opbundle';
+  String _bundlePath(String id, int seq) =>
+      'ops/$id/${seq.toString().padLeft(8, '0')}.opbundle';
 
   /// 同步回合（情境觸發點）：pull 套用 peers → push 未打包。
-  Future<void> sync() => throw UnimplementedError('F07-BE 紅燈 stub：sync');
+  Future<void> sync() async {
+    await _ensureVault();
+    await pull();
+    await push();
+  }
 
-  /// pull：各 peer 自 cursor+1 下載 bundle 依序套用（BundleApplier）。
-  Future<void> pull() => throw UnimplementedError('F07-BE 紅燈 stub：pull');
+  /// vault 首建（§5.5.1：僅首次寫入一次）。
+  Future<void> _ensureVault() async {
+    if (await readJson(_vaultPath) == null) {
+      await writeJson(_vaultPath, {
+        'schema_ver': _db.schemaVersion,
+        'devices': [deviceId],
+      });
+    }
+  }
 
-  /// push：未打包 oplog → bundle 上傳＋manifest 更新＋附件分流。
-  Future<void> push() => throw UnimplementedError('F07-BE 紅燈 stub：push');
+  /// pull：各 peer manifest → cursor+1..last_seq bundle 依序套用。
+  /// （list 回資料夾內相對檔名——manifest 讀取須拼回完整路徑。）
+  Future<void> pull() async {
+    final manifestFiles = await _cloud.list('devices');
+    for (final file in manifestFiles) {
+      final peer = file.replaceAll('.json', '');
+      if (peer == deviceId) continue;
+      final m = await readJson('devices/$file');
+      final lastSeq = (m?['last_seq'] as int?) ?? 0;
+      var cursor =
+          int.tryParse(_db.getSetting('sync.cursor.$peer') ?? '') ?? 0;
+      final applier = BundleApplier(_db, onConflictEvent: onConflictEvent);
+      while (cursor < lastSeq) {
+        cursor++;
+        final bytes = await _cloud.download(_bundlePath(peer, cursor));
+        if (bytes == null) break; // 缺檔保守停止（下次重試；cursor 未推進）
+        final bundle = jsonDecode(utf8.decode(bytes)) as Map<String, Object?>;
+        final ops =
+            (bundle['ops'] as List).cast<Map<String, Object?>>();
+        applier.apply(peer, ops);
+        _db.setSetting('sync.cursor.$peer', '$cursor');
+      }
+    }
+  }
 
-  /// 新裝置 bootstrap（FR-Y2/AC-08）：最新備份匯入→全量 replay→寫 manifest
-  /// （last_seq=0——尚未 push）。
-  Future<void> bootstrap() => throw UnimplementedError('F07-BE 紅燈 stub：bootstrap');
+  /// push：未打包 oplog → bundle 上傳＋manifest＋vault 補錄＋附件分流。
+  Future<void> push() async {
+    var lastSeq = await lastSeqOf(deviceId);
+    final ops = _db.unpackedOps();
+    if (ops.isNotEmpty) {
+      final seq = lastSeq + 1;
+      await _cloud.upload(
+        _bundlePath(deviceId, seq),
+        utf8.encode(jsonEncode(buildBundle(deviceId, seq, ops))),
+      );
+      _db.markOpsPacked(seq);
+      lastSeq = seq;
+    }
+    // manifest（每裝置只寫自己的——§5.5.3 跨裝置零衝突）。
+    await writeJson(_manifestPath(deviceId), {
+      'app_ver': 'dev',
+      'schema_ver': _db.schemaVersion,
+      'last_seq': lastSeq,
+      'ack_seq': lastSeq,
+    });
+    // vault 補錄裝置（首次）。
+    final vault = await readJson(_vaultPath);
+    final devices = List<String>.from((vault?['devices'] as List?) ?? []);
+    if (!devices.contains(deviceId)) {
+      devices.add(deviceId);
+      await writeJson(_vaultPath, {
+        'schema_ver': _db.schemaVersion,
+        'devices': devices,
+      });
+    }
+    await _pushBlobs();
+  }
+
+  /// 附件 blob 上傳（§5.5.6 內容定址去重＋FR-Y11 Wi-Fi 分流）。
+  Future<void> _pushBlobs() async {
+    final dir = blobsDir;
+    if (dir == null || !dir.existsSync()) return;
+    final wifiOnly =
+        _db.getSetting('backup.attachments_wifi_only') == 'true';
+    if (wifiOnly && networkType != 'wifi') return; // 行動網路暫緩
+    for (final a in _db.allAttachments()) {
+      final path = 'blobs/${a.sha256}';
+      if (await _cloud.download(path) != null) continue; // 內容定址去重
+      final file = File('${dir.path}/${a.sha256}');
+      if (file.existsSync()) {
+        await _cloud.upload(path, file.readAsBytesSync());
+      }
+    }
+  }
+
+  /// 新裝置 bootstrap（FR-Y2/AC-08）：最新備份匯入→全量 replay（冪等）
+  /// →清 cursor（還原之 settings 不帶前裝置游標）→寫 manifest（last_seq=0）。
+  Future<void> bootstrap() async {
+    await _ensureVault();
+    final backups = await _cloud.list('backups')..sort();
+    if (backups.isNotEmpty) {
+      final backup = BackupService(_db, _cloud, deviceId: deviceId);
+      await backup.importInto(_db, 'backups/${backups.last}');
+      for (final key in [
+        for (final s in _db.select("SELECT key FROM settings WHERE key LIKE 'sync.cursor.%'"))
+          s['key'] as String,
+      ]) {
+        _db.execute('DELETE FROM settings WHERE key = ?', [key]);
+      }
+    }
+    await pull(); // 自備份時間點後之 bundles（M5 全量 replay 冪等）
+    await writeJson(_manifestPath(deviceId), {
+      'app_ver': 'dev',
+      'schema_ver': _db.schemaVersion,
+      'last_seq': 0, // 尚未 push（AC-08）
+      'ack_seq': 0,
+    });
+    final vault = await readJson(_vaultPath);
+    final devices = List<String>.from((vault?['devices'] as List?) ?? []);
+    if (!devices.contains(deviceId)) {
+      devices.add(deviceId);
+      await writeJson(_vaultPath, {
+        'schema_ver': _db.schemaVersion,
+        'devices': devices,
+      });
+    }
+  }
 
   // ── 雲端檔案 JSON 輔助（harness/模組共用） ────────────────
 
@@ -66,15 +182,17 @@ class SyncCoordinator {
   Future<void> writeJson(String path, Map<String, Object?> json) =>
       _cloud.upload(path, utf8.encode(jsonEncode(json)));
 
-  /// 本機 manifest（無則 last_seq=0）。
+  /// 裝置 manifest 之 last_seq（無 manifest→0）。
   Future<int> lastSeqOf(String id) async {
     final m = await readJson(_manifestPath(id));
     return (m?['last_seq'] as int?) ?? 0;
   }
 }
 
-/// bundle 上傳之 ops 載荷組裝（未打包 oplog → OpBundle JSON）。
-Map<String, Object?> buildBundle(String deviceId, int seq, List<OplogRow> ops) => {
+/// bundle 上傳之 ops 載荷組裝（未打包 oplog → OpBundle JSON，SDD §5.5.2）。
+Map<String, Object?> buildBundle(
+        String deviceId, int seq, List<OplogRow> ops) =>
+    {
       'device_id': deviceId,
       'seq': seq,
       'schema_ver': 4,
@@ -84,12 +202,13 @@ Map<String, Object?> buildBundle(String deviceId, int seq, List<OplogRow> ops) =
             'e': o.entity,
             'id': o.entityId,
             'hlc': o.hlc,
-            'row': o.payload == null ? null : jsonDecode(o.payload!) as Map<String, Object?>,
+            'row':
+                o.payload == null ? null : jsonDecode(o.payload!) as Map<String, Object?>,
           },
       ],
     };
 
-/// 新 oplog 列（測試/服務共用）。
+/// 新 oplog 列（整列快照 payload；packed_seq=null 待打包）。
 OplogRow opFor(String entity, String entityId, String hlc, Map<String, Object?> snapshot) =>
     OplogRow(
       entity: entity,
@@ -101,22 +220,3 @@ OplogRow opFor(String entity, String entityId, String hlc, Map<String, Object?> 
 
 /// 新 HLC 版本戳（Clock 單一來源；deviceId 注入）。
 String newHlc(String deviceId) => Hlc.now(deviceId).toString();
-
-/// 新實體 id（UUIDv7）。
-String newId() => const Uuid().v7();
-
-/// 衝突事件建構（N-8；被覆蓋內容唯讀快照）。
-SyncEventRow conflictEvent({
-  required String entity,
-  required String entityId,
-  required String incomingHlc,
-  required Map<String, Object?> overwritten,
-}) =>
-    SyncEventRow(
-      id: const Uuid().v7(),
-      entity: entity,
-      entityId: entityId,
-      incomingHlc: incomingHlc,
-      overwrittenRow: jsonEncode(overwritten),
-      createdAt: Clock.now().millisecondsSinceEpoch,
-    );

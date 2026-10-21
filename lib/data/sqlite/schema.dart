@@ -245,3 +245,51 @@ class SchemaV4 {
     ''',
   ];
 }
+
+/// Schema v5（T-S5 前段，隨 F07/M5）：sync_events（FR-Y5 LWW 落敗事件——
+/// 衝突檢視 AC-07）＋ recurring_transactions（FR-T5 定期交易——表一次到位
+/// 避免中途改欄，業務使用屬 M6）——逐句對齊 data-spec.dbml v0.3
+/// （表已預定義，code schema 對齊落地）。
+class SchemaV5 {
+  SchemaV5._();
+
+  static const int version = 5;
+
+  /// 必建表（遷移於交易內全有全無）。
+  static const List<String> statements = [
+    '''
+    CREATE TABLE sync_events (
+      id TEXT PRIMARY KEY,
+      entity TEXT NOT NULL,
+      entity_id TEXT NOT NULL,
+      incoming_hlc TEXT NOT NULL,
+      overwritten_row TEXT,
+      created_at INTEGER NOT NULL,
+      read_at INTEGER
+    )
+    ''',
+    '''
+    CREATE TABLE recurring_transactions (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      amount_minor INTEGER NOT NULL,
+      account_id TEXT NOT NULL,
+      category_id TEXT NOT NULL,
+      frequency TEXT NOT NULL,
+      interval_days INTEGER,
+      anchor_date INTEGER NOT NULL,
+      end_type TEXT NOT NULL,
+      end_count INTEGER,
+      end_date INTEGER,
+      next_due_date INTEGER NOT NULL,
+      reminder_count INTEGER NOT NULL DEFAULT 0,
+      paused INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      hlc TEXT NOT NULL,
+      deleted_at INTEGER
+    )
+    ''',
+  ];
+}
