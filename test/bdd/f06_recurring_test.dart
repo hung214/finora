@@ -113,6 +113,12 @@ void _bind(GherkinRunner runner, _World w) {
     w.recurringIds[p['name']!] = id;
   });
 
+  runner.on(r'模擬系統時間為 {date} 並觸發到期檢查（第 {n} 次）$',
+      (p) => _freezeAndCheck(w, p['date']!));
+
+  runner.on(r'模擬系統時間為 {date} 並觸發到期檢查$',
+      (p) => _freezeAndCheck(w, p['date']!));
+
   runner.on(r'模擬系統時間為 {dt}$', (p) => Clock.freeze(_dateTime(p['dt']!)));
 
   // ── When ─────────────────────────────────────────────────
@@ -136,12 +142,6 @@ void _bind(GherkinRunner runner, _World w) {
     w.service.delete(scheduleId: w.recurringIds.values.first);
   });
 
-  runner.on(r'模擬系統時間為 {date} 並觸發到期檢查（第 {n} 次）$',
-      (p) => _freezeAndCheck(w, p['date']!));
-
-  runner.on(r'模擬系統時間為 {date} 並觸發到期檢查$',
-      (p) => _freezeAndCheck(w, p['date']!));
-
   // ── Then ─────────────────────────────────────────────────
   runner.on(r'通知 spy 收到 N-{n} 恰 {k} 次，內容含 "{text}"$', (p) {
     final calls = w.spy.withId(int.parse(p['n']!));
@@ -157,9 +157,15 @@ void _bind(GherkinRunner runner, _World w) {
         reason: 'N-7：逾期暫停後不再推播');
   });
 
+  // 帶尾綴（S1）先於無尾綴（S3）——註冊順序教訓。
   runner.on(r'交易資料表無新增（未確認不入帳）$', (p) {
     expect(w.db.allTransactions().where((t) => t.deletedAt == null), isEmpty,
         reason: 'FR-T5：提醒確認制——未確認不入帳');
+  });
+
+  runner.on(r'交易資料表無新增$', (p) {
+    expect(w.db.allTransactions().where((t) => t.deletedAt == null), isEmpty,
+        reason: 'FR-T5：跳過不入帳');
   });
 
   runner.on(r'待確認佇列(?:仍保留|含)「{name} {date}」$', (p) {

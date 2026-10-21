@@ -667,8 +667,11 @@ class AppDatabase {
       .map(RecurringRow.fromRow)
       .toList();
 
+  /// 活躍排程查詢（排除墓標——deleted_at IS NULL；確認/跳過/提醒之對象）。
   RecurringRow? recurringById(String id) {
-    final rows = _db.select('SELECT * FROM recurring_transactions WHERE id = ?', [id]);
+    final rows = _db.select(
+        'SELECT * FROM recurring_transactions WHERE id = ? AND deleted_at IS NULL',
+        [id]);
     return rows.isEmpty ? null : RecurringRow.fromRow(rows.first);
   }
 
