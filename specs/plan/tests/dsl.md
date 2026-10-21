@@ -2,7 +2,7 @@
 
 | 項目 | 內容 |
 |---|---|
-| 文件版本 | v0.8（F07-BE：§2.1 Given 8＋§2.2 When 7＋§2.3 Then 14 句型登記——SyncCoordinator/BundleApplier/BackupService；Outline 匯入結果分列綁定） |
+| 文件版本 | v0.9（F07-FE：§3 Given 6＋When 6＋Then 12 句型登記；「同步中…」回饋斷言法（tap 後 pump 未 settle）；v0.8 F07-BE：§2.1 Given 8＋§2.2 When 7＋§2.3 Then 14 句型登記——SyncCoordinator/BundleApplier/BackupService；Outline 匯入結果分列綁定） |
 | 用途 | 前端／後端 `.feature` 檔的**步驟句型唯一登記處**。新步驟必須先登記於本檔再實作綁定；未登記句型視為違規 |
 | 綁定 | 前端：自製 Gherkin runner + integration_test（TR-9 過渡；同 T-H7）｜後端：自製 Gherkin runner + flutter_test |
 
@@ -257,6 +257,12 @@
 | `Given 掃描頁已掃 {n} 張標準測資發票` | fake scanner 回放注入 n 張 T-H6 標準發票（不經真相機；F03-FE S3） |
 | `Given OCR 對日期欄位的信賴度為 {conf}（低於 {threshold} 門檻）` | OCR 影像回放注入低信賴 fixture（acceptance S3.5；F03-FE S4） |
 | `Given 使用者位於 Windows 版（無相機裝置）` | 桌面無相機模擬（F03-FE S6 @desktop） |
+| `Given 模擬雲端為 in-memory adapter 且已連結（Google 帳號 {email}）` | FE Background：adapter＋OAuth seam 預連結（settings sync.account；F07-FE） |
+| `Given 未連結雲端` | settings sync.account 清空（F07-FE S1） |
+| `Given 已有 {n} 筆未同步變更` | fixture 直寫 n 筆（oplog packed_seq=null；F07-FE S2/S3） |
+| `Given 模擬雲端已有帳本資料` | 預置 bundle＋backups（還原流程前置；F07-FE S4） |
+| `Given 模擬雲端已有帳本資料（帳號 {email}）` | 同上——異帳號空間（F07-FE S5） |
+| `Given 同步狀態頁有 {n} 筆衝突事件（被覆蓋內容「{text}」）` | db 直寫 sync_events（AC-07 呈現前置；F07-FE S6） |
 
 ### 3.2 When（動作）
 
@@ -285,6 +291,14 @@
 | `When 按下「{label}」而未處理` | 點擊但高亮欄位未確認（F03-FE S4；匹配順序須後於通用 `按下「{label}」`） |
 | `When 按下 Ctrl+Shift+S（macOS 為 ⌘⇧S）` | 桌面掃描快捷鍵注入（F03-FE S6；同 Ctrl+N 鍵注入模式） |
 | `And 再掃描 {n} 張` | fake scanner 追加回放（F03-FE S5） |
+| `When 設定→雲端與同步→按下「連結 Google Drive」` | 導航設定同步頁＋點擊連結（key sync-link；F07-FE S1） |
+| `When 完成登入並同意授權` | fake OAuth 完成回呼（email 回傳；F07-FE S1） |
+| `When 按下「立即同步」` | 點擊同步鈕（key sync-now；SyncSettingsPage；F07-FE S2） |
+| `When 關閉並重新啟動 App 並選擇「從雲端還原」` | 重啟＋還原流程入口（key restore-cloud；F07-FE S4） |
+| `And 登入同一帳號` | fake OAuth 同 email（F07-FE S4） |
+| `When 選擇「從雲端還原」並登入帳號 {email}` | 還原＋異帳號 OAuth（F07-FE S5） |
+| `When 開啟同步狀態頁` | 導航衝突檢視（key sync-conflicts-entry；F07-FE S6） |
+| `When 按下檢視` | 衝突事件詳情（F07-FE S6） |
 
 ### 3.3 Then（斷言）
 
@@ -310,6 +324,18 @@
 | `Then 顯示「已掃 {n} 張」` | 掃描計數文字（FR-S7；F03-FE S5） |
 | `And 顯示 {n} 個縮圖` | 掃描縮圖列計數（F03-FE S5） |
 | `Then 導向「相簿/檔案匯入」` | 無相機匯入頁呈現（F03-FE S6 @desktop） |
+| `Then 顯示「Google 登入」（模擬）` | OAuth seam 登入畫面（F07-FE S1） |
+| `Then 顯示「連結成功」` | 授權完成回饋（FR-Y7；F07-FE S1） |
+| `And 顯示「建議為此帳號開啟兩步驟驗證」` | 帳號安全教育文案（SDD §7.1；F07-FE S1） |
+| `And 不顯示「同步密碼」` | 帳號授權式同步——無同步密碼 UI（FR-Y7 反斷言；F07-FE S1/S4） |
+| `Then 顯示「同步中…」` | 同步進行中回饋（按鈕態；tap 後 pump 未 settle 斷言；F07-FE S2） |
+| `Then 顯示「已同步 {n} 筆變更」` | 同步完成回饋（Snackbar；F07-FE S2） |
+| `And 顯示「待同步 {n} 筆」` | unpackedOps 計數（F07-FE S2/S3） |
+| `Then 顯示「上次同步 今天 {time}」` | settings sync.last_at 格式化（啟動同步觸發證明；F07-FE S3） |
+| `Then 顯示「還原完成」（帳戶/交易/分類/預算）` | bootstrap 結果回饋（AC-08；F07-FE S4） |
+| `Then 顯示「此帳號沒有可還原的資料」` | 異帳號空備份（FR-Y2；F07-FE S5） |
+| `Then 顯示「{n} 筆衝突」` | sync_events 計數（AC-07；F07-FE S6） |
+| `Then 顯示「{text}」（唯讀）` | 被覆蓋內容唯讀檢視（F07-FE S6） |
 | `Given 本期{cat}已支出 {amount}` | fixture 直寫本期 expense（F05-FE） |
 | `Given 本期{cat}含信用卡預扣 {amount}` | fixture 直寫本期 pending expense（F05-FE S5.3） |
 | `Given 收入目標 {goal} 且本月已入帳 {achieved}` | income_goals＋fixture 直寫本月 income（F05-FE S5.4） |
