@@ -2,7 +2,7 @@
 
 | 項目 | 內容 |
 |---|---|
-| 文件版本 | v0.9（F07-FE：§3 Given 6＋When 6＋Then 12 句型登記；「同步中…」回饋斷言法（tap 後 pump 未 settle）；v0.8 F07-BE：§2.1 Given 8＋§2.2 When 7＋§2.3 Then 14 句型登記——SyncCoordinator/BundleApplier/BackupService；Outline 匯入結果分列綁定） |
+| 文件版本 | v1.0（F06-BE：Given 3＋When 4＋Then 12 句型登記——RecurringService 提醒確認制；v0.9 F07-FE：§3 Given 6＋When 6＋Then 12 句型登記；「同步中…」回饋斷言法（tap 後 pump 未 settle）；v0.8 F07-BE：§2.1 Given 8＋§2.2 When 7＋§2.3 Then 14 句型登記——SyncCoordinator/BundleApplier/BackupService；Outline 匯入結果分列綁定） |
 | 用途 | 前端／後端 `.feature` 檔的**步驟句型唯一登記處**。新步驟必須先登記於本檔再實作綁定；未登記句型視為違規 |
 | 綁定 | 前端：自製 Gherkin runner + integration_test（TR-9 過渡；同 T-H7）｜後端：自製 Gherkin runner + flutter_test |
 
@@ -82,6 +82,9 @@
 | `Given 備份保留份數 = {n}` | settings backup.keep（FR-Y3 GC） |
 | `Given 裝置{d} 修改交易 {id} 備註為「{note}」並同步` | setTransactionNote＋oplog 整列快照＋push（LWW 前置；F07 S2） |
 | `And 裝置{d} 離線修改交易 {id} 備註為「{note}」（HLC 較新）` | 該裝置修改但未同步（HLC 較新→LWW 勝出方；F07 S2） |
+| `Given 已建立定期交易「{name}」每月 {day} 日金額 {amt}` | recurring_transactions 種資（frequency=monthly、anchor/next_due=當月 day 日；F06 Background） |
+| `Given 待確認佇列含「{name} {date}」` | 觸發到期檢查後之佇列（next_due ≤ today 動態推導；F06 S2~S4 前置） |
+| `Given 模擬系統時間為 {date} 並觸發到期檢查（第 {n} 次）` | Clock 凍結＋RecurringService.runCheck（逾期計數前置；F06 S5） |
 
 ### 2.2 When（動作）
 
@@ -129,7 +132,11 @@
 | `When 套用來自裝置 {d} 的 bundle（seq {n}）` | BundleApplier |
 | `When 執行新裝置 Bootstrap（同一帳號）` | replay |
 | `When 模擬時間快轉 {n} 天並觸發自動備份` | BackupService |
-| `When 觸發定期交易到期檢查` | RecurringService |
+| `When 觸發定期交易到期檢查` | RecurringService.runCheck（next_due ≤ today → N-7 提醒＋reminder_count+1；≥3 暫停推播） |
+| `When 確認入帳（金額改為 {amt}、日期 {date}）` | RecurringService.confirm——入帳（source=recurring）＋next_due 推進＋reminder 歸零；**不回寫模板金額**（FR-T5） |
+| `When 按下「本次跳過」` | RecurringService.skip——不入帳＋next_due 推進（FR-T5） |
+| `When 刪除排程` | RecurringService.delete——墓標（deleted_at＋oplog 墓標；不再提醒） |
+| `When 模擬系統時間為 {date} 並觸發到期檢查` | Clock 凍結＋runCheck（逾期序列驅動；F06 S5） |
 | `When 執行清空資料（含雲端）` | WipeService |
 | `When 裝置{d}（同一帳號）執行 SyncCoordinator.pull 與 push` | 切換當前裝置＋SyncCoordinator（pull 套用 peers＋push 未打包；F07 S1/S2） |
 | `When 連續記錄 {n} 筆交易` | 該裝置連寫 n 筆（oplog 未打包；批次合併測資） |
@@ -194,6 +201,17 @@
 | `Then 直接還原成功` | Outline：不加密備份→新 DB 匯入 ok（FR-Y6） |
 | `Then 完整還原成功` | Outline：密碼加密備份＋正確密碼→匯入 ok（cryptography AES-GCM） |
 | `Then 拒絕匯入且本地資料不變` | Outline：錯誤密碼→拋例外＋新 DB 資料零變動（AC-14） |
+| `And 交易資料表無新增（未確認不入帳）` | transactions 計數不變（提醒確認制核心——FR-T5） |
+| `And 待確認佇列含「{name} {date}」` | 到期未確認排程查詢（name＋next_due 月/日顯示） |
+| `And 待確認佇列仍保留「{name} {date}」` | 同上（暫停後佇列保留——僅停推播不停確認；F06 S5） |
+| `Then 交易已入庫且 source = recurring` | DB 讀取（source 欄位；確認入帳） |
+| `And 交易金額 = {amt}（模板仍為 {amt2}）` | 交易 amount_minor＋recurring_templates 模板不變（不回寫——FR-T5） |
+| `And next_due_date = {date}` | 排程下期推進（monthly→次月同日） |
+| `And reminder_count 歸零` | 確認/處理後計數重置 |
+| `Then recurring_transactions 該列為墓標` | deleted_at 非 null＋oplog 墓標（payload=null） |
+| `And next_due_date 不再產生提醒` | 再 runCheck→N-7 不增（刪除後） |
+| `And reminder_count = {n} 且 paused = true` | 同期逾期計數與暫停旗標（FR-T5：≥3 停止推播） |
+| `Then 通知 spy 收到 N-{n} 恰 {k} 次（第 {m} 次不發）` | 既有 spy 斷言之語意註記變體（逾期暫停） |
 | `Then 效能：入庫耗時 {ms}ms < 300ms（P95）` | StopWatch P95（F01-BE NFR-01；{ms} 為計畫預記值，以實測 P95 < 300 斷言） |
 | `Then 預設帳戶 = 「{name}」` / `Then 預設帳戶 = 第一個未封存帳戶` | QuickEntryPreset 輸出（FR-Q4） |
 | `Then 預設帳戶為空（待帳戶建立）` | preset.account == null（DBG-003：空帳本不崩潰） |
