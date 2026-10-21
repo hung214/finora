@@ -22,10 +22,38 @@ Future<void> pumpBackground(WidgetTester tester, Duration duration) async {
   throw UnimplementedError('M1 FE 首跑時實作（T-H8）');
 }
 
-/// 桌面快捷鍵注入（以 Keyboard key event 模擬 Ctrl+N 等）。
+/// 桌面快捷鍵注入（以 Keyboard key event 模擬 Ctrl+N / Ctrl+Shift+S 等）。
+///
+/// 修飾鍵（control/meta/shift/alt）先按住、主鍵按下即放、修飾鍵倒序放開——
+/// 與 `SingleActivator(control: true, shift: true)` 匹配語意一致（F03-FE S6）。
 Future<void> pressShortcut(WidgetTester tester, Set<LogicalKeyboardKey> keys) async {
-  // TODO(M1-F01): await tester.sendKeyDownEvent(...) 組合鍵注入。
-  throw UnimplementedError('M1 FE 首跑時實作（T-H8）');
+  final modifiers = <LogicalKeyboardKey>{
+    LogicalKeyboardKey.controlLeft,
+    LogicalKeyboardKey.controlRight,
+    LogicalKeyboardKey.metaLeft,
+    LogicalKeyboardKey.metaRight,
+    LogicalKeyboardKey.shiftLeft,
+    LogicalKeyboardKey.shiftRight,
+    LogicalKeyboardKey.altLeft,
+    LogicalKeyboardKey.altRight,
+  };
+  final mods = keys.where(modifiers.contains).toList();
+  final mains = keys.where((k) => !modifiers.contains(k)).toList();
+  if (mains.isEmpty) {
+    throw ArgumentError('pressShortcut 須含至少一個主鍵：$keys');
+  }
+  for (final k in mods) {
+    await tester.sendKeyDownEvent(k);
+  }
+  for (final k in mains) {
+    await tester.sendKeyDownEvent(k);
+    await tester.sendKeyUpEvent(k);
+  }
+  for (final k in mods.reversed) {
+    await tester.sendKeyUpEvent(k);
+  }
+  await tester.pump();
+  await tester.pumpAndSettle();
 }
 
 /// 場景截圖（存至 build/demo_screenshots/{name}.png，供驗收報告）。

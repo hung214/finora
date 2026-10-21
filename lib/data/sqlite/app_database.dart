@@ -643,6 +643,12 @@ class AppDatabase {
       .map(AttachmentRow.fromRow)
       .toList();
 
+  /// 全部未刪除附件（明細 📷 標記索引用，F03-FE）。
+  List<AttachmentRow> allAttachments() => _db
+      .select('SELECT * FROM attachments WHERE deleted_at IS NULL')
+      .map(AttachmentRow.fromRow)
+      .toList();
+
   // ── 同步日誌（SDD §5.5） ──────────────────────────────────
 
   void appendOp(OplogRow o) => _db.execute(
