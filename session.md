@@ -10,44 +10,49 @@
 ## 1. 休息前檢查清單（離開前逐項確認）
 
 - [x] 當前情境的紅/綠燈狀態已記錄（§2 快照表）
-- [x] `tasks.md` §6 對應任務狀態已回寫（本次：**F04 ✅ M3 完成**——merge main c1b52b0＋tag v0.4.7；FE 回歸 4/4＋部署驗證通過）
+- [x] `tasks.md` §6 對應任務狀態已回寫（本次：**M7 完成**——F08 ✅ F09 ✅ 併入 main d8dd684＋tag v0.4.10；FE 回歸 9/10＋部署驗證通過）
 - [x] 工作區已 commit（`git status` 乾淨）；分支已 push
-- [x] truth 對齊：techstack v0.3.6；data-spec v0.3.1；T-H9 對齊測試（60 綠內）持續把關
-- [x] 「下一步」精確到：F02 規範檔案、情境清單、分支名（§3）
-- [x] 若有進行中 Debug：`specs/plan/debug.md` 條目狀態已更新（DBG-003/004 均 ✅ 結案）
+- [x] truth 對齊：techstack v0.3.7；data-spec v0.3.2；dsl v1.5；T-H9 對齊測試（95 綠內）持續把關
+- [x] 「下一步」精確到：F07-FE 回頭清單、harness 補步、分支名（§3）
+- [x] 若有進行中 Debug：`specs/plan/debug.md` 條目狀態已更新（DBG-001~006 均結案）
 
 ## 2. 目前快照（每次休息前更新此表）
 
 | 欄位 | 內容 |
 |---|---|
-| 更新時間 | 2026-10-21（**M6 完成**併入 main——v0.4.9 已 tag；95 unit 綠） |
-| 階段 | **M6 完成**（F06 定期交易 BE 5＋FE 4 全綠——RecurringService 提醒確認制＋badge/清單 UI；merge e4cbd63；**v0.4.9 已 tag**、部署驗證通過）＋**M5 剩 F07-FE WIP 暫停**（回頭清單 session.md §3.1）。**剩 M7**：F08 App 鎖（BE 4＋FE 5）→F09 資料管理（BE 3＋FE 2）→效能複測→UI 統整→上架。95 unit 綠 |
-| 當前分支 | **main**（fdf51a5 已 push；F06/F07 功能分支已清——F07 遠端分支刪除失敗待 gh） |
-| 當前任務 | 下輪：①**truth PR 先行**——dbml sync_entity 補 income_goals（F07 前護欄）②T-F07-BE（8 情境：補同步/LWW/每筆模式/批次/附件分流/bootstrap/GC/備份密碼）③T-F07-FE（6 情境）④Google OAuth 送審 |
-| 紅綠燈狀態 | main 上 `dart analyze` 0＋**unit 95 全綠**（F06-BE 1＋F06-FE 1＋schema v5 3 新增）；FE：F06-FE 4/4 綠（macOS）；M6 部署驗證 ✅（Release 47.7MB＋二次啟動） |
+| 更新時間 | 2026-10-21（**M7 完成**併入 main——v0.4.10 已 tag；95 unit 綠） |
+| 階段 | **M7 完成**（F08 App 鎖 BE 4＋FE 5＋F09 資料管理 BE 3＋FE 2＋效能複測＋UI 統整 全綠——merge d8dd684；**v0.4.10 已 tag** 四平台建置中、部署驗證通過）。**M1~M7 全數完成**。剩：**F07-FE 回頭（M5 收尾）**＋acceptance 走查簽核＋Google OAuth/DriveAdapter 生產接線＋首次啟動引導頁決策 |
+| 當前分支 | **main**（d8dd684 已 push；功能分支已清——T-F08 本地刪除、遠端從未 push；遠端已無 T-F07 分支——gh 阻塞項解除） |
+| 當前任務 | 下輪：①**F07-FE 回頭**（S1 卡點深查→S3-S6 逐一補驗→**harness 導航補步** app-settings→settings-sync→SettingsSyncPage）②Google OAuth 送審＋GoogleDriveAdapter 骨架（**F07 生產接線**：main() 三 provider 未 override）③acceptance 走查簽核（F08/F09 簽核區＋PM 深色走查）④首次啟動引導頁決策（PM） |
+| 紅綠燈狀態 | main 上 `dart analyze` 0＋**unit 95 全綠**；FE：逐檔回歸 9/10 綠（f07-FE 已知暫停紅）；M7 部署驗證 ✅（Release 48.0MB＋Info.plist 0.4.10＋二次啟動 DBG-004 回歸＋RSS 137.5MB＋乾淨退出） |
 | 工作區 | 乾淨（文件回寫後 commit） |
-| truth 對齊 | techstack v0.3.7；dsl **v0.8**（F07-BE +29 句型；{option} 參數名——**runner 佔位 \w 不含中文**：dsl 參數名一律英文）；**data-spec v0.3.2**（sync_entity 補 income_goals）；acceptance F03 測資字串修正仍待 PM 複核 |
-| 環境筆記 | 延續上輪全部。新增（F03-BE）：①**測試勿對 UUIDv7 字典序順序斷言**（DBG-005）②77 碼長字串以 T-H6 fixture 拼接為準，typo 用腳本替換 ③image 4.12 decodeImage 須 Uint8List ④flaky 排查先落盤再循環重跑。新增（F03-FE/回歸）：①**「flutter test integration_test」多檔併跑不可行**——macOS 多 app instance 起動致 debug connection 斷線（5 檔同掛）——FE 回歸須**逐檔跑** ②**macOS NSWindow autosave frame 跨實例漂移**——Debug/Release 同 bundle id 共享視窗 frame，≥900px 時 LayoutBuilder 分殼為 Rail——harness 導航一律 byKey nav-{分頁}（DBG-006）③**feature 步驟含 `+` 須 regex 跳脫**（左QR\+右QR）④**dsl 登記文字≠feature 實文**——勿自行加尾綴 ⑤**macOS FE 行程 Platform 判定為桌面**——cameraAvailable 預設須顯式 set(true)（僅無相機情境設 false）⑥**Specific 顯示變體先於 generic 註冊** ⑦**pressShortcut 組合鍵注入已落地**（T-H8：修飾鍵先按住→主鍵按下即放→倒序放開）⑧每情境新 KeyedSubtree＋新 container＝Riverpod 狀態自然重置 |
-| 阻塞／待決 | ①gh 未安裝（壞包 v0.4.0/0.4.2 刪除待補）②**acceptance F03 測資字串修正待 PM 複核**③SP-1 SQLCipher④SP-2b mobile_scanner 行動相機（F03 走查前）⑤SP-4 Argon2id（M5 備份密碼先 sha256/循環 32B 最小實作——TODO 已標）⑥多幣別 900 待 PM⑦notify_enabled=off 語意待 PM⑧Google OAuth 接線（F07-FE 連結情境——平台層，FE harness 用 seam）⑨UI 統整＝M7 |
+| truth 對齊 | techstack v0.3.7；dsl **v1.5**（F09-FE +13 句型——三重防護/加驗身分；v1.4 F09-BE +15）；data-spec v0.3.2；acceptance F03 測資字串修正仍待 PM 複核 |
+| 環境筆記 | 延續上輪全部。新增（M7）：①**F07-BE afterSave 接線（c7bd625）使 F01/F02/F03-FE harness 未 override `syncCoordinatorProvider` 即紅**——`ref.read(autoSyncProvider)` 建構即拋（不分 sync.mode，「批次預設 no-op 安全」假設不成立）；**新 harness 一律 override**（附註「啟動同步鉤子防 UnimplementedError」）②**磁碟滿重演**（lipo no space→`flutter clean` 清 8.3GB——第二次發生，平日注意）③**設定入口已恢復**：總覽 AppBar `app-settings`→`SettingsHubPage`（Hub 雙入口 settings-sync／settings-data-management）——**f07 harness 導航需補一步**④WipeService cloud 參數改**可選 named**（未連雲端頁面層無須注入 adapter）⑤ColorScheme token 替換後 F05-FE 色斷言仍相容（token 值＝Colors.red/orange 恆等——決策 A） |
+| 阻塞／待決 | ①gh 未安裝（v0.4.10 Release 下載驗證；**F07 遠端分支已不在——原阻塞解除**）②acceptance F03 測資字串修正待 PM 複核③SP-1 SQLCipher④SP-2b mobile_scanner 行動相機（F03 走查前）⑤SP-4 Argon2id（F08 PIN 雜湊現為 FNV 最小實作——TODO 已標）⑥多幣別 900 待 PM⑦notify_enabled=off 語意待 PM⑧**Google OAuth 送審＋DriveAdapter 骨架**（PM 憑證申請並行）⑨**NFR-03 規格未定義**（research.md 提及無出處——效能複測漏項）⑩**首次啟動引導頁（新建/還原/匯入）決策**（F09 完成頁文案承諾但實際首啟自動播種——PM 決策）⑪深色模式 PM 走查（UI 統整決策 C） |
 
-## 3. 下一步（PM 決策：跳過 F07-FE——先做其他；回頭清單見 §3.1）
+## 3. 下一步（PM 決策：F07-FE 回頭＝M5 收尾；回頭清單見 §3.1）
 
 ### 3.1 F07-FE 回頭清單（恢復時照此）
+0. **harness 導航補步**（M7 新增）：`_openSettingsSync` 須補一步——`app-settings` → `settings-sync`（SettingsHubPage）→ 斷言 SettingsSyncPage；M7 設定入口已恢復為 Hub 兩層。
 1. **卡點**：S1「同意授權」tap 時 oauth-approve 0 widgets——但 DEBUG（tap 前）approve=true/signin=true——**兩行之間按鈕消失**＝frame/rebuild 競爭（_linking 態被翻回 false——疑似 syncAccountProvider/pendingOps 的 provider 重建或 State 重建）。**深查方向**：`tester.allWidgets` dump 比對／暫停 pumpAndSettle／檢查 `SyncAccountNotifier.build` 的 `ref.watch(dbProvider)` 是否因 afterSyncRefresh 的 refresh 鏈重置。
 2. **已完成待驗**：S3 修至 lastSyncAt=09:00 正確（Clock 單一來源）——斷言「上次同步 今天 09:00」未重驗；S4/S5/S6 未驗。
 3. **已修的環境/缺陷**（已 commit）：macOS **NSAppSleepDisabled**（App Nap 節流——PM 觀察「點視窗才動」根因；測試提速 10 倍）／SyncCoordinator **重入閘**（啟動×手動併發防護）／afterSyncRefresh 改 Clock.now()（T-H2 單一時間來源）／seedTx 勿重複 appendOp。
-4. 剩餘：S4 還原/S5 異帳號/S6 衝突檢視 綠燈→FE 全綠→M5 收尾（bump 0.4.9＋部署驗證＋merge）。
+4. 剩餘：S4 還原/S5 異帳號/S6 衝突檢視 綠燈→FE 全綠→M5 收尾（部署驗證＋merge）。
 
-### 3.2 跳過後的優先順序（建議，待 PM 指定）
-1. **M6：T-F06 定期交易**（BE 5＋FE 4）——schema v5 recurring_transactions 已落地、地基就緒；完後 bump 0.4.9→部署驗證→merge。
-2. M7：T-F08 App 鎖（BE 4＋FE 5）——獨立無依賴。
-3. GoogleDriveAdapter 骨架（commercialization.md §4-#9——PM 憑證申請並行）。
+### 3.2 優先順序（建議，待 PM 指定）
+1. **F07-FE 回頭**（M5 收尾）——最大未完項；相依 Google OAuth 送審＋DriveAdapter。
+2. **Google OAuth 送審＋GoogleDriveAdapter 骨架**（commercialization.md §4-#9）——F07 生產接線：`main()` 目前未 override `cloudAdapterProvider`／`oauthProvider`／`syncCoordinatorProvider`（雲端功能正式包仍為 seam 狀態，上線前必須接）。
+3. **acceptance 走查簽核**：F08/F09 簽核區空白——QA 走查＋PM 複核（含 SP-2b 行動相機 F03 前置）；深色模式 PM 走查。
+4. **v0.4.10 Release 確認**：tag 已建立、四平台建置中——產物齊全＋下載驗證。
 
 ### 通用 harness/UI 教訓（跨功能累積，持續生效）
+- **新 harness 一律 override `syncCoordinatorProvider`**（F07-BE afterSave 接線——`ref.read(autoSyncProvider)` 建構即拋，不分 sync.mode）。
 - CreditCardPage 開頁副作用：initState postFrameCallback 觸發結帳檢查（FR-C3 sync 點）——勿在 build 中 ref.read/invalidate。
 - 推入路由後主殼 offstage：harness 跨頁斷言前先 `navigator.maybePop()`。
 - 金額輸入千分位：parse 須 `replaceAll(',', '')`。
 - dsl 變體先於 base 註冊（lazy 前綴碰撞）；同名捕獲群禁用（{n} 出現兩次→後者改 {last}）。
+- 測試勿對 UUIDv7 字典序順序斷言（DBG-005）；flaky 排查先落盤再循環重跑。
+- 「flutter test integration_test」多檔併跑不可行（macOS 多 app instance 掛 debug connection）——**逐檔跑**。
 
 ## 4. 恢復工作 SOP（下次開工照此執行）
 
@@ -61,6 +66,7 @@
 
 | 日期 | 摘要 | 分支 | 狀態 |
 |---|---|---|---|
+| 2026-10-21 | **M7 完成：F08 App 鎖＋F09 資料管理＋效能複測＋UI 統整併入 main＋v0.4.10**：F08-BE 4/4（AppLockController 門檻邊界/生物辨識退場/PIN 重設——無繞過方法）＋F08-FE 5/5（LockGate lifecycle 鎖定閘＋LockScreen／忘記 PIN 重設資料零損失／隱私遮蔽 ●●●●＋pumpBackground）；**F09-BE 3/3**（WipeService 本地全表清空＋附件＋雲端 LedgerSync/ 全刪＋CloudWipedException＋**不復活閘修復**：正式路徑全走 sync()，_ensureVault 先重建 vault 致復活（S9.2 #5 Critical）——device.ever_synced 旗標（pull 成功後武裝；bootstrap 亦武裝）＋vault 缺→sync() 直接拋；首次連結不誤判＋2 回歸測試）＋**F09-FE 2/2**（DataManagementPage 狀態機：警告/PIN/確認文字＋已連雲端加驗身分「帳號不符拒絕」＋「已清空」）；dsl v1.2~v1.5；**UI 統整（PM 簽核三決策）**：`app_theme.dart` AppTokens 定稿（danger=Colors.red／warning=Colors.orange 恆等 F05-FE 斷言＋success/pending/subText/divider/track/cardBg/bg 深淺雙組）＋ad-hoc 10 處清零＋空狀態（overview 尚無帳戶／stats 尚無資料）＋無障礙盤點（6 IconButton 皆 tooltip＝Semantics 合規）＋**設定入口恢復（SettingsHubPage 雙入口——PM 決策含雲端同步）**；**harness 修復**：F01/F02/F03 補 `syncCoordinatorProvider` override（F07-BE afterSave 接線之潛在紅——M5 起未跑未被發現；「批次 no-op 安全」假設不成立）；**效能複測**（儲存 P95 0ms／10 萬筆聚合 378ms／OCR<3s；NFR-03 規格未定義待 PM）；**磁碟滿重演**（flutter clean 8.3GB）；FE 回歸逐檔 9/10 綠（f07 已知暫停）；**部署驗證通過**（Release 48.0MB＋Info.plist 0.4.10＋二次啟動 DBG-004 回歸＋RSS 137.5MB）→merge d8dd684→**tag v0.4.10 自動建立**（四平台建置中）；95 unit 綠＋analyze 0 | main | ✅（M7 完；F07-FE 回頭＋驗收走查待） |
 | 2026-10-21 | **M6 完成：F06 定期交易（BE 5＋FE 4）併入 main＋v0.4.9**：dsl v1.0/v1.1（BE +19＋FE +9 句型）；**RecurringService**（到期檢查：日粒度判定＋N-7 千分位＋reminder≥3 暫停；確認 source=recurring 不回寫模板＋monthly next_due clamp 月底＋reminder 歸零；跳過推進；軟刪墓標）＋RecurringRow CRUD＋oplog 契約；**RecurringQueuePage**（全活躍排程：到期項操作/非到期「下期 M/d 提醒」/paused 標示）＋明細 badge 恆顯示＋RecurringDueCountNotifier；**F06-BE 5/5＋FE 4/4 全綠**（修 5：日粒度到期/無尾綴變體/recurringById 排除墓標/前綴碰撞 S5 觸發版/短格式日期 regex）＋NSAppSleepDisabled（App Nap 節流修——PM 觀察）；**設定入口暫移**（F07-FE WIP 隔離——main 可發佈性）；部署驗證通過（Release 47.7MB＋0.4.9＋二次啟動）→merge e4cbd63→**tag v0.4.9**；95 unit 綠 | main | ✅（M6 完；M5-FE 回頭＋M7 待開） |
 | 2026-10-21 | **F07-FE WIP 暫停（PM 決策：跳過先做其他）**：dsl v0.9（FE +24 句型）＋harness 24 句型（帳號空間 adapter 異帳號語意＋fake OAuth seam）＋**SettingsSyncPage**（連結兩步授權/立即同步「同步中…→已同步 N 筆」/待同步計數/上次同步/衝突入口/從雲端還原）＋SyncConflictsPage＋cloudAdapter/oauthProvider seam；**S1/S2 綠、S3 修至 lastSyncAt=09:00 正確（afterSyncRefresh 改 Clock.now()——T-H2）**；卡點＝S1 approve tap 時 0 widgets（DEBUG 可見→frame/rebuild 競爭，待深查）；**PM 觀察「點視窗才動」→根因 macOS App Nap 節流——NSAppSleepDisabled 修復（測試提速 10 倍）**；SyncCoordinator 重入閘（啟動×手動併發防護）；90 unit 綠；**commercialization.md v0.1**（Google 憑證申請 PM 動作⚠️＋付費四模式＋行動清單） | feature/T-F07-cloud-sync | 🔵（F07-FE WIP 暫停；BE 已完；90 unit 綠） |
 | 2026-10-21 | **M5 開工：T-F07-BE 10 情境全綠＋schema v5 落地**：truth dbml v0.3.2（sync_entity 補 income_goals——F07 護欄先行）＋dsl v0.8（BE +29 句型）；**schema v5**（sync_events 提前隨 F07/M5 衝突事件＋recurring_transactions 表一次到位；T-S5 前段；回歸 3 測＋既有「現行版本」斷言 4→5 維護）；**SyncCoordinator**（vault/devices/ops/blobs 佈局＋pull cursor 套用＋push 打包/manifest/vault 補錄＋附件 Wi-Fi 分流）＋**BundleApplier**（LWW＋衝突 sync_events＋N-8）＋**BackupService**（每日快照 JSON＋AES-GCM 檔案密碼（錯誤密碼拒絕）＋GC 保留份數）＋AutoSyncService（sync.mode 分流接 afterSave）；**綠燈過程修 6 處**（list 相對路徑 vs download 全路徑×2／帳戶 op 基線 packed／衝突事件雙重 insert／spy 斷言全裝置計數／{選項} 中文佔位 runner 不轉（→{option}）／Outline 單數 op 變體）；90 unit 全綠 | feature/T-F07-cloud-sync | 🔵（BE 🟢 10/10；FE 6 情境待開工） |
