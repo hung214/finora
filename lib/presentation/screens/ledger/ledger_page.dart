@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../application/providers.dart';
 import '../../../application/reports/csv_exporter.dart';
 import '../../../application/reports/search_service.dart';
+import '../../../application/scan/scan_state.dart';
 import '../../../data/sqlite/app_database.dart';
 import 'recent_deletions_page.dart';
 import '../scan/scan_page.dart';
@@ -43,6 +44,8 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
     final accountById = {
       for (final a in ref.watch(activeAccountsProvider)) a.id: a,
     };
+    // 附件索引（📷 標記；掃描儲存附件後 refresh——F03-FE S3）。
+    final attachmentTxIds = ref.watch(attachmentTxIdsProvider);
     final months = _availableMonths(db);
 
     return Scaffold(
@@ -91,6 +94,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
                       categoryName: rows[i].categoryId == null
                           ? '未分類'
                           : (db.categoryName(rows[i].categoryId!) ?? '未分類'),
+                      hasAttachment: attachmentTxIds.contains(rows[i].id),
                       onDelete: () => _confirmDelete(context, ref, rows[i]),
                     ),
                   ),
@@ -285,6 +289,7 @@ class TxTile extends StatelessWidget {
     required this.accountName,
     this.toAccount,
     this.categoryName = '未分類',
+    this.hasAttachment = false,
     this.onDelete,
   });
 
@@ -294,6 +299,9 @@ class TxTile extends StatelessWidget {
 
   /// 分類名稱（拆分樣式副標用）。
   final String categoryName;
+
+  /// 掃描附件標記（FR-S4 呈現面：📷；F03-FE S3）。
+  final bool hasAttachment;
   final VoidCallback? onDelete;
 
   String get _title {
@@ -343,7 +351,16 @@ class TxTile extends StatelessWidget {
     }
     return ListTile(
       onTap: onDelete,
-      title: Text(tx.merchant ?? (tx.kind == 'income' ? '收入' : '支出')),
+      title: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(child: Text(tx.merchant ?? (tx.kind == 'income' ? '收入' : '支出'))),
+          if (hasAttachment) ...[
+            const SizedBox(width: 4),
+            const Text('📷', key: Key('tx-attachment')),
+          ],
+        ],
+      ),
       subtitle: Text(DateFormat('yyyy/MM/dd HH:mm').format(time)),
       trailing: Text(
         tx.kind == 'income' ? '+${tx.amountMinor}' : '-${tx.amountMinor}',

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'budget/budget_page.dart';
 import 'ledger/ledger_page.dart';
 import 'overview/overview_page.dart';
 import 'quick_entry/quick_entry_page.dart';
+import 'scan/scan_page.dart';
 import 'stats/stats_page.dart';
 
 /// 主殼（SDD §8 IA；RWD 響應式——單碼庫雙殼，ui/08-desktop-shell 雛型落地）：
@@ -12,7 +14,7 @@ import 'stats/stats_page.dart';
 /// - 寬（≥ 900px，桌面）→ 左側 NavigationRail（對齊 08 桌面殼雛型側欄）。
 /// - 分頁：總覽/明細/預算/統計；桌面快捷鍵 ⌘N/Ctrl+N 開快記（FR-Q7，F01-S1.11）。
 /// - 快記為全頁面推入，「完成」返回進入前分頁（FR-Q2）。
-class MainShellPage extends StatefulWidget {
+class MainShellPage extends ConsumerStatefulWidget {
   const MainShellPage({super.key});
 
   static const _tabs = [
@@ -23,15 +25,18 @@ class MainShellPage extends StatefulWidget {
   ];
 
   @override
-  State<MainShellPage> createState() => _MainShellPageState();
+  ConsumerState<MainShellPage> createState() => _MainShellPageState();
 }
 
-class _MainShellPageState extends State<MainShellPage> {
+class _MainShellPageState extends ConsumerState<MainShellPage> {
   int _tab = 0;
 
   void _openQuickEntry() => Navigator.of(context).push(
         MaterialPageRoute<void>(builder: (_) => const QuickEntryPage()),
       );
+
+  /// 掃描入口（FR-S6：桌面快捷鍵 ⌘⇧S/Ctrl+Shift+S；無相機→匯入）。
+  void _openScan() => openScanFlow(context, ref);
 
   @override
   Widget build(BuildContext context) {
@@ -41,11 +46,19 @@ class _MainShellPageState extends State<MainShellPage> {
         // FR-Q7 桌面快捷鍵（F01-S1.11）：⌘N（macOS）／Ctrl+N（其餘）。
         const SingleActivator(LogicalKeyboardKey.keyN, meta: true): const _OpenQuickEntryIntent(),
         const SingleActivator(LogicalKeyboardKey.keyN, control: true): const _OpenQuickEntryIntent(),
+        // FR-S6 掃描快捷鍵（F03-FE S6）：⌘⇧S／Ctrl+Shift+S。
+        const SingleActivator(LogicalKeyboardKey.keyS, meta: true, shift: true):
+            const _OpenScanIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyS, control: true, shift: true):
+            const _OpenScanIntent(),
       },
       child: Actions(
         actions: <Type, Action<Intent>>{
           _OpenQuickEntryIntent: CallbackAction<_OpenQuickEntryIntent>(
             onInvoke: (_) => _openQuickEntry(),
+          ),
+          _OpenScanIntent: CallbackAction<_OpenScanIntent>(
+            onInvoke: (_) => _openScan(),
           ),
         },
         child: Focus(
@@ -128,4 +141,9 @@ class _MainShellPageState extends State<MainShellPage> {
 /// 快記開啟意圖（快捷鍵動作目標）。
 class _OpenQuickEntryIntent extends Intent {
   const _OpenQuickEntryIntent();
+}
+
+/// 掃描開啟意圖（快捷鍵動作目標；FR-S6）。
+class _OpenScanIntent extends Intent {
+  const _OpenScanIntent();
 }

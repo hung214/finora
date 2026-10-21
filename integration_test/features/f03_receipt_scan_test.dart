@@ -176,7 +176,7 @@ void _bind(GherkinRunner runner, _World w) {
     await w.tester.pumpAndSettle();
   });
 
-  runner.on(r'掃描標準測資發票（左QR+右QR）$', (p) async {
+  runner.on(r'掃描標準測資發票（左QR\+右QR）$', (p) async {
     await _ensureApp(w);
     await _openScanPage(w);
     _injectScan(w, _standardInvoiceItem());
@@ -218,7 +218,7 @@ void _bind(GherkinRunner runner, _World w) {
     await w.tester.pumpAndSettle();
   });
 
-  runner.on(r'按下 Ctrl\+Shift\+S（macOS 為 ⌘⇧S）$', (p) async {
+  runner.on(r'按下 Ctrl\+Shift\+S$', (p) async {
     await pressShortcut(w.tester,
         {LogicalKeyboardKey.controlLeft, LogicalKeyboardKey.shiftLeft, LogicalKeyboardKey.keyS});
   });
