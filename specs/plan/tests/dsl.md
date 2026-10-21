@@ -2,7 +2,7 @@
 
 | 項目 | 內容 |
 |---|---|
-| 文件版本 | v1.1（F06-FE：§3 Given 2＋When 3＋Then 4 句型登記——待確認 badge/清單/下期提醒/暫停標示；v1.0 F06-BE：Given 3＋When 4＋Then 12 句型登記——RecurringService 提醒確認制；v0.9 F07-FE：§3 Given 6＋When 6＋Then 12 句型登記；「同步中…」回饋斷言法（tap 後 pump 未 settle）；v0.8 F07-BE：§2.1 Given 8＋§2.2 When 7＋§2.3 Then 14 句型登記——SyncCoordinator/BundleApplier/BackupService；Outline 匯入結果分列綁定） |
+| 文件版本 | v1.2（F08-BE：§2 Given 6＋When 6＋Then 8 句型登記——AppLockController 門檻邊界/生物辨識退場/PIN 重設授權與拒絕路徑；v1.1 F06-FE：§3 Given 2＋When 3＋Then 4 句型登記——待確認 badge/清單/下期提醒/暫停標示；v1.0 F06-BE：Given 3＋When 4＋Then 12 句型登記——RecurringService 提醒確認制；v0.9 F07-FE：§3 Given 6＋When 6＋Then 12 句型登記；「同步中…」回饋斷言法（tap 後 pump 未 settle）；v0.8 F07-BE：§2.1 Given 8＋§2.2 When 7＋§2.3 Then 14 句型登記——SyncCoordinator/BundleApplier/BackupService；Outline 匯入結果分列綁定） |
 | 用途 | 前端／後端 `.feature` 檔的**步驟句型唯一登記處**。新步驟必須先登記於本檔再實作綁定；未登記句型視為違規 |
 | 綁定 | 前端：自製 Gherkin runner + integration_test（TR-9 過渡；同 T-H7）｜後端：自製 Gherkin runner + flutter_test |
 
@@ -85,6 +85,11 @@
 | `Given 已建立定期交易「{name}」每月 {day} 日金額 {amt}` | recurring_transactions 種資（frequency=monthly、anchor/next_due=當月 day 日；F06 Background） |
 | `Given 待確認佇列含「{name} {date}」` | 觸發到期檢查後之佇列（next_due ≤ today 動態推導；F06 S2~S4 前置） |
 | `Given 模擬系統時間為 {date} 並觸發到期檢查（第 {n} 次）` | Clock 凍結＋RecurringService.runCheck（逾期計數前置；F06 S5） |
+| `Given App 鎖設定: PIN={pin}、生物辨識 {state}、門檻 {n} 秒` | settings lock.* 寫入＋AppLockController 建構（PIN 雜湊存儲；F08 Background） |
+| `Given App 於 {time} 切至背景` | Clock 凍結＋onBackground（背景時刻記錄；F08 S1） |
+| `Given 生物辨識失敗計數 = {n}` | AppLockController 失敗計數預置（F08 S2） |
+| `Given 已連結雲端` | settings sync.account 有值（PIN 重設授權前提；F08 S3） |
+| `Given 未連結雲端` | settings sync.account 空（F08 S4） |
 
 ### 2.2 When（動作）
 
@@ -137,6 +142,11 @@
 | `When 按下「本次跳過」` | RecurringService.skip——不入帳＋next_due 推進（FR-T5） |
 | `When 刪除排程` | RecurringService.delete——墓標（deleted_at＋oplog 墓標；不再提醒） |
 | `When 模擬系統時間為 {date} 並觸發到期檢查` | Clock 凍結＋runCheck（逾期序列驅動；F06 S5） |
+| `When 背景時長 = {n} 秒 返回` | Clock 快轉＋shouldLockOnResume（門檻邊界判定；F08 S1） |
+| `When 失敗 {n} 次` | AppLockController.onBiometricFail ×n（F08 S2） |
+| `When 累計失敗 {n} 次` | 同上（累計語意） |
+| `When 重新登入同一雲端帳號（token 驗證通過）` | PIN 重設授權 seam（token 驗證→canResetPin；FR-X5） |
+| `When 嘗試「忘記 PIN」` | canResetPin 查詢（未連雲端→false；F08 S4） |
 | `When 執行清空資料（含雲端）` | WipeService |
 | `When 裝置{d}（同一帳號）執行 SyncCoordinator.pull 與 push` | 切換當前裝置＋SyncCoordinator（pull 套用 peers＋push 未打包；F07 S1/S2） |
 | `When 連續記錄 {n} 筆交易` | 該裝置連寫 n 筆（oplog 未打包；批次合併測資） |
@@ -212,6 +222,13 @@
 | `And next_due_date 不再產生提醒` | 再 runCheck→N-7 不增（刪除後） |
 | `And reminder_count = {n} 且 paused = true` | 同期逾期計數與暫停旗標（FR-T5：≥3 停止推播） |
 | `Then 通知 spy 收到 N-{n} 恰 {k} 次（第 {m} 次不發）` | 既有 spy 斷言之語意註記變體（逾期暫停） |
+| `Then 鎖定需求 = {bool}` | shouldLockOnResume 判定（≥門檻鎖定；AC-09 邊界） |
+| `Then 仍允許生物辨識重試` | biometricFailures < 3（F08 S2） |
+| `Then 鎖定策略 = 僅 PIN（停用生物辨識本次解鎖）` | biometricFailures ≥ 3 → biometricAllowed=false（FR-X1 退場） |
+| `Then 允許設定新 PIN` | canResetPin=true（雲端 token 驗證通過；FR-X5） |
+| `And 本地資料未清空（交易筆數不變）` | 重設前後交易計數一致（資料零損失） |
+| `Then 僅提供「重置 App」` | canResetPin=false＋唯一路徑為重置（無繞過分支——FR-X5） |
+| `And 不存在繞過 PIN 且保留資料的路徑（斷言無此分支）` | controller 介面無 unlock-without-credential 方法（介面枚舉斷言——安全設計檢驗） |
 | `Then 效能：入庫耗時 {ms}ms < 300ms（P95）` | StopWatch P95（F01-BE NFR-01；{ms} 為計畫預記值，以實測 P95 < 300 斷言） |
 | `Then 預設帳戶 = 「{name}」` / `Then 預設帳戶 = 第一個未封存帳戶` | QuickEntryPreset 輸出（FR-Q4） |
 | `Then 預設帳戶為空（待帳戶建立）` | preset.account == null（DBG-003：空帳本不崩潰） |
