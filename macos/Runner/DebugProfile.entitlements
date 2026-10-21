@@ -6,7 +6,11 @@
 	<true/>
 	<key>com.apple.security.cs.allow-jit</key>
 	<true/>
+	<!-- Debug 連線（VM service）＋桌面 OAuth loopback 之本地監聽。 -->
 	<key>com.apple.security.network.server</key>
+	<true/>
+	<!-- 雲端同步（FR-Y7）：連外至 Google Drive／OAuth 端點——沙箱必要。 -->
+	<key>com.apple.security.network.client</key>
 	<true/>
 </dict>
 </plist>

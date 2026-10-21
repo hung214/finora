@@ -52,6 +52,16 @@
 - ❌ 不需要 GCP 計費帳號（Drive API 免費額度遠超本 App 用量）。
 - ❌ 不需要自架伺服器／後端（純 App 直連 Google，無中介伺服器）。
 
+### 1.4 連網權限（開發端已備——供您實機驗證參考）
+
+| 平台 | 設定 | 狀態 |
+|---|---|---|
+| macOS | 沙箱需 `network.client`（連外）＋`network.server`（桌面 OAuth loopback 本地監聽） | ✅ 已加入 `DebugProfile.entitlements`／`Release.entitlements` |
+| Android | **release 版需 `INTERNET` 權限**（Flutter 範本只在 debug/profile 內建） | ✅ 已加入 `AndroidManifest.xml`（main） |
+| iOS／Windows | 預設即可連外（HTTPS） | ✅ 無需變更 |
+
+> 若憑證到位後某平台同步失敗，先檢查此表對應項——這是最常見的「程式沒錯但連不出去」原因。
+
 ---
 
 ## 2. 商店開發者帳號與簽章（上架必需）
