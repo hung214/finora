@@ -60,15 +60,15 @@
 
 | 任務 ID | Helper | 內容 | 對應 dsl.md 掛鉤 | 狀態 |
 |---|---|---|---|---|
-| T-H1 | 記憶體 DB fixture | drift in-memory（測試關 SQLCipher）、每 Scenario 重建、seed API | BE Given「已重置記憶體資料庫」 | ☐ |
-| T-H2 | Fake clock | 凍結/快轉時間（結帳日、預算週期、逾期、30 天還原） | 「模擬系統時間為 {dt}」 | ☐ |
-| T-H3 | In-memory CloudStorageAdapter | list/upload/download/delete 假實作，可控成功/失敗/延遲/斷線 | BE「模擬雲端…」、FE @sync | ☐ |
-| T-H4 | Notification spy | 攔截通知、斷言編號/內容/次數（N-1~N-10） | 「通知 spy 收到 N-{n} 恰 {k} 次」 | ☐ |
-| T-H5 | 測試資料集 Builder | acceptance 前置條件一鍵建立（帳戶/分類/交易/預算/卡/定期） | 所有 Given 資料步驟 | ☐ |
-| T-H6 | 發票測資 fixtures | 77 碼左 QR 字串、右 QR deflate+Base32 產生器、OCR 文字/圖片 fixtures | F03 BE/FE | ☐ |
-| T-H7 | Gherkin Runner | BE：自製 runner 掛 flutter_test；FE：flutter_gherkin 設定（tag 過濾） | — | ☐ |
-| T-H8 | FE 掛鉤 | lifecycle 模擬（背景秒數）、鍵盤/快捷鍵注入、截圖報告 | FE「App 切至背景」「Ctrl+N」 | ☐ |
-| T-H9 | **truth 對齊測試** | ①schema snapshot ↔ `data-spec.dbml` 解析比對 ②pubspec 依賴版本 ↔ `techstack.md` §2；落差即紅燈 | §5 對齊清單的自動化 | ☐ |
+| T-H1 | 記憶體 DB fixture | drift in-memory（測試關 SQLCipher）、每 Scenario 重建、seed API | BE Given「已重置記憶體資料庫」 | ✅（sqlite3 直連——TR-7；9622009/b557029） |
+| T-H2 | Fake clock | 凍結/快轉時間（結帳日、預算週期、逾期、30 天還原） | 「模擬系統時間為 {dt}」 | ✅ |
+| T-H3 | In-memory CloudStorageAdapter | list/upload/download/delete 假實作，可控成功/失敗/延遲/斷線 | BE「模擬雲端…」、FE @sync | ✅（雙裝置拓撲） |
+| T-H4 | Notification spy | 攔截通知、斷言編號/內容/次數（N-1~N-10） | 「通知 spy 收到 N-{n} 恰 {k} 次」 | ✅ |
+| T-H5 | 測試資料集 Builder | acceptance 前置條件一鍵建立（帳戶/分類/交易/預算/卡/定期） | 所有 Given 資料步驟 | ✅（DbFixture） |
+| T-H6 | 發票測資 fixtures | 77 碼左 QR 字串、右 QR deflate+Base32 產生器、OCR 文字/圖片 fixtures | F03 BE/FE | ✅（InvoiceQrFixtures＋OcrReceiptFixtures） |
+| T-H7 | Gherkin Runner | BE：自製 runner 掛 flutter_test；FE：flutter_gherkin 設定（tag 過濾） | — | ✅（自製 runner——TR-9） |
+| T-H8 | FE 掛鉤 | lifecycle 模擬（背景秒數）、鍵盤/快捷鍵注入、截圖報告 | FE「App 切至背景」「Ctrl+N」 | 🟢（pressShortcut 落地 F03-FE；pumpBackground F08 啟用） |
+| T-H9 | **truth 對齊測試** | ①schema snapshot ↔ `data-spec.dbml` 解析比對 ②pubspec 依賴版本 ↔ `techstack.md` §2；落差即紅燈 | §5 對齊清單的自動化 | ✅（CI＋本地；v1~v5 全覆蓋） |
 
 ---
 
@@ -88,17 +88,17 @@
 | v2 | M2 | budgets、income_goals、transactions_fts（FTS5 bigram 影子表，SP-1） | T-S2 |
 | v3 | M3 | credit_card_details、statements、statement_items、refund_links、installment_plans | T-S3 |
 | v4 | M4 | attachments（+ blobs 目錄約定） | T-S4 |
-| v5 | M6 | recurring_transactions、sync_events | T-S5 |
+| v5 | M5/M6 | sync_events（**隨 F07/M5 提前落地**——衝突事件）＋recurring_transactions（表一次到位；業務使用屬 M6） | T-S5 |
 
 > 註：credit_card_details 的 boundary_rule、statements 的 overdue_notified 等欄位隨 v3 一次到位（避免中途改欄）。
 
 | 任務 ID | 環節 | 內容 | 狀態 |
 |---|---|---|---|
-| T-S1 | M1 migration | v1 建表 + schema 回歸測試（v0 空 DB → v1）＋ truth 對齊（T-H9 基線） | ☐ |
-| T-S2 | M2 migration | v2 預算/FTS5 + bigram 寫入觸發器/服務邏輯 + 回歸測試（v1→v2 資料保留） | ☐ |
-| T-S3 | M3 migration | v3 信用卡/帳單 + 回歸測試（既有交易 settlement_status 預設 none） | ☐ |
-| T-S4 | M4 migration | v4 attachments + 回歸測試 | ☐ |
-| T-S5 | M6 migration | v5 定期交易/同步事件 + 回歸測試 | ☐ |
+| T-S1 | M1 migration | v1 建表 + schema 回歸測試（v0 空 DB → v1）＋ truth 對齊（T-H9 基線） | ✅ |
+| T-S2 | M2 migration | v2 預算/FTS5 + bigram 寫入觸發器/服務邏輯 + 回歸測試（v1→v2 資料保留） | ✅ |
+| T-S3 | M3 migration | v3 信用卡/帳單 + 回歸測試（既有交易 settlement_status 預設 none） | ✅ |
+| T-S4 | M4 migration | v4 attachments + 回歸測試 | ✅ |
+| T-S5 | M5/M6 migration | v5 sync_events（F07 衝突事件，M5 已落地）＋recurring_transactions（M6 使用）＋回歸測試（已落地：直達 v5／v4 升級／冪等） | 🔵（表與遷移已完成；recurring 業務屬 M6） |
 
 ---
 
@@ -123,7 +123,7 @@
 | F04 信用卡 | T-F04-BE（10：預扣、補算、歸屬 outline、clamp、繳款×2、提醒、逾期、分期、退款、生效日）——**🟢 12 情境執行全綠**（5 服務：BillingCycle/RepayStatement/NotificationCheck/Installment/Refund＋生效日） | T-F04-FE（5：帳單呈現、繳款流程、部分繳、設定顯示、逾期標示）——**🟢 macOS 全綠**（CreditCardPage＋CardSettingsPage＋總覽入口） | **schema v3**（T-S3 ✅）；boundary_rule enum | M3 | ✅（**M3 完成併入 main c1b52b0；v0.4.7 已 tag**：FE 回歸 4/4＋部署驗證通過（Release 47.4MB＋二次啟動）） |
 | F05 預算 | T-F05-BE（5：閾值×2、含預扣、達標率、起始日）——**5/5 ✅**（BudgetAlertService 冪等 sync 點＋notif_state 去重） | T-F05-FE（5：警示色、超支、預扣標籤、達成、通知開關）——**5/5 ✅**（預算分頁＋總覽卡；FE 基線自洽修正 S1 7000/S2 8320） | **schema v2**（T-S2 ✅）；budgets/income_goals | M2 | ✅ |
 | F06 定期交易 | T-F06-BE（5：到期提醒、確認不回寫、跳過、刪除、逾期暫停） | T-F06-FE（4：badge、清單、確認 UI、暫停標示） | **schema v5**（T-S5 先行） | M6 | ☐ |
-| F07 雲端同步 | T-F07-BE（8：補同步、LWW、每筆模式、批次、附件分流、bootstrap、GC、備份密碼） | T-F07-FE（6：連結、立即同步、啟動同步、還原、異帳號、衝突檢視） | api-spec.yaml（P2 僅對照，不改）；oplog packed_seq | M5/M6 | ☐ |
+| F07 雲端同步 | T-F07-BE（8：補同步、LWW、每筆模式、批次、附件分流、bootstrap、GC、備份密碼——**🟢 10 情境全綠**（7 單一＋Outline 3 列）：SyncCoordinator（vault/devices/ops/blobs 佈局、pull cursor、push 打包/manifest、附件 Wi-Fi 分流）＋BundleApplier（LWW＋衝突 sync_events＋N-8）＋BackupService（每日快照＋AES-GCM 密碼＋GC 保留份數）＋AutoSyncService（sync.mode 分流）；**schema v5 落地**（sync_events 提前＋recurring 一次到位） | T-F07-FE（6：連結、立即同步、啟動同步、還原、異帳號、衝突檢視） | api-spec.yaml（P2 僅對照，不改）✓；oplog packed_seq ✅；**dbml sync_entity 補 income_goals（v0.3.2）✅** | M5/M6 | 🔵（BE 🟢 10/10；FE 待） |
 | F08 App 鎖 | T-F08-BE（4：門檻邊界、退場狀態機、重設路徑×2） | T-F08-FE（5：鎖定畫面、10 秒、退 PIN、忘記 PIN、遮蔽） | lock.timeout key（settings） | M7 | ☐ |
 | F09 資料管理 | T-F09-BE（3：本地清空、雲端清空、不復活） | T-F09-FE（2：三重防護、加驗身分） | 清空=雲端資料夾刪除契約 | M7 | ☐ |
 | F10 報表 | T-F10-BE（5：占比、bigram 搜尋、AND 篩選、CSV、效能）——**5/5 ✅**（TextIndex bigram＋SearchService FTS 優先 LIKE 降級＋ReportService 0.1%＋CsvExporter BOM＋NFR-01 10 萬筆 387ms） | T-F10-FE（3：圖表呈現、複合篩選、匯出提示）——**3/3 ✅**（統計分頁＋明細篩選列 chips＋匯出提示；呈現以數值文字斷言，甜甜圈視覺屬打磨） | transactions_fts（v2 ✅）；CSV 欄位契約 | M2 | ✅ |
@@ -178,7 +178,7 @@ S11-12：T-F08 → T-F09 → 效能複測（NFR-01~03）→ 上架
 | Helper | T-H3 雲端 adapter（雙裝置拓撲模擬）＋T-H4 通知 spy＋T-H5 標準資料集＋T-H6 發票測資＋編碼器 | ✅（39be197 紅/f803eb2 綠） |
 | Helper | T-H7 Gherkin runner（BE）＋T-H8 FE 掛鉤（驗證延至 M1 FE 首跑）＋T-H9 truth 對齊測試 | ✅（f803eb2） |
 | Migration | T-S1 schema v1（建表＋建表回歸＋truth 對齊基線，隨 T-H1 完成） | ✅ |
-| Migration | T-S2~T-S5（v2~v5，M2~M6 隨各 feature）——T-S2 ✅（81 綠）｜T-S3 ✅（信用卡/帳單/退款/分期；81 綠）｜T-S4 ✅（attachments＋遷移鏈 v3→v4＋T-H9 擴充；85 綠；merge 6501051）｜T-S5 ☐（M6） |
+| Migration | T-S2~T-S5（v2~v5，M2~M6 隨各 feature）——T-S2 ✅（81 綠）｜T-S3 ✅（信用卡/帳單/退款/分期；81 綠）｜T-S4 ✅（attachments＋遷移鏈 v3→v4＋T-H9 擴充；85 綠；merge 6501051）｜T-S5 🔵前段（sync_events 隨 F07/M5 落地＋recurring 表到位＋回歸 3 測；recurring 業務 M6） |
 | Feature | T-F01-BE（8 情境：智慧預設×4／儲存事務／Undo／離線／效能——🔴→🟢 完成，每情境一 commit） | ✅（合併 ffadf09） |
 | Feature | T-F01-FE（@P0 6 情境：預填／對話框／Sticky／完成／時間選擇器／復原——🔴→🟢 Windows 實跑全綠；App 主殼+快記頁+明細+總覽落地）＋production 接線（path_provider，techstack v0.3.5 PM 定案） | ✅（S1.11 @P1 @desktop 屬 M2；acceptance 手動情境留 QA 走查） |
 | Feature | T-F02-BE（@BE @P0 5 情境 🔴→🟢：金額驗證／轉帳守恆＋MonthlyStatsService／儲值 transfer 語意／軟刪除＋TombstonePurgeService 30 天／還款＋creditUnpaidTotal；多幣別 @P1 @M2 deferred PM 確認） | ✅（7ef56da） |

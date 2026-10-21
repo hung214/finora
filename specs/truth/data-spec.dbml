@@ -79,6 +79,7 @@ Enum sync_entity {
   refund_links
   installment_plans
   budgets
+  income_goals
   recurring_transactions
   templates
   attachments
@@ -354,5 +355,6 @@ Ref: recurring_transactions.category_id > categories.id [delete: restrict]
 Ref: attachments.transaction_id > transactions.id [delete: cascade]
 
 // ── 變更記錄 ──────────────────────────────────────
+// 2026-10-21 | v0.3.2 | sync_entity 補登 income_goals（F05 落地之 oplog 寫入契約既有——insertIncomeGoalWithOplog；M5 F07 同步前補齊護欄）| PR: feature/T-F07-cloud-sync
 // 2026-10-18 | v0.3.1 | settings 補登 F01 key 命名：quick_entry.smart_preset（on/off）、quick_entry.fixed_preset（JSON 帳戶/分類）——tasks.md §4.1 F01 truth 對齊項 | PR: feature/F01-quick-entry
 // 2026-10-18 | v0.3 | 初版：SDD §4.2 全表補完（+recurring_transactions/templates/settings/sync_events/income_goals/FTS5 影子表） | PR: —

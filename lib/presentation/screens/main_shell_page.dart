@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../application/providers.dart';
 import 'budget/budget_page.dart';
 import 'ledger/ledger_page.dart';
 import 'overview/overview_page.dart';
 import 'quick_entry/quick_entry_page.dart';
 import 'scan/scan_page.dart';
+import 'settings/settings_sync_page.dart';
+import '../../application/sync/sync_fe_state.dart';
 import 'stats/stats_page.dart';
 
 /// 主殼（SDD §8 IA；RWD 響應式——單碼庫雙殼，ui/08-desktop-shell 雛型落地）：
@@ -31,8 +34,32 @@ class MainShellPage extends ConsumerStatefulWidget {
 class _MainShellPageState extends ConsumerState<MainShellPage> {
   int _tab = 0;
 
+  @override
+  void initState() {
+    super.initState();
+    // FR-Y11 啟動同步：已連結雲端時同步一次（fire-and-forget；M5 BE 已驗協議）。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // FR-T5 啟動檢查（N-7）——FE 情境由 harness 統一驅動（雙鉤子會漏計）；
+      // 生產接線待 F06-FE 收尾（AutoSync 風格）。
+      if ((ref.read(dbProvider).getSetting('sync.account') ?? '').isNotEmpty) {
+        ref.read(syncCoordinatorProvider).sync().then((_) {
+          final db = ref.read(dbProvider);
+          db.setSetting('sync.last_at', '${DateTime.now().millisecondsSinceEpoch}');
+          ref.read(pendingOpsProvider.notifier).refresh();
+          ref.read(lastSyncAtProvider.notifier).refresh();
+          ref.read(syncEventsProvider.notifier).refresh();
+        }).catchError((_) {});
+      }
+    });
+  }
+
   void _openQuickEntry() => Navigator.of(context).push(
         MaterialPageRoute<void>(builder: (_) => const QuickEntryPage()),
+      );
+
+  // ignore: unused_element —— F07-FE 回頭恢復入口（M5 暫停）
+  void _openSettings() => Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => const SettingsSyncPage()),
       );
 
   /// 掃描入口（FR-S6：桌面快捷鍵 ⌘⇧S/Ctrl+Shift+S；無相機→匯入）。
@@ -113,6 +140,8 @@ class _MainShellPageState extends ConsumerState<MainShellPage> {
                               onPressed: _openQuickEntry,
                               child: const Icon(Icons.add),
                             ),
+
+
                           ],
                         ),
                       ),

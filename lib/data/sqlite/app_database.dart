@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';
 
 import 'package:sqlite3/open.dart';
 import 'package:sqlite3/sqlite3.dart';
 
+import '../../core/clock.dart';
 import '../../core/text_index.dart';
 import 'schema.dart';
 
@@ -35,7 +37,7 @@ class AppDatabase {
   late final Database _db;
   bool _closed = false;
 
-  int get schemaVersion => SchemaV4.version;
+  int get schemaVersion => SchemaV5.version;
 
   void _migrate() {
     // DBG-004／T-S2：多版本冪等遷移——
@@ -44,7 +46,7 @@ class AppDatabase {
     // ③ 逐版本增量：每版本於交易內全有全無（v1 全量 DDL／v2 增量表）。
     // DDL 字串維持原樣（T-H9 truth 對齊 regex 相容）。
     var current = _db.select('PRAGMA user_version').first.values.first as int;
-    if (current >= SchemaV4.version) return;
+    if (current >= SchemaV5.version) return;
     if (current < 1) {
       final tablesExist = _db
           .select("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'accounts'")
@@ -118,12 +120,32 @@ class AppDatabase {
         rethrow;
       }
     }
+    if (current < 5) {
+      _db.execute('BEGIN');
+      try {
+        for (final s in SchemaV5.statements) {
+          _db.execute(s);
+        }
+        _db.execute('PRAGMA user_version = ${SchemaV5.version}');
+        _db.execute('COMMIT');
+      } catch (_) {
+        _db.execute('ROLLBACK');
+        rethrow;
+      }
+    }
   }
 
   List<String> tableNames() => _db
       .select("SELECT name FROM sqlite_master WHERE type='table'")
       .map((r) => r['name'] as String)
       .toList();
+
+  /// 唯讀查詢代理（BackupService 快照等服務用；寫入仍走具名方法）。
+  List<Map<String, Object?>> select(String sql, [List<Object?> args = const []]) =>
+      [for (final r in _db.select(sql, args)) Map<String, Object?>.from(r)];
+
+  /// SQL 執行代理（fixture/服務輔助；業務寫入仍走具名方法以保證 oplog 契約）。
+  void execute(String sql, [List<Object?> args = const []]) => _db.execute(sql, args);
 
   void close() {
     if (!_closed) {
@@ -611,6 +633,111 @@ class AppDatabase {
     return rows.isEmpty ? null : rows.first;
   }
 
+  // ── 定期交易排程（FR-T5，schema v5；recurring_transactions 屬 sync_entity） ──
+
+  void insertRecurring(RecurringRow r) => _db.execute(
+        'INSERT INTO recurring_transactions (id, name, kind, amount_minor, account_id,'
+        ' category_id, frequency, interval_days, anchor_date, end_type, end_count,'
+        ' end_date, next_due_date, reminder_count, paused, created_at, updated_at,'
+        ' hlc, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          r.id, r.name, r.kind, r.amountMinor, r.accountId, r.categoryId,
+          r.frequency, r.intervalDays, r.anchorDate, r.endType, r.endCount,
+          r.endDate, r.nextDueDate, r.reminderCount, r.paused ? 1 : 0,
+          r.createdAt, r.updatedAt, r.hlc, r.deletedAt,
+        ],
+      );
+
+  /// 排程寫入＋oplog 於同一 transaction（recurring 屬 sync_entity）。
+  void insertRecurringWithOplog(RecurringRow r, OplogRow o) {
+    _db.execute('BEGIN');
+    try {
+      insertRecurring(r);
+      appendOp(o);
+      _db.execute('COMMIT');
+    } catch (_) {
+      _db.execute('ROLLBACK');
+      rethrow;
+    }
+  }
+
+  List<RecurringRow> allRecurring() => _db
+      .select('SELECT * FROM recurring_transactions WHERE deleted_at IS NULL'
+          ' ORDER BY next_due_date')
+      .map(RecurringRow.fromRow)
+      .toList();
+
+  /// 活躍排程查詢（排除墓標——deleted_at IS NULL；確認/跳過/提醒之對象）。
+  RecurringRow? recurringById(String id) {
+    final rows = _db.select(
+        'SELECT * FROM recurring_transactions WHERE id = ? AND deleted_at IS NULL',
+        [id]);
+    return rows.isEmpty ? null : RecurringRow.fromRow(rows.first);
+  }
+
+  /// 到期未確認佇列（next_due ≤ today；排除暫停/刪除——確認仍可、推播停）。
+  List<RecurringRow> dueSchedules(int todayMs) => _db
+      .select('SELECT * FROM recurring_transactions'
+          ' WHERE deleted_at IS NULL AND paused = 0 AND next_due_date <= ?'
+          ' ORDER BY next_due_date', [todayMs])
+      .map(RecurringRow.fromRow)
+      .toList();
+
+  /// 提醒計數+1；達 3 → paused=true（FR-T5：≥3 停止推播）＋oplog 快照。
+  void incrementReminder(String id, String hlc) {
+    _db.execute(
+      'UPDATE recurring_transactions SET reminder_count = reminder_count + 1,'
+      ' paused = CASE WHEN reminder_count + 1 >= 3 THEN 1 ELSE paused END,'
+      ' updated_at = ?, hlc = ? WHERE id = ?',
+      [Clock.now().millisecondsSinceEpoch, hlc, id],
+    );
+    appendOp(oplogForRecurring(recurringById(id)!));
+  }
+
+  void resetReminder(String id, String hlc) {
+    _db.execute(
+      'UPDATE recurring_transactions SET reminder_count = 0, paused = 0,'
+      ' updated_at = ?, hlc = ? WHERE id = ?',
+      [Clock.now().millisecondsSinceEpoch, hlc, id],
+    );
+    appendOp(oplogForRecurring(recurringById(id)!));
+  }
+
+  /// next_due 推進（確認/跳過共用）＋oplog 快照。
+  void advanceNextDue(String id, int nextDueMs, String hlc) {
+    _db.execute(
+      'UPDATE recurring_transactions SET next_due_date = ?, updated_at = ?, hlc = ?'
+      ' WHERE id = ?',
+      [nextDueMs, Clock.now().millisecondsSinceEpoch, hlc, id],
+    );
+    appendOp(oplogForRecurring(recurringById(id)!));
+  }
+
+  /// 軟刪除排程（墓標＋oplog 墓標 payload=null——刪除後不再提醒，FR-T5）。
+  void softDeleteRecurring(String id, String hlc) {
+    _db.execute(
+      'UPDATE recurring_transactions SET deleted_at = ?, updated_at = ?, hlc = ?'
+      ' WHERE id = ?',
+      [Clock.now().millisecondsSinceEpoch, Clock.now().millisecondsSinceEpoch, hlc, id],
+    );
+    appendOp(OplogRow(
+      entity: 'recurring_transactions',
+      entityId: id,
+      hlc: hlc,
+      payload: null,
+      packedSeq: null,
+    ));
+  }
+
+  /// 排程列之 oplog 快照（整列；SDD §5.5.4）。
+  OplogRow oplogForRecurring(RecurringRow r) => OplogRow(
+        entity: 'recurring_transactions',
+        entityId: r.id,
+        hlc: r.hlc,
+        payload: jsonEncode(r.toSnapshot()),
+        packedSeq: null,
+      );
+
   // ── 附件（FR-S4，schema v4；attachments 屬 sync_entity） ──
 
   /// 附件列寫入 + oplog 追加於同一 DB transaction（SDD §5.1 契約——
@@ -649,6 +776,103 @@ class AppDatabase {
       .map(AttachmentRow.fromRow)
       .toList();
 
+  // ── 同步衝突事件（schema v1 sync_events；FR-Y5/AC-07） ────
+
+  void insertSyncEvent(SyncEventRow e) => _db.execute(
+        'INSERT INTO sync_events (id, entity, entity_id, incoming_hlc, overwritten_row,'
+        ' created_at, read_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [e.id, e.entity, e.entityId, e.incomingHlc, e.overwrittenRow, e.createdAt, e.readAt],
+      );
+
+  List<SyncEventRow> allSyncEvents() => _db
+      .select('SELECT * FROM sync_events ORDER BY created_at, id')
+      .map(SyncEventRow.fromRow)
+      .toList();
+
+  /// 套用遠端整列快照（INSERT OR REPLACE——冪等；SDD §5.5.2 套用端）。
+  /// LWW 判定由 BundleApplier 先行（無 hlc 之關聯表直接冪等覆蓋）。
+  void applySnapshot(String entity, Map<String, Object?> row) {
+    switch (entity) {
+      case 'transactions':
+        _db.execute(_upsert('transactions', 'id', [
+          'kind','amount_minor','currency','fx_rate','account_id','to_account_id',
+          'category_id','merchant','note','tags','occurred_at','source',
+          'split_group_id','settlement_status','installment_plan_id','installment_seq',
+          'created_at','updated_at','hlc','deleted_at',
+        ]), [
+          row['id'], row['kind'], row['amount_minor'], row['currency'], row['fx_rate'],
+          row['account_id'], row['to_account_id'], row['category_id'], row['merchant'],
+          row['note'], row['tags'], row['occurred_at'], row['source'], row['split_group_id'],
+          row['settlement_status'], row['installment_plan_id'], row['installment_seq'],
+          row['created_at'], row['updated_at'], row['hlc'], row['deleted_at'],
+        ]);
+      case 'accounts':
+        _db.execute(_upsert('accounts', 'id', [
+          'type','name','currency','opening_amount_minor','color','icon','sort_order',
+          'archived','created_at','updated_at','hlc','deleted_at',
+        ]), [
+          row['id'], row['type'], row['name'], row['currency'], row['opening_amount_minor'],
+          row['color'], row['icon'], row['sort_order'], row['archived'],
+          row['created_at'], row['updated_at'], row['hlc'], row['deleted_at'],
+        ]);
+      case 'categories':
+        _db.execute(_upsert('categories', 'id', [
+          'kind','parent_id','name','icon','color','sort_order','is_system',
+          'created_at','updated_at','hlc','deleted_at',
+        ]), [
+          row['id'], row['kind'], row['parent_id'], row['name'], row['icon'],
+          row['color'], row['sort_order'], row['is_system'],
+          row['created_at'], row['updated_at'], row['hlc'], row['deleted_at'],
+        ]);
+      case 'attachments':
+        _db.execute(_upsert('attachments', 'id', [
+          'transaction_id','sha256','mime','byte_size','created_at','hlc','deleted_at',
+        ]), [
+          row['id'], row['transaction_id'], row['sha256'], row['mime'], row['byte_size'],
+          row['created_at'], row['hlc'], row['deleted_at'],
+        ]);
+      case 'budgets':
+        _db.execute(_upsert('budgets', 'id', [
+          'category_id','amount_minor','period_start_day','rollover','created_at',
+          'updated_at','hlc','deleted_at',
+        ]), [
+          row['id'], row['category_id'], row['amount_minor'], row['period_start_day'],
+          row['rollover'], row['created_at'], row['updated_at'], row['hlc'], row['deleted_at'],
+        ]);
+      case 'income_goals':
+        _db.execute(_upsert('income_goals', 'id', [
+          'amount_minor','period_start_day','created_at','updated_at','hlc','deleted_at',
+        ]), [
+          row['id'], row['amount_minor'], row['period_start_day'],
+          row['created_at'], row['updated_at'], row['hlc'], row['deleted_at'],
+        ]);
+      default:
+        throw UnimplementedError('applySnapshot 未支援 entity：$entity（M5 範圍外）');
+    }
+  }
+
+  /// INSERT OR REPLACE SQL（pk + 欄位清單）。
+  String _upsert(String table, String pk, List<String> cols) =>
+      'INSERT OR REPLACE INTO $table ($pk, ${cols.join(', ')})'
+      ' VALUES (${List.filled(cols.length + 1, '?').join(', ')})';
+
+  /// 本機列之 hlc（LWW 判定用；不存在回 null）。
+  String? localHlc(String entity, String id) {
+    final rows = _db.select('SELECT hlc FROM $entity WHERE id = ?', [id]);
+    return rows.isEmpty ? null : rows.first['hlc'] as String?;
+  }
+
+  /// 本機列之整列快照（衝突事件 overwritten_row 用；不存在回 null）。
+  Map<String, Object?>? localRow(String entity, String id) {
+    final rows = _db.select('SELECT * FROM $entity WHERE id = ?', [id]);
+    return rows.isEmpty ? null : Map<String, Object?>.from(rows.first);
+  }
+
+  /// 遠端墓標套用（row=null；實體刪除，oplog 日誌保留）。
+  void applyTombstone(String entity, String id) {
+    _db.execute('DELETE FROM $entity WHERE id = ?', [id]);
+  }
+
   // ── 同步日誌（SDD §5.5） ──────────────────────────────────
 
   void appendOp(OplogRow o) => _db.execute(
@@ -658,6 +882,37 @@ class AppDatabase {
 
   List<OplogRow> allOps() =>
       _db.select('SELECT * FROM oplog ORDER BY seq').map(OplogRow.fromRow).toList();
+
+  /// 未打包 ops（F07 push 資料源：packed_seq IS NULL，SDD §5.5.3）。
+  List<OplogRow> unpackedOps() => _db
+      .select('SELECT * FROM oplog WHERE packed_seq IS NULL ORDER BY seq')
+      .map(OplogRow.fromRow)
+      .toList();
+
+  /// 標記未打包 ops 為已打包（bundle seq；SDD §5.5.3 push 收尾）。
+  void markOpsPacked(int seq) => _db.execute(
+        'UPDATE oplog SET packed_seq = ? WHERE packed_seq IS NULL',
+        [seq],
+      );
+
+  /// oplog 是否存在該實體之記錄（衝突偵測：本機曾寫入——FR-Y5）。
+  bool oplogHasEntityId(String entity, String id) => _db
+      .select('SELECT 1 FROM oplog WHERE entity = ? AND entity_id = ? LIMIT 1',
+          [entity, id])
+      .isNotEmpty;
+
+  /// 備份還原之全表清空（匯入前置；oplog 一併還原快照內容）。
+  void clearTable(String table) => _db.execute('DELETE FROM $table');
+
+  /// 備份還原之單列寫入（INSERT OR REPLACE——欄位由快照動態組）。
+  void restoreRow(String table, Map<String, Object?> row) {
+    final cols = row.keys.toList();
+    _db.execute(
+      'INSERT OR REPLACE INTO $table (${cols.join(', ')})'
+      ' VALUES (${List.filled(cols.length, '?').join(', ')})',
+      [for (final c in cols) row[c]],
+    );
+  }
 
   /// 交易寫入 + oplog 追加必須同一 transaction（SDD §5.1 儲存事務）。
   ///
@@ -1299,6 +1554,145 @@ class AttachmentRow {
         'hlc': hlc,
         'deleted_at': deletedAt,
       };
+}
+
+/// 定期交易排程列（schema v5，data-spec.dbml recurring_transactions；FR-T5 提醒確認制）。
+class RecurringRow {
+  const RecurringRow({
+    required this.id,
+    required this.name,
+    required this.kind,
+    required this.amountMinor,
+    required this.accountId,
+    required this.categoryId,
+    required this.frequency,
+    this.intervalDays,
+    required this.anchorDate,
+    required this.endType,
+    this.endCount,
+    this.endDate,
+    required this.nextDueDate,
+    required this.reminderCount,
+    required this.paused,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.hlc,
+    this.deletedAt,
+  });
+
+  final String id;
+  final String name;
+
+  /// expense | income（模板語意；確認時可改且不回寫——FR-T5）。
+  final String kind;
+  final int amountMinor;
+  final String accountId;
+  final String categoryId;
+
+  /// daily | weekly | monthly | yearly | custom（custom 用 intervalDays）。
+  final String frequency;
+  final int? intervalDays;
+
+  /// 首次到期日（ms）。
+  final int anchorDate;
+
+  /// never | count | date。
+  final String endType;
+  final int? endCount;
+  final int? endDate;
+
+  /// 下次到期日（ms；確認/跳過後推進）。
+  final int nextDueDate;
+
+  /// 同期已提醒次數；≥3 停止推播（FR-T5）。
+  final int reminderCount;
+
+  /// 逾期 3 次未處理→true（S6.5）。
+  final bool paused;
+  final int createdAt;
+  final int updatedAt;
+  final String hlc;
+  final int? deletedAt;
+
+  factory RecurringRow.fromRow(Map<String, Object?> r) => RecurringRow(
+        id: r['id'] as String,
+        name: r['name'] as String,
+        kind: r['kind'] as String,
+        amountMinor: r['amount_minor'] as int,
+        accountId: r['account_id'] as String,
+        categoryId: r['category_id'] as String,
+        frequency: r['frequency'] as String,
+        intervalDays: r['interval_days'] as int?,
+        anchorDate: r['anchor_date'] as int,
+        endType: r['end_type'] as String,
+        endCount: r['end_count'] as int?,
+        endDate: r['end_date'] as int?,
+        nextDueDate: r['next_due_date'] as int,
+        reminderCount: r['reminder_count'] as int,
+        paused: (r['paused'] as int) == 1,
+        createdAt: r['created_at'] as int,
+        updatedAt: r['updated_at'] as int,
+        hlc: r['hlc'] as String,
+        deletedAt: r['deleted_at'] as int?,
+      );
+
+  /// oplog payload 之整列快照（SDD §5.5.4）。
+  Map<String, Object?> toSnapshot() => {
+        'id': id,
+        'name': name,
+        'kind': kind,
+        'amount_minor': amountMinor,
+        'account_id': accountId,
+        'category_id': categoryId,
+        'frequency': frequency,
+        'interval_days': intervalDays,
+        'anchor_date': anchorDate,
+        'end_type': endType,
+        'end_count': endCount,
+        'end_date': endDate,
+        'next_due_date': nextDueDate,
+        'reminder_count': reminderCount,
+        'paused': paused ? 1 : 0,
+        'created_at': createdAt,
+        'updated_at': updatedAt,
+        'hlc': hlc,
+        'deleted_at': deletedAt,
+      };
+}
+
+/// 同步衝突事件列（schema v1 sync_events；FR-Y5——LWW 落敗被覆蓋內容唯讀快照）。
+class SyncEventRow {
+  const SyncEventRow({
+    required this.id,
+    required this.entity,
+    required this.entityId,
+    required this.incomingHlc,
+    this.overwrittenRow,
+    required this.createdAt,
+    this.readAt,
+  });
+
+  final String id;
+  final String entity;
+  final String entityId;
+
+  /// 勝出的遠端版本。
+  final String incomingHlc;
+
+  /// 被覆蓋內容 JSON 快照（衝突檢視用）。
+  final String? overwrittenRow;
+  final int createdAt;
+  final int? readAt;
+
+  factory SyncEventRow.fromRow(Map<String, Object?> r) => SyncEventRow(
+        id: r['id'] as String,
+        entity: r['entity'] as String,
+        entityId: r['entity_id'] as String,
+        incomingHlc: r['incoming_hlc'] as String,
+        overwrittenRow: r['overwritten_row'] as String?,
+        createdAt: r['created_at'] as int,
+        readAt: r['read_at'] as int?,
+      );
 }
 
 class OplogRow {

@@ -8,6 +8,7 @@ import '../../../application/reports/search_service.dart';
 import '../../../application/scan/scan_state.dart';
 import '../../../data/sqlite/app_database.dart';
 import 'recent_deletions_page.dart';
+import '../recurring/recurring_queue_page.dart';
 import '../scan/scan_page.dart';
 
 /// 明細頁（FR-R3 呈現面）：未刪除交易列表＋複合篩選（期間/分類/關鍵字，
@@ -32,6 +33,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
   Widget build(BuildContext context) {
     // 訂閱交易變化（儲存/復原/刪除後即時刷新 AC-02——快記 controller 會 invalidate）。
     ref.watch(ledgerProvider);
+    final dueCount = ref.watch(recurringDueCountProvider);
     final db = ref.watch(dbProvider);
     final search = SearchService(db);
     final range = _periodRange(_periodMonth);
@@ -52,6 +54,15 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
       appBar: AppBar(
         title: const Text('明細'),
         actions: [
+          // 待確認定期交易 badge（FR-T5 呈現面；F06-FE——0 亦顯示，S2 契約）。
+          TextButton(
+              key: const Key('recurring-badge'),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                    builder: (_) => const RecurringQueuePage()),
+              ),
+              child: Text('待確認 $dueCount'),
+            ),
           // 掃描入口（FR-S6：獨立於快記大鈕；F03 S1）。
           IconButton(
             key: const Key('scan-entry'),

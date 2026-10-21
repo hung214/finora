@@ -2,7 +2,7 @@
 
 | 項目 | 內容 |
 |---|---|
-| 文件版本 | v0.7（F03：§2 BE 19 句型（v0.6）＋§3 FE +20 句型——Given 4/When 7/Then 9＋註冊順序註記；S7 效能句型規格修正照 F10 先例） |
+| 文件版本 | v1.1（F06-FE：§3 Given 2＋When 3＋Then 4 句型登記——待確認 badge/清單/下期提醒/暫停標示；v1.0 F06-BE：Given 3＋When 4＋Then 12 句型登記——RecurringService 提醒確認制；v0.9 F07-FE：§3 Given 6＋When 6＋Then 12 句型登記；「同步中…」回饋斷言法（tap 後 pump 未 settle）；v0.8 F07-BE：§2.1 Given 8＋§2.2 When 7＋§2.3 Then 14 句型登記——SyncCoordinator/BundleApplier/BackupService；Outline 匯入結果分列綁定） |
 | 用途 | 前端／後端 `.feature` 檔的**步驟句型唯一登記處**。新步驟必須先登記於本檔再實作綁定；未登記句型視為違規 |
 | 綁定 | 前端：自製 Gherkin runner + integration_test（TR-9 過渡；同 T-H7）｜後端：自製 Gherkin runner + flutter_test |
 
@@ -74,6 +74,17 @@
 | `Given 已匯入 {n} 萬筆種子交易` | 批次直寫當月（略 oplog——聚合僅讀 transactions；NFR-01 效能測資） |
 | `And 連線已關閉` | in-memory adapter 進入 failing 態（模擬離線） |
 | `Given 一張 4000x3000 原圖 fixture` | T-H6 動態生成原圖 bytes（image 套件 encodePng；F03 S5 附件壓縮輸入） |
+| `Given 模擬雲端為 in-memory adapter 且已連結` | T-H3 adapter 建置＋vault/devices 佈局初始化（SDD §5.5.1；F07 Background——多裝置拓撲：每裝置各自本地 DB，僅經雲端檔案交換） |
+| `Given 裝置{d} 離線記錄 {n} 筆交易（oplog {n} 筆未打包）` | 該裝置 DB fixture 直寫＋oplog（packed_seq=null；未觸發同步） |
+| `Given 同步模式 = {mode}` | settings sync.mode（每筆自動同步/節能批次（預設）/僅手動——FR-Y11） |
+| `Given 附件僅 Wi-Fi 同步 = {state} 且網路 = {network}` | settings backup.attachments_wifi_only＋網路型態 seam（wifi/mobile——FR-Y11 附件分流） |
+| `Given 雲端已有裝置{d} 的 {n} 個 bundle 與 {m} 份快照` | 預置雲端狀態（bundle 產生＋backups 快照；bootstrap 前置） |
+| `Given 備份保留份數 = {n}` | settings backup.keep（FR-Y3 GC） |
+| `Given 裝置{d} 修改交易 {id} 備註為「{note}」並同步` | setTransactionNote＋oplog 整列快照＋push（LWW 前置；F07 S2） |
+| `And 裝置{d} 離線修改交易 {id} 備註為「{note}」（HLC 較新）` | 該裝置修改但未同步（HLC 較新→LWW 勝出方；F07 S2） |
+| `Given 已建立定期交易「{name}」每月 {day} 日金額 {amt}` | recurring_transactions 種資（frequency=monthly、anchor/next_due=當月 day 日；F06 Background） |
+| `Given 待確認佇列含「{name} {date}」` | 觸發到期檢查後之佇列（next_due ≤ today 動態推導；F06 S2~S4 前置） |
+| `Given 模擬系統時間為 {date} 並觸發到期檢查（第 {n} 次）` | Clock 凍結＋RecurringService.runCheck（逾期計數前置；F06 S5） |
 
 ### 2.2 When（動作）
 
@@ -121,8 +132,19 @@
 | `When 套用來自裝置 {d} 的 bundle（seq {n}）` | BundleApplier |
 | `When 執行新裝置 Bootstrap（同一帳號）` | replay |
 | `When 模擬時間快轉 {n} 天並觸發自動備份` | BackupService |
-| `When 觸發定期交易到期檢查` | RecurringService |
+| `When 觸發定期交易到期檢查` | RecurringService.runCheck（next_due ≤ today → N-7 提醒＋reminder_count+1；≥3 暫停推播） |
+| `When 確認入帳（金額改為 {amt}、日期 {date}）` | RecurringService.confirm——入帳（source=recurring）＋next_due 推進＋reminder 歸零；**不回寫模板金額**（FR-T5） |
+| `When 按下「本次跳過」` | RecurringService.skip——不入帳＋next_due 推進（FR-T5） |
+| `When 刪除排程` | RecurringService.delete——墓標（deleted_at＋oplog 墓標；不再提醒） |
+| `When 模擬系統時間為 {date} 並觸發到期檢查` | Clock 凍結＋runCheck（逾期序列驅動；F06 S5） |
 | `When 執行清空資料（含雲端）` | WipeService |
+| `When 裝置{d}（同一帳號）執行 SyncCoordinator.pull 與 push` | 切換當前裝置＋SyncCoordinator（pull 套用 peers＋push 未打包；F07 S1/S2） |
+| `When 連續記錄 {n} 筆交易` | 該裝置連寫 n 筆（oplog 未打包；批次合併測資） |
+| `And 模擬時間快轉 {n} 秒並觸發批次同步` | Clock 快轉秒＋SyncCoordinator（節能批次 30s 觸發點；FR-Y11） |
+| `When 掃描發票入帳（含附件）並觸發同步` | ScannedItem 儲存（source=scan＋附件落 blobs/）＋SyncCoordinator（附件分流前置） |
+| `When 網路 = {network} 並觸發同步` | 網路型態 seam 設定＋SyncCoordinator（附件分流第二段） |
+| `When 模擬時間快轉 {n} 天並觸發自動備份（每日）` | Clock 快轉＋BackupService（>24h 產新備份＋GC；FR-Y3） |
+| `When 匯出備份檔{option}並於另一環境匯入` | BackupService 匯出（無加密/檔案密碼）→ 新 DB 匯入（Outline；FR-Y6/AC-14） |
 
 ### 2.3 Then（斷言）
 
@@ -166,6 +188,30 @@
 | `Then 裝置 {a} 與裝置 {b} 的重算餘額一致` | 跨 fixture 比對 |
 | `Then 衝突事件 1 筆，被覆蓋內容為 "{text}"` | sync_events |
 | `Then 雲端 backups/ 保留 {n} 份` | fake adapter list |
+| `Then 雲端 ops/{d}/{file} 存在（{n} ops）` | adapter list/download（OpBundle ops 數；SDD §5.5.2；F07 S1/S3） |
+| `Then 裝置{d} 收到 {n} 筆交易` | 該裝置 DB 交易計數（pull 套用結果） |
+| `Then 交易 {id} 備註 = 「{note}」（兩裝置一致）` | 兩裝置 DB 比對（LWW 收斂；F07 S2） |
+| `And oplog 皆已打包（packed_seq 非 null）` | oplog 全列 packed_seq 非 null（每筆模式即時打包） |
+| `Then 雲端僅 {n} 個 bundle（{m} ops，非 {k} 個）` | adapter ops/ 清單計數（批次合併；F07 S4） |
+| `Then 交易已同步且附件暫緩（blobs/ 無新檔）` | 交易 op 已上雲＋adapter blobs/ 空（行動網路分流；FR-Y11） |
+| `Then 雲端 blobs/{name} 存在` | adapter blobs/ 內容定址檔（Wi-Fi 第二段同步；{name} 為字面佔位——實斷言 blobs/ 非空） |
+| `Then 本地收到全部交易/帳戶/分類` | bootstrap 後與來源裝置 DB 比對（FR-Y2） |
+| `And 裝置{d} 的 manifest 已建立（lastSeq = {n}）` | devices/{d}.json 存在＋last_seq 欄位（bootstrap 收尾） |
+| `And 最舊一份已被清理` | backups 清單不含最舊時間戳（GC 連動） |
+| `Then 直接還原成功` | Outline：不加密備份→新 DB 匯入 ok（FR-Y6） |
+| `Then 完整還原成功` | Outline：密碼加密備份＋正確密碼→匯入 ok（cryptography AES-GCM） |
+| `Then 拒絕匯入且本地資料不變` | Outline：錯誤密碼→拋例外＋新 DB 資料零變動（AC-14） |
+| `And 交易資料表無新增（未確認不入帳）` | transactions 計數不變（提醒確認制核心——FR-T5） |
+| `And 待確認佇列含「{name} {date}」` | 到期未確認排程查詢（name＋next_due 月/日顯示） |
+| `And 待確認佇列仍保留「{name} {date}」` | 同上（暫停後佇列保留——僅停推播不停確認；F06 S5） |
+| `Then 交易已入庫且 source = recurring` | DB 讀取（source 欄位；確認入帳） |
+| `And 交易金額 = {amt}（模板仍為 {amt2}）` | 交易 amount_minor＋recurring_templates 模板不變（不回寫——FR-T5） |
+| `And next_due_date = {date}` | 排程下期推進（monthly→次月同日） |
+| `And reminder_count 歸零` | 確認/處理後計數重置 |
+| `Then recurring_transactions 該列為墓標` | deleted_at 非 null＋oplog 墓標（payload=null） |
+| `And next_due_date 不再產生提醒` | 再 runCheck→N-7 不增（刪除後） |
+| `And reminder_count = {n} 且 paused = true` | 同期逾期計數與暫停旗標（FR-T5：≥3 停止推播） |
+| `Then 通知 spy 收到 N-{n} 恰 {k} 次（第 {m} 次不發）` | 既有 spy 斷言之語意註記變體（逾期暫停） |
 | `Then 效能：入庫耗時 {ms}ms < 300ms（P95）` | StopWatch P95（F01-BE NFR-01；{ms} 為計畫預記值，以實測 P95 < 300 斷言） |
 | `Then 預設帳戶 = 「{name}」` / `Then 預設帳戶 = 第一個未封存帳戶` | QuickEntryPreset 輸出（FR-Q4） |
 | `Then 預設帳戶為空（待帳戶建立）` | preset.account == null（DBG-003：空帳本不崩潰） |
@@ -229,6 +275,14 @@
 | `Given 掃描頁已掃 {n} 張標準測資發票` | fake scanner 回放注入 n 張 T-H6 標準發票（不經真相機；F03-FE S3） |
 | `Given OCR 對日期欄位的信賴度為 {conf}（低於 {threshold} 門檻）` | OCR 影像回放注入低信賴 fixture（acceptance S3.5；F03-FE S4） |
 | `Given 使用者位於 Windows 版（無相機裝置）` | 桌面無相機模擬（F03-FE S6 @desktop） |
+| `Given 模擬雲端為 in-memory adapter 且已連結（Google 帳號 {email}）` | FE Background：adapter＋OAuth seam 預連結（settings sync.account；F07-FE） |
+| `Given 未連結雲端` | settings sync.account 清空（F07-FE S1） |
+| `Given 已有 {n} 筆未同步變更` | fixture 直寫 n 筆（oplog packed_seq=null；F07-FE S2/S3） |
+| `Given 模擬雲端已有帳本資料` | 預置 bundle＋backups（還原流程前置；F07-FE S4） |
+| `Given 模擬雲端已有帳本資料（帳號 {email}）` | 同上——異帳號空間（F07-FE S5） |
+| `Given 同步狀態頁有 {n} 筆衝突事件（被覆蓋內容「{text}」）` | db 直寫 sync_events（AC-07 呈現前置；F07-FE S6） |
+| `Given 已建立定期交易「{name}」每月 {day} 日金額 {amt}（提醒確認制）` | FE fixture 直寫 recurring（同 BE 語意；F06-FE Background） |
+| `Given 房租連續 3 次開啟 App 皆未處理（{dates}）` | 逐日凍結＋重啟（啟動檢查觸發 reminder 累計；F06-FE S4） |
 
 ### 3.2 When（動作）
 
@@ -257,6 +311,17 @@
 | `When 按下「{label}」而未處理` | 點擊但高亮欄位未確認（F03-FE S4；匹配順序須後於通用 `按下「{label}」`） |
 | `When 按下 Ctrl+Shift+S（macOS 為 ⌘⇧S）` | 桌面掃描快捷鍵注入（F03-FE S6；同 Ctrl+N 鍵注入模式） |
 | `And 再掃描 {n} 張` | fake scanner 追加回放（F03-FE S5） |
+| `When 設定→雲端與同步→按下「連結 Google Drive」` | 導航設定同步頁＋點擊連結（key sync-link；F07-FE S1） |
+| `When 完成登入並同意授權` | fake OAuth 完成回呼（email 回傳；F07-FE S1） |
+| `When 按下「立即同步」` | 點擊同步鈕（key sync-now；SyncSettingsPage；F07-FE S2） |
+| `When 關閉並重新啟動 App 並選擇「從雲端還原」` | 重啟＋還原流程入口（key restore-cloud；F07-FE S4） |
+| `And 登入同一帳號` | fake OAuth 同 email（F07-FE S4） |
+| `When 選擇「從雲端還原」並登入帳號 {email}` | 還原＋異帳號 OAuth（F07-FE S5） |
+| `When 開啟同步狀態頁` | 導航衝突檢視（key sync-conflicts-entry；F07-FE S6） |
+| `When 按下 badge` | 點擊待確認 badge（key recurring-badge；F06-FE S1） |
+| `When 將金額改為 {amt} 並按下「確認入帳」` | 待確認清單金額欄＋確認鈕（key recurring-amount/confirm-recurring；F06-FE S2） |
+| `When 開啟待確認清單` | 導航 RecurringQueuePage（F06-FE S4） |
+| `When 按下檢視` | 衝突事件詳情（F07-FE S6） |
 
 ### 3.3 Then（斷言）
 
@@ -282,6 +347,23 @@
 | `Then 顯示「已掃 {n} 張」` | 掃描計數文字（FR-S7；F03-FE S5） |
 | `And 顯示 {n} 個縮圖` | 掃描縮圖列計數（F03-FE S5） |
 | `Then 導向「相簿/檔案匯入」` | 無相機匯入頁呈現（F03-FE S6 @desktop） |
+| `Then 顯示「Google 登入」（模擬）` | OAuth seam 登入畫面（F07-FE S1） |
+| `Then 顯示「連結成功」` | 授權完成回饋（FR-Y7；F07-FE S1） |
+| `And 顯示「建議為此帳號開啟兩步驟驗證」` | 帳號安全教育文案（SDD §7.1；F07-FE S1） |
+| `And 不顯示「同步密碼」` | 帳號授權式同步——無同步密碼 UI（FR-Y7 反斷言；F07-FE S1/S4） |
+| `Then 顯示「同步中…」` | 同步進行中回饋（按鈕態；tap 後 pump 未 settle 斷言；F07-FE S2） |
+| `Then 顯示「已同步 {n} 筆變更」` | 同步完成回饋（Snackbar；F07-FE S2） |
+| `And 顯示「待同步 {n} 筆」` | unpackedOps 計數（F07-FE S2/S3） |
+| `Then 顯示「上次同步 今天 {time}」` | settings sync.last_at 格式化（啟動同步觸發證明；F07-FE S3） |
+| `Then 顯示「還原完成」（帳戶/交易/分類/預算）` | bootstrap 結果回饋（AC-08；F07-FE S4） |
+| `Then 顯示「此帳號沒有可還原的資料」` | 異帳號空備份（FR-Y2；F07-FE S5） |
+| `Then 顯示「{n} 筆衝突」` | sync_events 計數（AC-07；F07-FE S6） |
+| `Then 顯示「{text}」（唯讀）` | 被覆蓋內容唯讀檢視（F07-FE S6） |
+| `Then 顯示「待確認 {n}」badge` | find.byKey(recurring-badge) 文字（FR-T5 到期未確認數；F06-FE S1） |
+| `Then 顯示「待確認清單」含「{name} {amt}」` | RecurringQueuePage 標題＋項目（F06-FE S1） |
+| `Given 待確認清單含「{name} {amt}」` | 同上（前置語意——啟動檢查已產生佇列；F06-FE S2/S3 前置） |
+| `And 顯示「下期 {date} 提醒」` | next_due 月/日顯示（確認/跳過後推進呈現；F06-FE S2/S3） |
+| `Then 顯示「已暫停提醒」` | paused 項標示（逾期 3 次；F06-FE S4） |
 | `Given 本期{cat}已支出 {amount}` | fixture 直寫本期 expense（F05-FE） |
 | `Given 本期{cat}含信用卡預扣 {amount}` | fixture 直寫本期 pending expense（F05-FE S5.3） |
 | `Given 收入目標 {goal} 且本月已入帳 {achieved}` | income_goals＋fixture 直寫本月 income（F05-FE S5.4） |
