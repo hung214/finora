@@ -1,7 +1,7 @@
 name: ledger_sync
 description: "LedgerSync — 本地優先跨平台記帳 App（規格：SPEC v0.3 / techstack v0.3.1）"
 publish_to: 'none'
-version: 0.4.7+1
+version: 0.4.8+1
 
 environment:
   sdk: ^3.13.5
@@ -20,6 +20,8 @@ dependencies:
   uuid: ^4.6.0                    # UUIDv7（實體 ID）
   cupertino_icons: ^1.0.8
   path_provider: ^2.1.6
+  image: ^4.12.0
+  crypto: ^3.0.7
 
 dev_dependencies:
   flutter_test:

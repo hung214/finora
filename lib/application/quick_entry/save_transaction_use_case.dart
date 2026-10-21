@@ -62,6 +62,7 @@ class SaveTransactionUseCase {
     String settlementStatus = 'none',
     String currency = 'TWD',
     double? fxRate,
+    String source = 'manual',
   }) {
     // FR-T4：非本位幣須有匯率（不猜測，S10.2 邊界）。
     if (currency != 'TWD' && fxRate == null) {
@@ -88,7 +89,7 @@ class SaveTransactionUseCase {
       merchant: merchant,
       note: note,
       occurredAt: occurredAt.millisecondsSinceEpoch,
-      source: 'manual',
+      source: source,
       // F05 S5.3：信用卡預扣（pending）——預算「承諾支出」口徑；完整帳單語意屬 F04。
       settlementStatus: settlementStatus,
       createdAt: now.millisecondsSinceEpoch,

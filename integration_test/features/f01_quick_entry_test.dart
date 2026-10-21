@@ -168,12 +168,14 @@ void _bind(GherkinRunner runner, _World w) {
   });
 
   // ── Given：頁面與快記狀態 ──────────────────────────────────
-  runner.on(r'使用者位於{page}頁$', (p) async {    await _ensureApp(w);
+  runner.on(r'使用者位於{page}頁$', (p) async {
+    await _ensureApp(w);
     final page = _pageWidget(p['page']!);
     if (!w.tester.any(find.byType(page))) {
-      // Given 語意：導航至該分頁（NavigationBar）。
-      await w.tester.tap(find.descendant(
-          of: find.byType(NavigationBar), matching: find.text(p['page']!)));
+      // Given 語意：導航至該分頁。byKey 雙殼相容（DBG-006：macOS NSWindow
+      // autosave frame 漂移 ≥900px 時為 Rail 殼——NavigationBar-specific
+      // finder 會 0 widgets；F10 輪 nav keys 教訓）。
+      await w.tester.tap(find.byKey(Key('nav-${p['page']}')));
       await w.tester.pumpAndSettle();
     }
     expect(w.tester.any(find.byType(page)), isTrue, reason: '應位於${p['page']}頁');

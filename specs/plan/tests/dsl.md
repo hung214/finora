@@ -2,7 +2,7 @@
 
 | 項目 | 內容 |
 |---|---|
-| 文件版本 | v0.5（F02 全期：§2 BE 18 句型＋§3 FE 16 句型（含 S2.9 計算機 4 句型）；多幣別 3 句型 @M2 暫緩綁定） |
+| 文件版本 | v0.7（F03：§2 BE 19 句型（v0.6）＋§3 FE +20 句型——Given 4/When 7/Then 9＋註冊順序註記；S7 效能句型規格修正照 F10 先例） |
 | 用途 | 前端／後端 `.feature` 檔的**步驟句型唯一登記處**。新步驟必須先登記於本檔再實作綁定；未登記句型視為違規 |
 | 綁定 | 前端：自製 Gherkin runner + integration_test（TR-9 過渡；同 T-H7）｜後端：自製 Gherkin runner + flutter_test |
 
@@ -73,6 +73,7 @@
 | `And 其中 {n} 筆 {month} 月{cat}備註含「{kw}」` | setTransactionNote（UPDATE＋FTS 重索引；正式編輯功能屬後續） |
 | `Given 已匯入 {n} 萬筆種子交易` | 批次直寫當月（略 oplog——聚合僅讀 transactions；NFR-01 效能測資） |
 | `And 連線已關閉` | in-memory adapter 進入 failing 態（模擬離線） |
+| `Given 一張 4000x3000 原圖 fixture` | T-H6 動態生成原圖 bytes（image 套件 encodePng；F03 S5 附件壓縮輸入） |
 
 ### 2.2 When（動作）
 
@@ -111,8 +112,11 @@
 | `When 匯出 CSV` | CsvExporter（篩選後結果；UTF-8 BOM，FR-R4） |
 | `When 模擬時間快轉 {days} 天並執行清除工作` | Clock 快轉＋TombstonePurgeService（30 天保留期，FR-T3） |
 | `When 呼叫 SaveTransactionUseCase（帳戶「{a}」、金額 {amount} {currency}、匯率 {rate}）` | **M2**（F02 S2.8 多幣別 @P1；M1 不綁定） |
-| `When 解析左側 QR 字串 "..." 與右側 QR 字串 "..."` | InvoiceQrParser 純函數 |
-| `When 對 OCR 文字 fixture 執行欄位抽取` | ReceiptPipeline heuristics |
+| `When 解析左側 QR 字串 "..." 與右側 QR 字串 "..."` | InvoiceQrParser 純函數（右側為 `<明細測資: ...>` 哨兵 → T-H6 rightQr 產生器；F03 S2） |
+| `When 解析左側 QR 字串 "..."` | 同上單 QR 變體——僅左側（F03 S1/S3/S6） |
+| `When 對 OCR 文字 fixture {n} 執行欄位抽取` | ReceiptPipeline heuristics（T-H6 文字 fixture {n}；欄位輸出 (value, confidence)，F03 S4） |
+| `When 對 OCR 文字 fixture {n} 執行欄位抽取（計時）` | 同上＋Stopwatch（NFR-02 單張 < 3 秒；F03 S7） |
+| `When 執行附件儲存流程` | AttachmentStore（縮圖最長邊 1600px→JPEG q70→sha256→blobs/{sha256}→attachments 列；FR-S4，F03 S5） |
 | `When 執行 SyncCoordinator.pull 與 push` | 同步 |
 | `When 套用來自裝置 {d} 的 bundle（seq {n}）` | BundleApplier |
 | `When 執行新裝置 Bootstrap（同一帳號）` | replay |
@@ -173,6 +177,20 @@
 | `Then 交易 {amount} 為軟刪除（deleted_at 非 null）` | 以金額對映 Given 已儲存之最近一筆 |
 | `And oplog 新增 {n} 筆（墓標）` | delta=n 且新 oplog payload=NULL |
 | `Then 解析結果：商家="{m}"、總額={amt}、日期={date}` | parser 輸出 |
+| `Then 解析結果：商家統編="{id}"、總額={amt}、日期={date}` | InvoiceQrParser 左 QR 輸出（77 碼欄位對照 acceptance F03；F03 S1） |
+| `And 校驗：銷售額 {s} + 稅額 {t} = 總額 {total} 通過` | 解析器內部驗證（銷售額＋稅額＝總計；SDD §5.4；F03 S1） |
+| `Then 解析結果：商家="{m}"` | 雙 QR 合併輸出（右 QR 賣方名稱；商家單欄變體，F03 S2） |
+| `And 明細含 {items}（與分隔）` | ReceiptDraft.lineItems 逐項斷言（格式「品名 數量×單價=金額」；F03 S2） |
+| `Then 顯示「無法辨識此發票格式」且不建立草稿` | 解析失敗回退（FR-S2；固定訊息；不產生發票草稿） |
+| `And 建立空白確認卡（日期=今天）供手動輸入` | 回退草稿（日期=Clock.now、總額/商家留空；FR-S2，F03 S3） |
+| `Then 解析結果：總額={amt}、日期={date}（信賴度 {conf}）` | OCR 欄位抽取輸出（{conf} 屬**日期欄**——acceptance S3.5：日期欄信賴 0.5；F03 S4） |
+| `And 信賴度 < 0.7 的欄位標記為「需人工確認」` | needsReview 旗標（FR-S5 門檻 0.7；F03 S4） |
+| `And 無法判定的欄位為留空（非猜測值）` | 無候選 → value 為 null（FR-S5 不猜測；F03 S4） |
+| `Then 附件縮至最長邊 1600px、JPEG q70` | 壓縮輸出：最長邊 ≤1600＋JPEG 位元組（FR-S4；F03 S5） |
+| `And 檔名 = blobs/{sha256}（內容定址）` | blob 檔名 == 壓縮後 bytes 之 sha256（SDD §5.4；{sha256} 由 harness 計算；F03 S5） |
+| `And attachments 資料列建立且關聯交易` | attachments.transaction_id 關聯＋sha256/byte_size 落地（FR-S4；F03 S5） |
+| `Then 解析結果：總額={amt}（無網路呼叫斷言）` | 純本機解析（FR-S3；連線關閉態可達；F03 S6） |
+| `Then 效能：OCR 欄位抽取耗時 {ms}ms < {limit}ms` | Stopwatch 實測（NFR-02 單張 OCR < 3000ms；{ms} 為計畫預記值；F03 S7——**2026-10-21 規格修正**：原句「入庫耗時」語意不符（OCR 抽取不入庫），照 F10 效能句型修正先例） |
 | `Then 通知 spy 收到 N-{n} 恰 {k} 次（分級累計）` | 通知檢查多時點累計（F04 提醒：前 3 天＋當天各一次） |
 | `Then 搜尋 "{kw}" 命中 {n} 筆` | FTS5 bigram |
 | `Then 搜尋 "{kw}" 命中 {n} 筆（命中「{hit}」）` | 同上＋命中備註/商家含 {hit} |
@@ -207,6 +225,10 @@
 | `Given 已存在一筆支出 {amount} 元` | fixture 直寫 1 筆支出（第一個未封存帳戶）並凍結基準日 2026/10/19 12:00（對齊情境日期算術：2026/11/18 = +30 日；F02-FE S4） |
 | `Given 裝置處於飛航模式` | 連線模擬關閉 |
 | `Given 同步模式設定為「{mode}」` | settings 寫入 |
+| `Given 相機權限未授權` | fake 權限閘（T-H8 掛鉤；權限對話框回放；F03-FE S2） |
+| `Given 掃描頁已掃 {n} 張標準測資發票` | fake scanner 回放注入 n 張 T-H6 標準發票（不經真相機；F03-FE S3） |
+| `Given OCR 對日期欄位的信賴度為 {conf}（低於 {threshold} 門檻）` | OCR 影像回放注入低信賴 fixture（acceptance S3.5；F03-FE S4） |
+| `Given 使用者位於 Windows 版（無相機裝置）` | 桌面無相機模擬（F03-FE S6 @desktop） |
 
 ### 3.2 When（動作）
 
@@ -228,6 +250,13 @@
 | `When App 切至背景 {n} 秒後返回` | lifecycle 模擬 |
 | `When 關閉並重新啟動 App` | 重啟（驗證啟動同步） |
 | `When 從相簿匯入 fixture {n}` | 桌面/無相機路徑 |
+| `When 開啟總覽頁並按下「掃描」` | 導航至總覽＋點擊掃描入口（key scan-entry；F03-FE S2） |
+| `When 拒絕權限` | fake 權限對話框按「拒絕」（F03-FE S2） |
+| `When 進入確認卡` | 確認清單首張卡聚焦（F03-FE S4） |
+| `When 確認第 {n} 張（分類={cat}、帳戶={a}）並按下「確認儲存」` | 卡內分類/帳戶選擇→儲存→自動跳下一張（source=scan＋附件關聯；F03-FE S3） |
+| `When 按下「{label}」而未處理` | 點擊但高亮欄位未確認（F03-FE S4；匹配順序須後於通用 `按下「{label}」`） |
+| `When 按下 Ctrl+Shift+S（macOS 為 ⌘⇧S）` | 桌面掃描快捷鍵注入（F03-FE S6；同 Ctrl+N 鍵注入模式） |
+| `And 再掃描 {n} 張` | fake scanner 追加回放（F03-FE S5） |
 
 ### 3.3 Then（斷言）
 
@@ -243,6 +272,16 @@
 | `Then 顯示「{text}」` / `Then 不顯示「{text}」` | 文字存在性（「日期時間選擇器」綁定 find.byType(QuickDateTimePicker)） |
 | `Then 顯示「{text}」且為可點擊` | 文字存在＋對應按鈕 enabled（F02-FE S1 儲存鈕啟用） |
 | `Then 顯示「{text}」標籤` | 文字存在（標籤語意；F05-FE S5.3 預扣標籤） |
+| `Then 顯示「掃描」按鈕（獨立於快記大鈕）` | find.byKey(scan-entry)（FR-S6 兩入口；F03-FE S1） |
+| `Then 顯示「前往設定開啟權限」且不離開 App` | 引導文案＋仍在 App 內（F03-FE S2） |
+| `Then 顯示「確認清單（{n} 張）」` | 確認清單標題（F03-FE S3/S6） |
+| `Then 顯示「{n} / {total}」` | 逐張確認進度（F03-FE S3） |
+| `And 明細頁即時顯示該 1 筆（帶 📷 附件標記）` | 明細列＋附件圖示（F03-FE S3；**先於通用 `明細頁即時顯示該 {n} 筆` 註冊**） |
+| `Then 顯示「請確認日期」（高亮樣式）` | needsReview 欄位警示高亮（FR-S5 0.7 門檻；F03-FE S4） |
+| `Then 顯示「請先確認高亮欄位」且不建立交易` | 未處理擋下＋交易零新增（FR-S5；F03-FE S4） |
+| `Then 顯示「已掃 {n} 張」` | 掃描計數文字（FR-S7；F03-FE S5） |
+| `And 顯示 {n} 個縮圖` | 掃描縮圖列計數（F03-FE S5） |
+| `Then 導向「相簿/檔案匯入」` | 無相機匯入頁呈現（F03-FE S6 @desktop） |
 | `Given 本期{cat}已支出 {amount}` | fixture 直寫本期 expense（F05-FE） |
 | `Given 本期{cat}含信用卡預扣 {amount}` | fixture 直寫本期 pending expense（F05-FE S5.3） |
 | `Given 收入目標 {goal} 且本月已入帳 {achieved}` | income_goals＋fixture 直寫本月 income（F05-FE S5.4） |

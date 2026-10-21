@@ -5,8 +5,10 @@ import 'package:intl/intl.dart';
 import '../../../application/providers.dart';
 import '../../../application/reports/csv_exporter.dart';
 import '../../../application/reports/search_service.dart';
+import '../../../application/scan/scan_state.dart';
 import '../../../data/sqlite/app_database.dart';
 import 'recent_deletions_page.dart';
+import '../scan/scan_page.dart';
 
 /// 明細頁（FR-R3 呈現面）：未刪除交易列表＋複合篩選（期間/分類/關鍵字，
 /// AND 語意＋chips 可逐一移除＋清除全部）＋匯出 CSV（FR-R4）。
@@ -42,12 +44,21 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
     final accountById = {
       for (final a in ref.watch(activeAccountsProvider)) a.id: a,
     };
+    // 附件索引（📷 標記；掃描儲存附件後 refresh——F03-FE S3）。
+    final attachmentTxIds = ref.watch(attachmentTxIdsProvider);
     final months = _availableMonths(db);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('明細'),
         actions: [
+          // 掃描入口（FR-S6：獨立於快記大鈕；F03 S1）。
+          IconButton(
+            key: const Key('scan-entry'),
+            tooltip: '掃描',
+            onPressed: () => openScanFlow(context, ref),
+            icon: const Icon(Icons.document_scanner_outlined),
+          ),
           TextButton(
             key: const Key('export-csv'),
             onPressed: () => _exportCsv(context, rows),
@@ -83,6 +94,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
                       categoryName: rows[i].categoryId == null
                           ? '未分類'
                           : (db.categoryName(rows[i].categoryId!) ?? '未分類'),
+                      hasAttachment: attachmentTxIds.contains(rows[i].id),
                       onDelete: () => _confirmDelete(context, ref, rows[i]),
                     ),
                   ),
@@ -277,6 +289,7 @@ class TxTile extends StatelessWidget {
     required this.accountName,
     this.toAccount,
     this.categoryName = '未分類',
+    this.hasAttachment = false,
     this.onDelete,
   });
 
@@ -286,6 +299,9 @@ class TxTile extends StatelessWidget {
 
   /// 分類名稱（拆分樣式副標用）。
   final String categoryName;
+
+  /// 掃描附件標記（FR-S4 呈現面：📷；F03-FE S3）。
+  final bool hasAttachment;
   final VoidCallback? onDelete;
 
   String get _title {
@@ -335,7 +351,16 @@ class TxTile extends StatelessWidget {
     }
     return ListTile(
       onTap: onDelete,
-      title: Text(tx.merchant ?? (tx.kind == 'income' ? '收入' : '支出')),
+      title: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(child: Text(tx.merchant ?? (tx.kind == 'income' ? '收入' : '支出'))),
+          if (hasAttachment) ...[
+            const SizedBox(width: 4),
+            const Text('📷', key: Key('tx-attachment')),
+          ],
+        ],
+      ),
       subtitle: Text(DateFormat('yyyy/MM/dd HH:mm').format(time)),
       trailing: Text(
         tx.kind == 'income' ? '+${tx.amountMinor}' : '-${tx.amountMinor}',

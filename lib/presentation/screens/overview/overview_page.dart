@@ -9,6 +9,7 @@ import '../../../domain/services/balance_calculator.dart';
 import '../../screens/budget/budget_page.dart';
 import '../../screens/credit_card/credit_card_page.dart';
 import '../../screens/demo/demo_gallery_page.dart';
+import '../../screens/scan/scan_page.dart';
 
 /// 總覽頁（M1 精簡）：帳戶餘額＋收入目標卡＋預算進度（SDD 原則 2：衍生值重算）。
 class OverviewPage extends ConsumerWidget {
@@ -28,6 +29,13 @@ class OverviewPage extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('總覽'),
         actions: [
+          // 掃描入口（FR-S6：獨立於快記大鈕；F03 S1）。
+          IconButton(
+            key: const Key('scan-entry'),
+            tooltip: '掃描',
+            onPressed: () => openScanFlow(context, ref),
+            icon: const Icon(Icons.document_scanner_outlined),
+          ),
           IconButton(
             tooltip: 'UI Demo（設計參考）',
             onPressed: () => Navigator.of(context).push(
