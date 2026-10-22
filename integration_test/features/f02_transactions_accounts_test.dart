@@ -225,15 +225,21 @@ void _bind(GherkinRunner runner, _World w) {
   });
 
   runner.on(r'顯示「{text}」（不顯示「{other}」）$', (p) async {
+    // F02 S2.4「儲值語意」——**範圍化至交易列（TxTile）**：主殼 IndexedStack
+    // 同時建入所有分頁，全頁文字斷言會被其他頁面誤判（2026-10-22 UI 整合後
+    // 明細新增「支出」篩選 chip 即觸發）。斷言語意＝該筆列顯示儲值而非支出。
+    final rows = find.byType(TxTile, skipOffstage: false);
     expect(
-      w.tester.any(find.text(p['text']!, skipOffstage: false)),
-      isTrue,
-      reason: '應顯示「${p['text']}」（F02 S2.4 儲值語意）',
+      find.descendant(
+          of: rows, matching: find.text(p['text']!, skipOffstage: false)),
+      findsWidgets,
+      reason: '交易列應顯示「${p['text']}」（F02 S2.4 儲值語意）',
     );
     expect(
-      find.text(p['other']!, skipOffstage: false),
+      find.descendant(
+          of: rows, matching: find.text(p['other']!, skipOffstage: false)),
       findsNothing,
-      reason: '不應顯示「${p['other']}」',
+      reason: '交易列不應顯示「${p['other']}」',
     );
   });
 
