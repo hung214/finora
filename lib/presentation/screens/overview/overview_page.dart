@@ -6,6 +6,7 @@ import '../../../application/budgets/budget_evaluator.dart';
 import '../../../application/lock/lock_fe_state.dart';
 import '../../../application/providers.dart';
 import '../../../application/stats/monthly_stats_service.dart';
+import '../../../application/accounts/totals_service.dart';
 import '../../../core/version.dart';
 import '../../../domain/services/balance_calculator.dart';
 import '../../theme/app_theme.dart';
@@ -40,6 +41,8 @@ class OverviewPage extends ConsumerWidget {
     final masked = ref.watch(privacyMaskedProvider);
     final fmt = NumberFormat('#,###');
     final tokens = AppTokens.of(context);
+    // FR-A6 合併計算：僅計入 includeInTotals && !archived（TotalsService）。
+    final totals = TotalsService(db).compute();
 
     String money(int minor) => masked ? '●●●●' : fmt.format(minor);
     String signed(int minor, {required bool minus}) =>
@@ -47,15 +50,8 @@ class OverviewPage extends ConsumerWidget {
 
     final expense = monthly.expenseMinorThisMonth();
     final income = monthly.incomeMinorThisMonth();
-    final asset = accounts
-        .where((a) => a.type != 'credit')
-        .fold<int>(0, (s, a) => s + calc.assetBalance(account: accountEntity(a), txs: txs));
-    final liability = accounts
-        .where((a) => a.type == 'credit')
-        .fold<int>(
-            0,
-            (s, a) =>
-                s + calc.creditUnpaidTotal(card: accountEntity(a), txs: txs));
+    final asset = totals.assetsMinor;
+    final liability = totals.liabilitiesMinor;
     final recent = [...txs]..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
 
     final now = DateTime.now();
@@ -167,7 +163,13 @@ class OverviewPage extends ConsumerWidget {
                     : null,
                 leading: Icon(_accountIcon(row.type)),
                 title: Text(row.name),
-                subtitle: row.type == 'credit' ? const Text('點擊檢視帳單') : null,
+                subtitle: row.type == 'credit'
+                    ? const Text('點擊檢視帳單')
+                    // FR-A2：不計入合併統計之帳戶標示（總覽合計已排除）。
+                    : (!row.includeInTotals
+                        ? const Text('不計入合併',
+                            key: Key('acct-excluded-badge'))
+                        : null),
                 trailing: Text(
                   // F02-FE S2：餘額千分位；F08-FE S5：隱私遮蔽（●●●●）。
                   '餘額 ${money(calc.assetBalance(account: accountEntity(row), txs: txs))}',

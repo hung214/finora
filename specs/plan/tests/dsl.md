@@ -496,6 +496,8 @@
 | `When 將分類「{a}」排在「{b}」之前` | CategoryService.reorder（sort_order 連續化） |
 | `When 於「{parent}」下新增子分類「{name}」` | CategoryService.create(parentId)（限一層） |
 | `When 設定外觀為 {mode}` | settings `app.theme_mode` 寫入（system\|light\|dark） |
+| `Given 已開啟檔案資料庫（暫存檔）` | 暫存檔 `AppDatabase.open`＋播種（持久化驗證須檔案 DB——記憶體無法重啟） |
+| `And 關閉並重新開啟同一資料庫` | close→同 path 重開（DBG-004 冪等語意） |
 | `Then 拋出例外「{msg}」` | 期例外型別＋訊息比對 |
 | `Then 各分類 sort_order 為連續遞增整數` | 排序不變式 |
 | `Then settings app.theme_mode = {mode}` | 設定落地斷言 |

@@ -2,10 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/clock.dart';
 import '../data/sqlite/app_database.dart';
-import '../domain/entities/account.dart';
-import '../domain/entities/transaction.dart';
 import 'budgets/budget_alert_service.dart';
 import 'credit_card/repay_statement_use_case.dart';
+export 'mappers.dart';
 import 'notifications/notification_service.dart';
 import 'quick_entry/quick_entry_preset_service.dart';
 import 'quick_entry/save_transaction_use_case.dart';
@@ -157,31 +156,4 @@ class RecentDeletionsNotifier extends Notifier<List<TxRow>> {
   void refresh() => ref.invalidateSelf();
 }
 
-// ── Row → 領域實體對映（BalanceCalculator 介面對齊） ──────────
-
-Account accountEntity(AccountRow r) => Account(
-      id: r.id,
-      type: AccountType.values.byName(r.type),
-      name: r.name,
-      currency: r.currency,
-      openingAmountMinor: r.openingAmountMinor,
-      archived: r.archived,
-    );
-
-Tx txEntity(TxRow r) => Tx(
-      id: r.id,
-      kind: TxKind.values.byName(r.kind),
-      amountMinor: r.amountMinor,
-      currency: r.currency,
-      fxRate: r.fxRate,
-      splitGroupId: r.splitGroupId,
-      accountId: r.accountId,
-      toAccountId: r.toAccountId,
-      categoryId: r.categoryId,
-      merchant: r.merchant,
-      note: r.note,
-      occurredAt: r.occurredAt,
-      source: TxSource.values.byName(r.source),
-      settlementStatus: SettlementStatus.values.byName(r.settlementStatus),
-      deleted: r.deletedAt != null,
-    );
+// ── Row → 領域實體對映：移至 mappers.dart（頂部 export；服務層共用） ──

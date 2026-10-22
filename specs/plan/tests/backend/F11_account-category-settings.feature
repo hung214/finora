@@ -55,8 +55,8 @@ Feature: 帳戶與分類設定（後端自動化）
     Then 拋出例外「僅支援一層子分類」
 
   @P0 @FR-O1
-  Scenario: 外觀設定持久化
+  Scenario: 外觀設定持久化（檔案 DB）
+    Given 已開啟檔案資料庫（暫存檔）
     When 設定外觀為 dark
+    And 關閉並重新開啟同一資料庫
     Then settings app.theme_mode = dark
-    When 重新開啟資料庫（同檔）
-    Then 外觀設定仍為 dark
