@@ -65,6 +65,12 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
     final controller = ref.read(quickEntryControllerProvider.notifier);
     final accounts = ref.watch(activeAccountsProvider);
     final categories = ref.watch(expenseCategoriesProvider);
+    // 常用類別（FR-B1 常用區）：最近使用 10 個，常駐選單最上方。
+    final nameById = {for (final c in categories) c.id: c.name};
+    final recent = [
+      for (final id in ref.watch(recentCategoryIdsProvider))
+        if (nameById[id] != null) (id, nameById[id]!),
+    ];
 
     ref.listen(
       quickEntryControllerProvider.select((s) => s.phase),
@@ -93,7 +99,8 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
               key: const Key('quick-entry-account'),
               label: state.mode == QuickEntryMode.transfer ? '來源帳戶' : '帳戶',
               text: state.account?.name ?? '選擇帳戶',
-              entries: accounts.map((a) => (a.id, a.name)),
+              entries: accounts.map((a) => (a.id, a.name, false)).toList(),
+              recent: const [],
               onSelected: controller.selectAccountById,
             ),
             const SizedBox(height: 12),
@@ -105,7 +112,9 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
                 // 同帳戶轉帳 UI 阻擋（S2.3 邊界）：目標選項排除來源帳戶。
                 entries: accounts
                     .where((a) => a.id != state.account?.id)
-                    .map((a) => (a.id, a.name)),
+                    .map((a) => (a.id, a.name, false))
+                    .toList(),
+                recent: const [],
                 onSelected: controller.selectToAccountById,
               ),
               const SizedBox(height: 12),
@@ -118,7 +127,8 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
                       key: const Key('split-item-0-cat'),
                       label: '子項 1 分類',
                       text: state.splitCat0?.name ?? '選擇分類',
-                      entries: categories.map((c) => (c.id, c.name)),
+                      entries: _hierarchicalEntries(categories),
+                      recent: recent,
                       onSelected: (id) => controller.selectSplitCategoryById(0, id),
                     ),
                   ),
@@ -141,7 +151,8 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
                       key: const Key('split-item-1-cat'),
                       label: '子項 2 分類',
                       text: state.splitCat1?.name ?? '選擇分類',
-                      entries: categories.map((c) => (c.id, c.name)),
+                      entries: _hierarchicalEntries(categories),
+                      recent: recent,
                       onSelected: (id) => controller.selectSplitCategoryById(1, id),
                     ),
                   ),
@@ -167,7 +178,8 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
                 key: const Key('quick-entry-category'),
                 label: '分類',
                 text: state.category?.name ?? '選擇分類',
-                entries: categories.map((c) => (c.id, c.name)),
+                entries: _hierarchicalEntries(categories),
+                      recent: recent,
                 onSelected: controller.selectCategoryById,
               ),
               const SizedBox(height: 12),
@@ -242,11 +254,25 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
     }
   }
 
+  /// 分類選單項（主類別→子分類縮排；FR-B1 階層）。
+  /// 第三元素＝是否子分類（結構化縮排渲染——文字保持原樣供精確比對）。
+  List<(String, String, bool)> _hierarchicalEntries(List<dynamic> categories) {
+    final mains = categories.where((c) => c.parentId == null);
+    return [
+      for (final m in mains) ...[
+        (m.id as String, m.name as String, false),
+        for (final s in categories.where((c) => c.parentId == m.id))
+          (s.id as String, s.name as String, true),
+      ],
+    ];
+  }
+
   Widget _pickerField({
     required Key key,
     required String label,
     required String text,
-    required Iterable<(String, String)> entries,
+    required List<(String, String, bool)> entries,
+    required List<(String, String)> recent,
     required void Function(String?) onSelected,
   }) {
     return PopupMenuButton<String>(
@@ -254,8 +280,42 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
       initialValue: null,
       onSelected: onSelected,
       itemBuilder: (_) => [
-        for (final (id, name) in entries)
-          PopupMenuItem(value: id, child: Text(name)),
+        // 常用類別（FR-B1 常用區）：最近使用 10 個，常駐最上方。
+        if (recent.isNotEmpty) ...[
+          const PopupMenuItem(
+            enabled: false,
+            height: 34,
+            child: Text('常用',
+                style:
+                    TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+          ),
+          for (final (id, name) in recent)
+            PopupMenuItem(
+              key: Key('recent-cat-$name'),
+              value: id,
+              child: Row(children: [
+                Icon(Icons.history,
+                    size: 16, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 6),
+                Text(name),
+              ]),
+            ),
+          const PopupMenuDivider(),
+        ],
+        for (final (id, name, isSub) in entries)
+          PopupMenuItem(
+            value: id,
+            child: isSub
+                ? Padding(
+                    padding: const EdgeInsets.only(left: 28),
+                    child: Row(children: [
+                      const Icon(Icons.subdirectory_arrow_right, size: 14),
+                      const SizedBox(width: 4),
+                      Text(name),
+                    ]),
+                  )
+                : Text(name),
+          ),
       ],
       child: InputDecorator(
         decoration: InputDecoration(

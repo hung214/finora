@@ -68,13 +68,13 @@ class LedgerDemoContent extends StatelessWidget {
               DemoTxTile(
                   icon: Icons.shopping_basket_outlined,
                   title: '陽光超商',
-                  subtitle: '09:12 · 現金 · 購物 · 掃描入帳',
+                  subtitle: '09:12 · 現金 · 服飾美容 · 掃描入帳',
                   amount: -195,
                   hasAttachment: true),
               DemoTxTile(
                   icon: Icons.bakery_dining_outlined,
                   title: '晨光早餐店',
-                  subtitle: '08:15 · 現金 · 餐飲',
+                  subtitle: '08:15 · 現金 · 餐飲食品',
                   amount: -120),
             ]),
           ),
@@ -94,7 +94,7 @@ class LedgerDemoContent extends StatelessWidget {
               DemoTxTile(
                   icon: Icons.subway_outlined,
                   title: '捷運',
-                  subtitle: '票證卡 · 交通',
+                  subtitle: '票證卡 · 交通運輸',
                   amount: -35),
             ]),
           ),
@@ -104,7 +104,7 @@ class LedgerDemoContent extends StatelessWidget {
               DemoTxTile(
                   icon: Icons.laptop_mac,
                   title: '筆電（分期 1/6）',
-                  subtitle: '示例卡 · 購物 · 預扣',
+                  subtitle: '示例卡 · 服飾美容 · 預扣',
                   amount: -5000),
             ]),
           ),

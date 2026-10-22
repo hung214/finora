@@ -93,18 +93,21 @@ class CategoryService {
         ? siblings.length
         : siblings.indexWhere((c) => c.id == beforeId);
     siblings.insert(insertAt < 0 ? siblings.length : insertAt, moved);
+    applyOrder(moved.kind, [for (final c in siblings) c.id]);
+  }
+
+  /// 套用整份新排序（FR-B1 拖曳後；sort_order＝索引連續化，僅寫變更列之 oplog）。
+  void applyOrder(String kind, List<String> orderedIds) {
     final nowMs = Clock.now().millisecondsSinceEpoch;
     final items = <(CategoryRow, OplogRow)>[];
-    for (var i = 0; i < siblings.length; i++) {
+    for (var i = 0; i < orderedIds.length; i++) {
+      final row = _find(orderedIds[i]);
+      if (row.sortOrder == i) continue; // 未變更不寫 op（避免無謂同步）
       final hlc = Hlc.now(deviceId).toString();
-      final row = siblings[i].copyWith(
-        sortOrder: i,
-        updatedAt: nowMs,
-        hlc: hlc,
-      );
-      items.add((row, _op(row, hlc)));
+      final updated = row.copyWith(sortOrder: i, updatedAt: nowMs, hlc: hlc);
+      items.add((updated, _op(updated, hlc)));
     }
-    _db.reorderCategoriesWithOplog(items);
+    if (items.isNotEmpty) _db.reorderCategoriesWithOplog(items);
   }
 
   /// 封存／取消封存（軟刪除——`deleted_at`；FR-B1 系統分類僅可封存）。

@@ -121,11 +121,11 @@ void _bind(GherkinRunner runner, _World w) {
     for (var i = 0; i < names.length; i++) {
       final name = names[i];
       final id = 'c-${w.categories.length}';
-      // kind 對齊內建集（first_run_bootstrap）：薪資 = income，其餘 = expense。
+      // kind 對齊內建集（first_run_bootstrap）：一般收入 = income，其餘 = expense。
       DbFixture.seedCategory(
         w.db,
         id: id,
-        kind: name == '薪資' ? 'income' : 'expense',
+        kind: name == '一般收入' ? 'income' : 'expense',
         name: name,
       );
       w.categories[name] = id;
@@ -175,7 +175,7 @@ void _bind(GherkinRunner runner, _World w) {
       kind: 'expense',
       amountMinor: _amount(p['expense']!),
       accountId: w.accounts['票證卡']!,
-      category: w.categories['餐飲'],
+      category: w.categories['餐飲食品'],
       occurredAt: at,
     );
     DbFixture.seedTx(
@@ -184,7 +184,7 @@ void _bind(GherkinRunner runner, _World w) {
       kind: 'income',
       amountMinor: _amount(p['income']!),
       accountId: w.accounts['票證卡']!,
-      category: w.categories['薪資'],
+      category: w.categories['一般收入'],
       occurredAt: at,
     );
   });
@@ -236,7 +236,7 @@ void _bind(GherkinRunner runner, _World w) {
       kind: 'expense',
       amountMinor: amount,
       accountId: w.accounts['現金']!,
-      category: w.categories['餐飲'],
+      category: w.categories['餐飲食品'],
       occurredAt: Clock.now().millisecondsSinceEpoch,
     );
     w.txIdByAmount[amount] = id; // 「交易 {amt} 為軟刪除」斷言用（F01 同契約）

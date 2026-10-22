@@ -122,7 +122,7 @@ void _bind(GherkinRunner runner, _World w) {
     final n = int.parse(p['n']!);
     final m = int.parse(p['m']!);
     DbFixture.seedAccount(w.db, id: 'a-0', type: 'cash', name: '現金', opening: 1000);
-    DbFixture.seedCategory(w.db, id: 'c-1', kind: 'expense', name: '餐飲');
+    DbFixture.seedCategory(w.db, id: 'c-1', kind: 'expense', name: '餐飲食品');
     for (var i = 1; i <= n; i++) {
       DbFixture.seedTx(w.db,
           id: 't-${i.toString().padLeft(2, '0')}',

@@ -5,7 +5,7 @@ import '../core/hlc.dart';
 import '../data/sqlite/app_database.dart';
 
 /// 首次啟動播種（M1 過渡，PM 定案 2026-10-19）：空帳本自動建立
-/// **內建分類集**（支出：餐飲/交通/購物/其他〔is_system〕＋收入：薪資，
+/// **內建分類集**（PM 2026-10-22：支出 14 項〔其他 is_system〕＋收入 2 項，
 /// FR-B1／acceptance F01 前置條件）＋**預設「現金」帳戶**（期初 0），
 /// 使快記與 FR-Q4 預設規則即刻可用（S1.3：分類預填「其他」需內建集存在）。
 ///
@@ -48,11 +48,29 @@ class FirstRunBootstrap {
       );
     }
 
-    await seedCategory('c-food', 'expense', '餐飲');
-    await seedCategory('c-traffic', 'expense', '交通');
-    await seedCategory('c-shop', 'expense', '購物');
+    // 內建主類別集（PM 2026-10-22 定稿：支出 14＋收入 2；
+    // 轉帳為交易類型非分類，不需分類列）。
+    const expenseMains = [
+      ('c-food', '餐飲食品'),
+      ('c-beauty', '服飾美容'),
+      ('c-home', '居家生活'),
+      ('c-transport', '交通運輸'),
+      ('c-edu', '教育學習'),
+      ('c-fun', '休閒娛樂'),
+      ('c-3c', '3C通訊'),
+      ('c-books', '圖書刊物'),
+      ('c-vehicle', '汽機車'),
+      ('c-health', '醫療保健'),
+      ('c-social', '人情交際'),
+      ('c-invest', '理財投資'),
+      ('c-fee', '費用'),
+    ];
+    for (final (id, name) in expenseMains) {
+      await seedCategory(id, 'expense', name);
+    }
     await seedCategory('c-other', 'expense', '其他', system: true);
-    await seedCategory('c-salary', 'income', '薪資');
+    await seedCategory('c-income-general', 'income', '一般收入');
+    await seedCategory('c-income-invest', 'income', '投資收入');
 
     final account = AccountRow(
       id: 'a-cash',

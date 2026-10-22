@@ -5,7 +5,7 @@ import '../helpers/db_fixture.dart';
 
 /// M1 過渡：首次啟動播種（acceptance F01 前置條件之內建集；帳戶/分類管理 UI 屬 F02）。
 void main() {
-  test('空 DB 首次啟動：播種內建分類集（支出 4＋收入薪資）＋預設現金帳戶', () async {
+  test('空 DB 首次啟動：播種內建分類集（支出 14＋收入 2）＋預設現金帳戶', () async {
     final db = DbFixture.create();
     await FirstRunBootstrap.seedIfNeeded(db);
 
@@ -15,10 +15,13 @@ void main() {
 
     final expenses = db.categoriesByKind('expense');
     expect(expenses.map((c) => c.name),
-        containsAll(['餐飲', '交通', '購物', '其他']), reason: 'FR-B1 內建集');
+        containsAll(['餐飲食品', '服飾美容', '居家生活', '交通運輸', '教育學習',
+          '休閒娛樂', '3C通訊', '圖書刊物', '汽機車', '醫療保健', '人情交際',
+          '理財投資', '其他', '費用']),
+      reason: 'FR-B1 內建集（PM 2026-10-22）');
     final other = expenses.firstWhere((c) => c.name == '其他');
     expect(other.isSystem, isTrue, reason: '內建「其他」為系統分類');
-    expect(db.categoriesByKind('income').map((c) => c.name), contains('薪資'));
+    expect(db.categoriesByKind('income').map((c) => c.name), containsAll(['一般收入', '投資收入']));
 
     // SDD §5.1：業務表寫入必同步 oplog（同一 DB transaction）
     final ops = db.allOps();

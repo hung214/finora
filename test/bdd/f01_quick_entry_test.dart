@@ -252,7 +252,7 @@ void _bind(GherkinRunner runner, _World w) {
         kind: 'expense',
         amountMinor: amounts[i],
         accountId: accountId,
-        category: w.categories['餐飲'],
+        category: w.categories['餐飲食品'],
         occurredAt: base.subtract(Duration(minutes: amounts.length - i)).millisecondsSinceEpoch,
       );
       w.txIdByAmount[amounts[i]] = id;

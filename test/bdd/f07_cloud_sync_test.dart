@@ -162,7 +162,7 @@ void _bind(GherkinRunner runner, _World w) {
   runner.on(r'雲端已有裝置{d} 的 {n} 個 bundle 與 {m} 份快照$', (p) async {
     final d = w.ensureDevice('d-${p['d']}');
     final catId = 'c-boot';
-    DbFixture.seedCategory(d.db, id: catId, kind: 'expense', name: '餐飲');
+    DbFixture.seedCategory(d.db, id: catId, kind: 'expense', name: '餐飲食品');
     d.db.appendOp(
         opFor('categories', catId, newHlc(d.id), d.db.localRow('categories', catId)!));
     final batches = int.parse(p['n']!);

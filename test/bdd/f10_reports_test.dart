@@ -89,7 +89,7 @@ void _bind(GherkinRunner runner, _World w) {
     w.aggregateElapsed = null;
   });
 
-  /// `已存在 6 月支出: 餐飲 3 筆共 900、交通 2 筆共 400（經 fixture）`
+  /// `已存在 6 月支出: 餐飲食品 3 筆共 900、交通運輸 2 筆共 400（經 fixture）`
   runner.on(r'已存在 {month} 月支出: {desc}（經 fixture）$', (p) {
     final month = int.parse(p['month']!);
     final year = Clock.now().year;
@@ -123,7 +123,7 @@ void _bind(GherkinRunner runner, _World w) {
     }
   });
 
-  /// `其中 1 筆 6 月餐飲備註含「陽光超商」`
+  /// `其中 1 筆 6 月餐飲食品備註含「陽光超商」`
   runner.on(r'其中 {n} 筆 {month} 月{cat}備註含「{kw}」$', (p) {
     final month = int.parse(p['month']!);
     final ids = w.seededIdsByMonth[month] ?? const [];

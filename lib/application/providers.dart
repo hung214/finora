@@ -115,6 +115,22 @@ final activeAccountsProvider = Provider((ref) =>
 final expenseCategoriesProvider =
     Provider((ref) => ref.watch(dbProvider).categoriesByKind('expense'));
 
+/// 常用類別（FR-B1 常用區）：最近使用分類（依交易時間新→舊去重，取前 10）。
+/// 監看 [ledgerProvider]——存帳後即時反映（下一筆選單最上方）。
+final recentCategoryIdsProvider = Provider<List<String>>((ref) {
+  final txs = ref.watch(ledgerProvider); // 已濾刪除＋occurred_at 降冪
+  final seen = <String>{};
+  final mru = <String>[];
+  for (final t in txs) {
+    final cat = t.categoryId;
+    if (cat != null && seen.add(cat)) {
+      mru.add(cat);
+      if (mru.length >= 10) break;
+    }
+  }
+  return mru;
+});
+
 /// 明細（未刪除交易，occurred_at 降冪；SDD 原則 2：衍生值一律重算）。
 final ledgerProvider =
     NotifierProvider<LedgerNotifier, List<TxRow>>(LedgerNotifier.new);
