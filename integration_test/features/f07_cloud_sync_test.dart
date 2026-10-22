@@ -18,6 +18,7 @@ import 'package:ledger_sync/presentation/screens/settings/settings_sync_page.dar
 
 import '../../test/helpers/db_fixture.dart';
 import '../../test/helpers/gherkin/gherkin.dart';
+import '../../test/helpers/harness_robust.dart';
 import '../../test/helpers/in_memory_cloud_adapter.dart';
 
 /// F07-FE 情境執行器（@FE @M5 @FR-Y，6 情境：連結授權/立即同步/啟動自動
@@ -373,25 +374,11 @@ Future<void> _ensureApp(_World w) async {
   }
 }
 
-/// 穩健 tap（macOS 遮擋節流韌性）：tap→pump；若 [until] 未成立（視窗被
-/// 遮擋時 display link 暫停→render tree 陳舊→tap 落空），真實等待後重試。
-/// 正常情況第一次即成立（零額外延遲）；僅失效時才等待重試。
-/// 證據：聚焦除錯測試（integration_test/debug_f07_s1_test.dart）顯示
-/// oauth-approve 在樹上、rect 正確，但 hitTest 路徑為空＝frame 陳舊。
+/// 穩健 tap——共用實作見 `test/helpers/harness_robust.dart`（DBG-007 教訓：
+/// macOS 遮擋節流致 frame 陳舊→tap 落空）。本檔保留薄包裝以免動 8 處呼叫點。
 Future<void> _tapUntil(_World w, Finder f, bool Function() until,
-    {int retries = 12}) async {
-  for (var i = 0; i <= retries; i++) {
-    if (w.tester.any(f)) {
-      await w.tester.tap(f, warnIfMissed: false);
-    }
-    await w.tester.pump(const Duration(milliseconds: 150));
-    if (until()) return;
-    // frame 陳舊——讓 OS 有真實時間重新排程 frame 後重試。
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-    await w.tester.pump(const Duration(milliseconds: 150));
-  }
-  expect(until(), isTrue, reason: 'tap 未生效（重試 ${retries + 1} 次）：$f');
-}
+        {int retries = 12}) =>
+    tapUntil(w.tester, f, until, retries: retries);
 
 Future<void> _openSettingsSync(_World w) async {
   await w.tester.tap(find.byKey(const Key('app-settings')));

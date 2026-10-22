@@ -23,7 +23,8 @@
 | 更新時間 | 2026-10-22（**UI 打磨**併入 main——v0.4.13 已 tag；104 unit 綠；今日三連發 v0.4.11/12/13） |
 | 階段 | **M1~M7＋M5 全數完成**，並已完成**雲端生產接線**（GoogleDriveAdapter／降級／main() 注入／三平台連網權限——v0.4.12）。**上架僅剩外部相依（PM 憑證／帳號）＋驗收走查單**：見 **`specs/plan/pm-actions.md`**（唯一 PM 入口文件） |
 | 當前分支 | **main**（cadd29a 已 push）；本地分支已清；遠端僅 main／session/handoff |
-| 當前任務 | **下輪起點＝`specs/plan/pm-actions.md`**：①PM 啟動 Google OAuth 送審（§1.1，等待數天~數週＝關鍵路徑）②憑證到位後接 `DriveApi` 實作（googleapis Drive v3）＋OAuth 登入（google_sign_in／loopback）＋套件追加（**需 PM 簽核 techstack**）＋真機端對端③簽章／商店 listing／隱私政策網頁（§2）④驗收走查簽核（§5）⑤待決策 5 項（§4，含首次啟動引導頁） |
+| 當前任務 | ①**M8 UI 對照雛型整合**：UI-P1 總覽 ✅、UI-P2 明細 ✅、**UI-P3 預算（進行中）**、UI-P4 快記、UI-P5 掃描/信用卡/設定、UI-P6 分類設定頁 ②**T-F11 設定群（規格已備）**：T-S6 schema v6 → T-F11-BE（帳戶/分類 CRUD＋合併計算）→ T-F11-FE（帳戶管理＋分類管理＋外觀主題）——**SPEC/SDD/BDD/data-spec/dsl/acceptance/tasks 已全部更新** ③併行：`pm-actions.md`（PM 憑證/帳號/決策） ④測試分流：頁面情境遷 widget test |
+| 缺口（PM 走查 2026-10-22 發現） | ①**帳戶設定頁**（名稱/類型/**是否合併計算**）未實作→ FR-A7 新增（SPEC/SDD/BDD/tasks 已補）②**分類設定頁**未實作（雛型 `ui/09-category-settings.html` 早已存在）→ FR-B1 補 ③**外觀主題（明亮/暗色/跟隨系統）**無 App 內切換（FR-O1 P0，設定雛型有外觀段）→ 已納入 F11 |
 | 紅綠燈狀態 | main 上 `dart analyze` 0＋**unit 104 全綠**；FE：**逐檔全回歸 10/10**（f01~f10）；v0.4.13 部署驗證 ✅（Release 48.7MB＋Info.plist 0.4.13＋二次啟動＋RSS 121.1MB＋乾淨退出） |
 | 工作區 | 乾淨（文件回寫後 commit） |
 | truth 對齊 | techstack v0.3.7（**待追加 googleapis／googleapis_auth／google_sign_in——需 PM 簽核**）；dsl v1.5；data-spec v0.3.2；debug.md DBG-001~007 結案；新增 `pm-actions.md` v0.1 |

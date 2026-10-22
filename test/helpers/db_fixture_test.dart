@@ -33,8 +33,14 @@ void main() {
     }
   });
 
-  test('T-S5 schemaVersion = 5（v1~v4＋sync_events＋recurring_transactions）', () {
-    expect(db.schemaVersion, 5);
+  test('T-S6 schemaVersion = 6（v1~v5＋accounts.include_in_totals）', () {
+    expect(db.schemaVersion, 6);
+    // v6 欄位存在且既有資料預設「計入合併」（FR-A2/A6/A7）。
+    final cols = db
+        .select('PRAGMA table_info(accounts)')
+        .map((r) => r['name'] as String)
+        .toList();
+    expect(cols, contains('include_in_totals'));
   });
 
   test('寫入/讀取帳戶：預設值對齊 data-spec（currency=TWD、archived=false、opening=0）',
@@ -108,7 +114,7 @@ void main() {
     // 修復前：第二次 open 重跑 CREATE TABLE → StateError（already exists）
     final db2 = AppDatabase.open(path);
     expect(db2.allAccounts().map((a) => a.name), contains('現金'), reason: '資料應延續');
-    expect(db2.schemaVersion, 5);
+    expect(db2.schemaVersion, 6);
     db2.close();
     await tmp.delete(recursive: true);
   });

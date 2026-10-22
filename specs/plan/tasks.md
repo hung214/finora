@@ -89,6 +89,7 @@
 | v3 | M3 | credit_card_details、statements、statement_items、refund_links、installment_plans | T-S3 |
 | v4 | M4 | attachments（+ blobs 目錄約定） | T-S4 |
 | v5 | M5/M6 | sync_events（**隨 F07/M5 提前落地**——衝突事件）＋recurring_transactions（表一次到位；業務使用屬 M6） | T-S5 |
+| v6 | M8 | accounts.include_in_totals（FR-A2/A6/A7 合併計算） | T-S6 |
 
 > 註：credit_card_details 的 boundary_rule、statements 的 overdue_notified 等欄位隨 v3 一次到位（避免中途改欄）。
 
@@ -99,6 +100,7 @@
 | T-S3 | M3 migration | v3 信用卡/帳單 + 回歸測試（既有交易 settlement_status 預設 none） | ✅ |
 | T-S4 | M4 migration | v4 attachments + 回歸測試 | ✅ |
 | T-S5 | M5/M6 migration | v5 sync_events（F07 衝突事件，M5 已落地）＋recurring_transactions（M6 使用）＋回歸測試（已落地：直達 v5／v4 升級／冪等） | 🔵（表與遷移已完成；recurring 業務屬 M6） |
+| **T-S6** | **M8 migration** | **v6 `accounts.include_in_totals`（FR-A2/A6/A7 合併計算）**＋回歸測試（直達 v6／v5 升級資料保留／冪等）＋T-H9 對齊（data-spec v0.3.3） | ☐ **待開工** |
 
 ---
 
@@ -127,6 +129,7 @@
 | F08 App 鎖 | T-F08-BE（4：門檻邊界、退場狀態機、重設路徑×2）——**🟢 4/4**（AppLockController：shouldLockOnResume 純查詢＋同背景會話多次邊界探測 29/30/31s＋Clock 單一來源＋生物辨識失敗退場 ≥3 僅 PIN＋PIN 雜湊 FNV 最小實作 TODO(SP-4)＋canResetPin 授權路徑——無繞過方法設計） | T-F08-FE（5：鎖定畫面、10 秒、退 PIN、忘記 PIN、遮蔽）——**🟢 5/5 macOS**（LockGate lifecycle 鎖定閘 AppShell 層覆蓋零侵入＋LockScreen Face ID seam 成功/失敗×3 退場→PIN 鍵盤→驗證解鎖＋忘記 PIN（已連雲端 token 重設＋未連僅重置 App——資料零損失 20 筆）＋總覽 👁 隱私遮蔽 ●●●●＋pumpBackground T-H8 落地） | lock.timeout key（settings） | M7 | ✅（**M7 完成併入 main d8dd684；tag v0.4.10 自動建立**：部署驗證通過（Release 48.0MB＋Info.plist 0.4.10＋二次啟動 DBG-004 回歸）；95 unit 綠＋analyze 0＋FE 回歸 9/10（f07 已知暫停）；效能複測實測記錄 tasks.md §4.2；NFR-03 規格未定義待 PM） |
 | F09 資料管理 | T-F09-BE（3：本地清空、雲端清空、不復活）——**🟢 3/3**（WipeService 本地全表清空事務＋附件刪除＋雲端 LedgerSync/ 全刪＋CloudWipedException；**不復活閘修復**：正式路徑全走 sync()，_ensureVault 會在 pull 偵測前重建 vault→復活（驗收 S9.2 #5 Critical）——device.ever_synced 旗標（pull 成功後武裝；bootstrap 亦武裝）＋vault 缺→sync() 直接拋；首次連結無旗標不誤判；95 unit 綠） | T-F09-FE（2：三重防護、加驗身分）——**🟢 2/2 macOS**（DataManagementPage 狀態機：警告（未連雲端「無雲端可還原」＋可先匯出備份檔入口）→PIN（verifyPin）→確認文字「我要清除所有資料」（不符擋下資料未清）→已連雲端加驗「重新登入雲端帳號」（帳號不符拒絕）→「已清空」＋pop 主殼空帳本；獨立引導頁屬上架前 UI 統整） | 清空=雲端資料夾刪除契約 | M7 | ✅（**M7 完成併入 main d8dd684；tag v0.4.10 自動建立**：部署驗證通過（Release 48.0MB＋Info.plist 0.4.10＋二次啟動 DBG-004 回歸）；95 unit 綠＋analyze 0＋FE 回歸 9/10（f07 已知暫停）；效能複測實測記錄 tasks.md §4.2；NFR-03 規格未定義待 PM） |
 | F10 報表 | T-F10-BE（5：占比、bigram 搜尋、AND 篩選、CSV、效能）——**5/5 ✅**（TextIndex bigram＋SearchService FTS 優先 LIKE 降級＋ReportService 0.1%＋CsvExporter BOM＋NFR-01 10 萬筆 387ms） | T-F10-FE（3：圖表呈現、複合篩選、匯出提示）——**3/3 ✅**（統計分頁＋明細篩選列 chips＋匯出提示；呈現以數值文字斷言，甜甜圈視覺屬打磨） | transactions_fts（v2 ✅）；CSV 欄位契約 | M2 | ✅ |
+| **F11 帳戶/分類設定＋外觀** | **T-F11-BE（8：帳戶 CRUD＋oplog、合併計算語意、刪除拒絕×2、分類 CRUD＋排序、子分類一層、外觀持久化）——☐ 待開工** | **T-F11-FE（8：帳戶列表/新增、合併計算即時反映、刪除拒絕提示、編輯即時反映、分類新增/拖曳排序、刪除拒絕、子分類展開、外觀切換＋持久化）——☐ 待開工** | **schema v6（T-S6）☐；data-spec v0.3.3；settings app.theme_mode** | **M8** | ☐ **待開工**（缺口來源：PM 走查 2026-10-22——帳戶「是否合併計算」與帳戶/分類設定頁未實作；分類雛型 ui/09 早已存在；外觀 FR-O1 無 App 內切換） |
 
 ### 4.2 依序開發的排程（對應 research §2.2 Sprint）
 
@@ -138,7 +141,16 @@ S5  ：T-S3 → T-F04(BE→FE)
 S6-7：T-S4 → T-F03(BE→FE)
 S8  ：F07 之 BE（備份/還原/GC）✅ → FE（連結/還原/狀態頁）✅ 6/6（2026-10-22 DBG-007 修正後全綠）→ Google OAuth 送審（**待 PM 憑證＋main() 生產接線**：DriveAdapter/oauth/syncCoordinator 三 provider 未 override）
 S9-10：T-S5 → T-F07 其餘（同步/LWW）→ T-F06(BE→FE)
-S11-12：T-F08 ✅ → T-F09 ✅ → 效能複測（NFR-01~03）✅（2026-10-21 實測：儲存 P95 0ms<300ms／10 萬筆報表聚合 378ms<1500ms／關鍵字搜尋<500ms／OCR 單張<3s；**NFR-03 規格未定義——research.md 提及但無出處，待 PM**）→ UI 統整（進行中）→ 上架
+S11-12：T-F08 ✅ → T-F09 ✅ → 效能複測（NFR-01~03）✅ → UI 統整 ✅（v0.4.10~13）→ 上架（憑證／商店，見 pm-actions.md）
+M8（**新增：UI 對照雛型整合＋設定群**）：
+  - UI-P1 總覽（01-dashboard）✅ 2026-10-22
+  - UI-P2 明細（02-ledger：帳戶 chips＋篩選 chips）✅ 2026-10-22
+  - UI-P3 預算（04-budget：總預算摘要／每日可用／月底預測）☐
+  - UI-P4 快記（03/10）☐／UI-P5 掃描-信用卡-設定（05/06/07）☐
+  - UI-P6 分類設定頁（09 雛型已有）→ 併入 T-F11-FE ☐
+  - T-S6（schema v6）→ T-F11-BE → T-F11-FE（帳戶管理＋分類管理＋外觀）
+  補充（PM 2026-10-22）：前後端測試分流——頁面情境優先 widget test（~1s）；
+  integration_test 只保留真平台行為（lifecycle／快捷鍵／雙殼／檔案 DB）。
   補充（PM 2026-10-20）：UI 統整留到 M7 上架前一次做——Material 3 tokens 定稿＋各頁視覺套用＋深色模式逐頁檢查＋無障礙/空狀態文案；不在各 milestone 中途做（現況各頁樣式 ad-hoc 已知）
 ```
 

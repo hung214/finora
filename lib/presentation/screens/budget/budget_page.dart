@@ -26,7 +26,17 @@ class BudgetPage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('預算')),
       body: budgets.isEmpty
-          ? const Center(child: Text('尚無預算'))
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.savings_outlined,
+                      size: 40, color: Theme.of(context).colorScheme.outline),
+                  const SizedBox(height: 8),
+                  const Text('尚無預算'),
+                ],
+              ),
+            )
           : ListView(
               padding: const EdgeInsets.all(12),
               children: [

@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../application/lock/lock_fe_state.dart';
 import '../../../application/providers.dart';
 import '../../../application/reports/csv_exporter.dart';
 import '../../../application/reports/search_service.dart';
 import '../../../application/scan/scan_state.dart';
 import '../../../data/sqlite/app_database.dart';
+import '../../../domain/services/balance_calculator.dart';
+import '../../theme/app_theme.dart';
 import 'recent_deletions_page.dart';
 import '../recurring/recurring_queue_page.dart';
 import '../scan/scan_page.dart';
@@ -24,10 +27,16 @@ class LedgerPage extends ConsumerStatefulWidget {
 class _LedgerPageState extends ConsumerState<LedgerPage> {
   int? _periodMonth; // null = 全部（月，取 Clock.now().year）
   String? _categoryFilter; // null = 全部（category id）
+  String? _accountFilter; // null = 全部帳戶（P2 雛型帳戶 chips）
+  String? _kindFilter; // null = 全部（expense/income/transfer；P2 篩選 chips）
   String _keyword = '';
 
   bool get _hasFilter =>
-      _periodMonth != null || _categoryFilter != null || _keyword.isNotEmpty;
+      _periodMonth != null ||
+      _categoryFilter != null ||
+      _accountFilter != null ||
+      _kindFilter != null ||
+      _keyword.isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -37,12 +46,22 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
     final db = ref.watch(dbProvider);
     final search = SearchService(db);
     final range = _periodRange(_periodMonth);
-    final rows = search.search(
+    var rows = search.search(
       keyword: _keyword.isEmpty ? null : _keyword,
       startMs: range?.$1,
       endMs: range?.$2,
       categoryId: _categoryFilter,
     );
+    // P2（雛型 02-ledger）：帳戶／收支性質維度（預設全部——不影響既有交集語意）。
+    if (_accountFilter != null) {
+      rows = rows
+          .where((r) =>
+              r.accountId == _accountFilter || r.toAccountId == _accountFilter)
+          .toList();
+    }
+    if (_kindFilter != null) {
+      rows = rows.where((r) => r.kind == _kindFilter).toList();
+    }
     final accountById = {
       for (final a in ref.watch(activeAccountsProvider)) a.id: a,
     };
@@ -88,12 +107,29 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
       ),
       body: Column(
         children: [
+          // P2（雛型 02-ledger）：帳戶 chips 橫列＋收支性質篩選 chips。
+          _accountChips(context, db),
+          _kindChips(context),
           _filterBar(context, db, months),
           const Divider(height: 1),
           Expanded(
             child: rows.isEmpty
                 ? Center(
-                    child: Text(_hasFilter ? '無符合結果' : '尚無交易——點右下角快記第一筆'))
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _hasFilter
+                              ? Icons.search_off_outlined
+                              : Icons.receipt_long_outlined,
+                          size: 40,
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(_hasFilter ? '無符合結果' : '尚無交易——點右下角快記第一筆'),
+                      ],
+                    ),
+                  )
                 : ListView.builder(
                     itemCount: rows.length,
                     itemBuilder: (_, i) => TxTile(
@@ -110,6 +146,67 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
                     ),
                   ),
           ),
+        ],
+      ),
+    );
+  }
+
+  /// 帳戶 chips 橫列（雛型 02-ledger）：名稱＋餘額（信用卡顯示「應付」）；
+  /// 點選＝以該帳戶篩選（再點取消）。隱私遮蔽時金額 ●●●●。
+  Widget _accountChips(BuildContext context, AppDatabase db) {
+    final accounts = ref.watch(activeAccountsProvider);
+    if (accounts.isEmpty) return const SizedBox.shrink();
+    const calc = BalanceCalculator();
+    final txs = ref.watch(ledgerProvider).map(txEntity).toList();
+    final masked = ref.watch(privacyMaskedProvider);
+    final fmt = NumberFormat('#,###');
+    final tokens = AppTokens.of(context);
+    return SizedBox(
+      height: 56,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        children: [
+          for (final a in accounts) ...[
+            ChoiceChip(
+              key: Key('acct-chip-${a.id}'),
+              label: Text(
+                a.type == 'credit'
+                    ? '${a.name} 應付 ${masked ? '●●●●' : fmt.format(calc.creditUnpaidTotal(card: accountEntity(a), txs: txs))}'
+                    : '${a.name} ${masked ? '●●●●' : fmt.format(calc.assetBalance(account: accountEntity(a), txs: txs))}',
+              ),
+              selected: _accountFilter == a.id,
+              selectedColor: tokens.success.withValues(alpha: 0.16),
+              onSelected: (on) =>
+                  setState(() => _accountFilter = on ? a.id : null),
+            ),
+            const SizedBox(width: 8),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// 收支性質篩選 chips（雛型 02-ledger：全部/支出/收入/轉帳）。
+  Widget _kindChips(BuildContext context) {
+    const kinds = <(String, String?)>[
+      ('全部', null),
+      ('支出', 'expense'),
+      ('收入', 'income'),
+      ('轉帳', 'transfer'),
+    ];
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Wrap(
+        spacing: 6,
+        children: [
+          for (final (label, kind) in kinds)
+            FilterChip(
+              key: Key('kind-chip-$label'),
+              label: Text(label),
+              selected: _kindFilter == kind,
+              onSelected: (_) => setState(() => _kindFilter = kind),
+            ),
         ],
       ),
     );

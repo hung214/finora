@@ -15,7 +15,7 @@ void main() {
   test('全新 DB：直達 schema v5（v4 既有 14 表＋sync_events＋recurring_transactions）', () {
     final db = AppDatabase.inMemory();
     addTearDown(db.close);
-    expect(db.schemaVersion, 5, reason: 'T-S5：schema v5（衝突事件/定期交易）');
+    expect(db.schemaVersion, 6, reason: 'T-S5：schema v5（衝突事件/定期交易）');
     final tables = db.tableNames();
     for (final t in [
       'accounts', 'categories', 'transactions', 'oplog', 'settings', 'templates',
@@ -51,7 +51,7 @@ void main() {
 
     final db = AppDatabase.open(path);
     addTearDown(db.close);
-    expect(db.schemaVersion, 5, reason: '開啟舊檔應自動升級至 v5');
+    expect(db.schemaVersion, 6, reason: '開啟舊檔應自動升級至 v5');
     expect(db.tableNames(), containsAll(['sync_events', 'recurring_transactions']),
         reason: '升級後不得缺新表');
     expect(
@@ -67,11 +67,11 @@ void main() {
     final path = '${dir.path}/ledger.db';
 
     var db = AppDatabase.open(path);
-    expect(db.schemaVersion, 5);
+    expect(db.schemaVersion, 6);
     db.close();
 
     db = AppDatabase.open(path);
     addTearDown(db.close);
-    expect(db.schemaVersion, 5, reason: '二次開啟維持 v5');
+    expect(db.schemaVersion, 6, reason: '二次開啟維持 v5');
   });
 }

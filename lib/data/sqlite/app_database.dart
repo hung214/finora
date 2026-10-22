@@ -37,7 +37,7 @@ class AppDatabase {
   late final Database _db;
   bool _closed = false;
 
-  int get schemaVersion => SchemaV5.version;
+  int get schemaVersion => SchemaV6.version;
 
   void _migrate() {
     // DBG-004／T-S2：多版本冪等遷移——
@@ -46,7 +46,7 @@ class AppDatabase {
     // ③ 逐版本增量：每版本於交易內全有全無（v1 全量 DDL／v2 增量表）。
     // DDL 字串維持原樣（T-H9 truth 對齊 regex 相容）。
     var current = _db.select('PRAGMA user_version').first.values.first as int;
-    if (current >= SchemaV5.version) return;
+    if (current >= SchemaV6.version) return;
     if (current < 1) {
       final tablesExist = _db
           .select("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'accounts'")
@@ -127,6 +127,20 @@ class AppDatabase {
           _db.execute(s);
         }
         _db.execute('PRAGMA user_version = ${SchemaV5.version}');
+        _db.execute('COMMIT');
+      } catch (_) {
+        _db.execute('ROLLBACK');
+        rethrow;
+      }
+    }
+    if (current < 6) {
+      // v6（M8）：accounts.include_in_totals（FR-A2/A6/A7 合併計算）。
+      _db.execute('BEGIN');
+      try {
+        for (final s in SchemaV6.statements) {
+          _db.execute(s);
+        }
+        _db.execute('PRAGMA user_version = ${SchemaV6.version}');
         _db.execute('COMMIT');
       } catch (_) {
         _db.execute('ROLLBACK');

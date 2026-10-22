@@ -49,7 +49,17 @@ class _RecurringQueuePageState extends ConsumerState<RecurringQueuePage> {
     return Scaffold(
       appBar: AppBar(title: const Text('待確認清單', key: Key('recurring-queue-title'))),
       body: rows.isEmpty
-          ? const Center(child: Text('目前沒有待確認項目'))
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.event_available_outlined,
+                      size: 40, color: Theme.of(context).colorScheme.outline),
+                  const SizedBox(height: 8),
+                  const Text('目前沒有待確認項目'),
+                ],
+              ),
+            )
           : ListView(
               padding: const EdgeInsets.all(12),
               children: [
