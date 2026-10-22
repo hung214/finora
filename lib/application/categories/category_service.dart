@@ -44,6 +44,10 @@ class CategoryService {
     }
     final siblings = _db.categoriesByKind(kind).where((c) =>
         c.deletedAt == null && c.parentId == parentId);
+    // 同層重名拒絕（播種子分類後防呆；FR-B1）。
+    if (siblings.any((c) => c.name == name)) {
+      throw const CategoryException('同層已有同名分類');
+    }
     // 既有分類可能 sort_order=null（播種未寫）——null-safe 取最大值。
     final maxOrder = siblings.fold<int>(
         -1, (m, c) => (c.sortOrder ?? -1) > m ? (c.sortOrder ?? -1) : m);

@@ -25,12 +25,14 @@ class FirstRunBootstrap {
     }
     final nowMs = Clock.now().millisecondsSinceEpoch;
 
-    Future<void> seedCategory(String id, String kind, String name, {bool system = false}) async {
+    Future<void> seedCategory(String id, String kind, String name,
+        {bool system = false, String? parentId, int? sortOrder}) async {
       final row = CategoryRow(
         id: id,
         kind: kind,
-        parentId: null,
+        parentId: parentId,
         name: name,
+        sortOrder: sortOrder,
         isSystem: system,
         createdAt: nowMs,
         updatedAt: nowMs,
@@ -71,6 +73,40 @@ class FirstRunBootstrap {
     await seedCategory('c-other', 'expense', '其他', system: true);
     await seedCategory('c-income-general', 'income', '一般收入');
     await seedCategory('c-income-invest', 'income', '投資收入');
+
+    // 內建子分類（PM 2026-10-22 簽核：全部主類別都配；sort_order＝索引）。
+    const subs = <String, List<String>>{
+      'c-food': ['早餐', '中餐', '晚餐', '下午茶', '宵夜', '水果', '食材'],
+      'c-beauty': ['衣著鞋包', '美髮', '保養美妝', '洗衣'],
+      'c-home': ['房租房貸', '水電瓦斯', '家具家電', '清潔用品', '日用雜貨'],
+      'c-transport': ['大眾運輸', '計程車', '共享運具', '機票', '過路費'],
+      'c-edu': ['學費', '課程講座', '文具', '教材'],
+      'c-fun': ['電影展覽', '旅遊', '訂閱服務', '遊戲', '運動健身'],
+      'c-3c': ['手機通訊', '周邊配件', '通話費網路', '維修'],
+      'c-books': ['書籍', '雜誌', '電子書'],
+      'c-vehicle': ['油費', '停車費', '稅金保險', '保養維修', '洗車'],
+      'c-health': ['看診', '藥品', '保健食品', '牙科', '眼睛'],
+      'c-social': ['紅包禮金', '聚餐', '賀禮', '公益'],
+      'c-invest': ['手續費', '利息', '保險費'],
+      'c-other': ['雜支', '罰單'],
+      'c-fee': ['服務費', '會費'],
+      'c-income-general': ['本薪', '加班費', '獎金', '津貼'],
+      'c-income-invest': ['股利', '利息', '基金收益'],
+    };
+    final kindByParent = <String, String>{
+      for (final (id, _) in expenseMains) id: 'expense',
+      'c-other': 'expense',
+      'c-income-general': 'income',
+      'c-income-invest': 'income',
+    };
+    for (final e in subs.entries) {
+      final parent = e.key;
+      final names = e.value;
+      for (var i = 0; i < names.length; i++) {
+        await seedCategory('$parent-s$i', kindByParent[parent]!, names[i],
+            parentId: parent, sortOrder: i);
+      }
+    }
 
     final account = AccountRow(
       id: 'a-cash',

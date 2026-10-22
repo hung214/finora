@@ -22,14 +22,14 @@ void main() {
       File('test/bdd/F11_account-category-settings.feature').readAsStringSync();
   final doc = GherkinParser.parse(source);
 
-  test('F11-BE：帳戶/分類設定與外觀（8 情境）', () async {
+  test('F11-BE：帳戶/分類設定與外觀（9 情境）', () async {
     final w = _World();
     final runner = GherkinRunner();
     _bind(runner, w);
     try {
       final executed =
           await runner.run(doc, tagFilter: (tags) => tags.contains('@BE'));
-      expect(executed, 8, reason: 'F11-BE 應執行 8 個情境');
+      expect(executed, 9, reason: 'F11-BE 應執行 9 個情境（含同層重名拒絕）');
       // ignore: avoid_print
       print(runner.log.join('\n'));
     } finally {
@@ -211,6 +211,18 @@ void _bind(GherkinRunner runner, _World w) {
     }
   });
 
+  // 嘗試句型先註冊（lazy 前綴碰撞——「嘗試」會被 {kind} 前的「新增」吃掉）。
+  runner.on(r'嘗試新增{kind}分類「{name}」$', (p) async {
+    try {
+      w.categories!.create(
+          kind: p['kind'] == '收入' ? 'income' : 'expense',
+          name: p['name']!);
+      w.lastError = null;
+    } catch (e) {
+      w.lastError = e;
+    }
+  });
+
   runner.on(r'新增{kind}分類「{name}」$', (p) async {
     // {kind} 為中文語意（支出/收入）→ 存表值 expense/income。
     final kind = p['kind']! == '支出' ? 'expense' : 'income';
@@ -222,18 +234,27 @@ void _bind(GherkinRunner runner, _World w) {
   });
 
   runner.on(r'分類列表首位為「{a}」、次位為「{b}」$', (p) {
-    final list = w.db!.categoriesByKind('expense');
+    // 播種子分類後列表含兩層——首位/次位以「主類別層」（parentId=null）為準。
+    final list = w
+        .db!
+        .categoriesByKind('expense')
+        .where((c) => c.parentId == null)
+        .toList();
     expect(list.first.name, p['a']!);
     expect(list[1].name, p['b']!);
   });
 
   runner.on(r'各分類 sort_order 為連續遞增整數$', (p) {
-    final orders = w.db!
-        .categoriesByKind('expense')
-        .map((c) => c.sortOrder)
-        .toList();
-    for (var i = 0; i < orders.length; i++) {
-      expect(orders[i], i, reason: 'sort_order 連續遞增（reorder 不變式）');
+    // 不變式為「同層連續」（主類別與各群組子分類各自 0..n-1——
+    // 播種子分類後平面清單交錯，不能全域比對）。
+    final groups = <String?, List<int>>{};
+    for (final c in w.db!.categoriesByKind('expense')) {
+      groups.putIfAbsent(c.parentId, () => []).add(c.sortOrder ?? -1);
+    }
+    for (final orders in groups.values) {
+      for (var i = 0; i < orders.length; i++) {
+        expect(orders[i], i, reason: '同層 sort_order 連續遞增（reorder 不變式）');
+      }
     }
   });
 

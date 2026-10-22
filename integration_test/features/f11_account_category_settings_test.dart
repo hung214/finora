@@ -27,14 +27,14 @@ Future<void> main() async {
   final doc = GherkinParser.parse(await rootBundle
       .loadString('integration_test/features/F11_account-category-settings.feature'));
 
-  testWidgets('F11-FE：帳戶/分類設定與外觀（10 情境）', (tester) async {
+  testWidgets('F11-FE：帳戶/分類設定與外觀（11 情境）', (tester) async {
     final w = _World(tester);
     final runner = GherkinRunner();
     _bind(runner, w);
     try {
       final executed =
           await runner.run(doc, tagFilter: (tags) => tags.contains('@FE'));
-      expect(executed, 10, reason: 'F11-FE 應執行 10 個情境');
+      expect(executed, 11, reason: 'F11-FE 應執行 11 個情境');
       // ignore: avoid_print
       print(runner.log.join('\n'));
     } finally {
@@ -475,6 +475,16 @@ void _bind(GherkinRunner runner, _World w) {
     expect(
         w.tester.any(find.byKey(Key('recent-cat-${p['name']}'))), isTrue,
         reason: '常用區含「${p['name']}」（FR-B1 常用區）');
+  });
+
+  runner.on(r'於選擇器點「＋ 新增分類」$', (p) async {
+    await w.tester.tap(find.byKey(const Key('picker-add-category')));
+    await w.tester.pumpAndSettle();
+  });
+
+  runner.on(r'進入分類管理頁$', (p) {
+    expect(find.text('分類管理'), findsWidgets,
+        reason: '選擇器內新增入口應導向分類管理（PM 2026-10-22）');
   });
 
   // ── 外觀 ────────────────────────────────────────────────

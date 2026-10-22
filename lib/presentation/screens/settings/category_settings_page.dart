@@ -48,100 +48,113 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
     showModalBottomSheet<void>(
       context: context,
       builder: (sheetCtx) => StatefulBuilder(
-        builder: (sheetCtx, setSheet) => Padding(
-          padding: EdgeInsets.fromLTRB(
-              16, 16, 16, 16 + MediaQuery.of(sheetCtx).viewInsets.bottom),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(parentId == null ? '新增分類' : '新增子分類',
-                  style: Theme.of(sheetCtx).textTheme.titleMedium),
-              const SizedBox(height: 12),
-              TextField(
-                key: const Key('cat-name'),
-                controller: nameCtrl,
-                decoration: const InputDecoration(
-                    labelText: '分類名稱', border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 12),
-              Text('圖示', style: Theme.of(sheetCtx).textTheme.labelMedium),
-              Wrap(
-                spacing: 8,
-                children: [
-                  for (final e in const [
-                    ('shopping_basket', Icons.shopping_basket_outlined),
-                    ('restaurant', Icons.restaurant_outlined),
-                    ('directions_car', Icons.directions_car_outlined),
-                    ('pets', Icons.pets_outlined),
-                    ('home', Icons.home_outlined),
-                  ])
-                    ChoiceChip(
-                      key: Key('cat-icon-${e.$1}'),
-                      label: Icon(e.$2, size: 18),
-                      selected: icon == e.$1,
-                      onSelected: (_) => setSheet(() => icon = e.$1),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text('顏色', style: Theme.of(sheetCtx).textTheme.labelMedium),
-              Wrap(
-                spacing: 8,
-                children: [
-                  for (final c in const [
-                    ('teal', AppTokens.brandSeed),
-                    ('amber', Color(0xFFF59E0B)),
-                    ('red', Color(0xFFD64545)),
-                    ('purple', Color(0xFF6D4FC4)),
-                    ('blue', Color(0xFF1D6FD1)),
-                  ])
-                    ChoiceChip(
-                      key: Key('cat-color-${c.$1}'),
-                      label: CircleAvatar(backgroundColor: c.$2, radius: 10),
-                      selected: color == c.$1,
-                      onSelected: (_) => setSheet(() => color = c.$1),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.of(sheetCtx).pop(),
-                    child: const Text('取消'),
+        builder: (sheetCtx, setSheet) => SingleChildScrollView(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              16,
+              16,
+              16,
+              16 + MediaQuery.of(sheetCtx).viewInsets.bottom,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  parentId == null ? '新增分類' : '新增子分類',
+                  style: Theme.of(sheetCtx).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  key: const Key('cat-name'),
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(
+                    labelText: '分類名稱',
+                    border: OutlineInputBorder(),
                   ),
-                  const SizedBox(width: 8),
-                  FilledButton(
-                    key: const Key('cat-save'),
-                    onPressed: () {
-                      final name = nameCtrl.text.trim();
-                      if (name.isEmpty) return;
-                      try {
-                        if (editId != null) {
-                          _service.update(editId,
-                              name: name, icon: icon, color: color);
-                        } else {
-                          _service.create(
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  '圖示（31 個）',
+                  style: Theme.of(sheetCtx).textTheme.labelMedium,
+                ),
+                // PM 2026-10-22：圖示至少 20 個——取 30 個語意化 Material 圖示。
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 150),
+                  child: SingleChildScrollView(
+                    child: Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: [
+                        for (final e in categoryIcons)
+                          ChoiceChip(
+                            key: Key('cat-icon-${e.$1}'),
+                            label: Icon(e.$2, size: 18),
+                            selected: icon == e.$1,
+                            onSelected: (_) => setSheet(() => icon = e.$1),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text('顏色', style: Theme.of(sheetCtx).textTheme.labelMedium),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    for (final c in categoryColors)
+                      ChoiceChip(
+                        key: Key('cat-color-${c.$1}'),
+                        label: CircleAvatar(backgroundColor: c.$2, radius: 10),
+                        selected: color == c.$1,
+                        onSelected: (_) => setSheet(() => color = c.$1),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(sheetCtx).pop(),
+                      child: const Text('取消'),
+                    ),
+                    const SizedBox(width: 8),
+                    FilledButton(
+                      key: const Key('cat-save'),
+                      onPressed: () {
+                        final name = nameCtrl.text.trim();
+                        if (name.isEmpty) return;
+                        try {
+                          if (editId != null) {
+                            _service.update(
+                              editId,
+                              name: name,
+                              icon: icon,
+                              color: color,
+                            );
+                          } else {
+                            _service.create(
                               kind: _kind,
                               name: name,
                               parentId: parentId,
                               icon: icon,
-                              color: color);
+                              color: color,
+                            );
+                          }
+                          Navigator.of(sheetCtx).pop();
+                          _refresh();
+                        } catch (e) {
+                          Navigator.of(sheetCtx).pop();
+                          _showSnack('$e');
                         }
-                        Navigator.of(sheetCtx).pop();
-                        _refresh();
-                      } catch (e) {
-                        Navigator.of(sheetCtx).pop();
-                        _showSnack('$e');
-                      }
-                    },
-                    child: const Text('儲存'),
-                  ),
-                ],
-              ),
-            ],
+                      },
+                      child: const Text('儲存'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -186,8 +199,10 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
           if (_message != null)
             Padding(
               padding: const EdgeInsets.all(12),
-              child: Text(_message!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              child: Text(
+                _message!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
             ),
           Expanded(
             child: ReorderableListView(
@@ -212,8 +227,12 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
   }
 
   /// 主類別群組（標頭＋子類別縮排列；可折疊——預設展開）。
-  Widget _group(BuildContext context, CategoryRow c, int index,
-      List<CategoryRow> all) {
+  Widget _group(
+    BuildContext context,
+    CategoryRow c,
+    int index,
+    List<CategoryRow> all,
+  ) {
     final tokens = AppTokens.of(context);
     final children = all
         .where((x) => x.deletedAt == null && x.parentId == c.id)
@@ -234,25 +253,33 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
                 key: Key('cat-drag-${c.name}'),
                 index: index,
                 child: Padding(
-                    padding: const EdgeInsets.all(10),
-                    child: Icon(Icons.drag_handle, color: tokens.subText)),
+                  padding: const EdgeInsets.all(10),
+                  child: Icon(Icons.drag_handle, color: tokens.subText),
+                ),
               ),
               TextButton(
                 style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                onPressed: () =>
-                    setState(() => _expanded.contains(c.id)
-                        ? _expanded.remove(c.id)
-                        : _expanded.add(c.id)),
+                onPressed: () => setState(
+                  () => _expanded.contains(c.id)
+                      ? _expanded.remove(c.id)
+                      : _expanded.add(c.id),
+                ),
                 child: Row(
                   children: [
                     Icon(_iconOf(c.icon), color: _colorOf(c.color)),
                     const SizedBox(width: 8),
-                    Text(c.name,
-                        style: const TextStyle(
-                            fontSize: 15, fontWeight: FontWeight.w700)),
+                    Text(
+                      c.name,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                     const SizedBox(width: 8),
-                    Text('子分類 ${children.length}',
-                        style: TextStyle(fontSize: 11, color: tokens.subText)),
+                    Text(
+                      '子分類 ${children.length}',
+                      style: TextStyle(fontSize: 11, color: tokens.subText),
+                    ),
                   ],
                 ),
               ),
@@ -297,14 +324,20 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
                         index: i,
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 4),
-                          child: Icon(Icons.drag_handle,
-                              size: 18, color: tokens.subText),
+                          child: Icon(
+                            Icons.drag_handle,
+                            size: 18,
+                            color: tokens.subText,
+                          ),
                         ),
                       ),
                       const Icon(Icons.subdirectory_arrow_right, size: 16),
                       const SizedBox(width: 6),
-                      Icon(_iconOf(sub.icon),
-                          size: 16, color: _colorOf(sub.color)),
+                      Icon(
+                        _iconOf(sub.icon),
+                        size: 16,
+                        color: _colorOf(sub.color),
+                      ),
                       const SizedBox(width: 6),
                       Text(sub.name),
                       const Spacer(),
@@ -332,8 +365,10 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
             child: TextButton.icon(
               onPressed: () => _openForm(parentId: c.id),
               icon: const Icon(Icons.add, size: 16),
-              label: Text('新增子分類',
-                  style: TextStyle(fontSize: 12, color: tokens.subText)),
+              label: Text(
+                '新增子分類',
+                style: TextStyle(fontSize: 12, color: tokens.subText),
+              ),
             ),
           ),
         const Divider(height: 16),
@@ -341,22 +376,63 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
     );
   }
 
+  IconData _iconOf(String? name) => categoryIcons
+      .firstWhere(
+        (e) => e.$1 == name,
+        orElse: () => ('label', Icons.label_outline),
+      )
+      .$2;
 
-  IconData _iconOf(String? name) => switch (name) {
-        'shopping_basket' => Icons.shopping_basket_outlined,
-        'restaurant' => Icons.restaurant_outlined,
-        'directions_car' => Icons.directions_car_outlined,
-        'pets' => Icons.pets_outlined,
-        'home' => Icons.home_outlined,
-        _ => Icons.label_outline,
-      };
-
-  Color _colorOf(String? name) => switch (name) {
-        'teal' => AppTokens.brandSeed,
-        'amber' => const Color(0xFFF59E0B),
-        'red' => const Color(0xFFD64545),
-        'purple' => const Color(0xFF6D4FC4),
-        'blue' => const Color(0xFF1D6FD1),
-        _ => AppTokens.brandSeed,
-      };
+  Color _colorOf(String? name) => categoryColors
+      .firstWhere((c) => c.$1 == name, orElse: () => categoryColors.first)
+      .$2;
 }
+
+/// 分類圖示庫（31 個；表單選擇與列顯示共用——名稱存 db）。
+const List<(String, IconData)> categoryIcons = [
+  ('shopping_basket', Icons.shopping_basket_outlined),
+  ('pets', Icons.pets_outlined),
+  ('restaurant', Icons.restaurant_outlined),
+  ('ramen_dining', Icons.ramen_dining_outlined),
+  ('bakery_dining', Icons.bakery_dining_outlined),
+  ('local_cafe', Icons.local_cafe_outlined),
+  ('fastfood', Icons.fastfood_outlined),
+  ('checkroom', Icons.checkroom_outlined),
+  ('face', Icons.face_outlined),
+  ('spa', Icons.spa_outlined),
+  ('home', Icons.home_outlined),
+  ('king_bed', Icons.king_bed_outlined),
+  ('kitchen', Icons.kitchen_outlined),
+  ('cleaning_services', Icons.cleaning_services_outlined),
+  ('directions_bus', Icons.directions_bus_outlined),
+  ('train', Icons.train_outlined),
+  ('directions_car', Icons.directions_car_outlined),
+  ('two_wheeler', Icons.two_wheeler_outlined),
+  ('flight', Icons.flight_outlined),
+  ('school', Icons.school_outlined),
+  ('menu_book', Icons.menu_book_outlined),
+  ('sports_esports', Icons.sports_esports_outlined),
+  ('movie', Icons.movie_outlined),
+  ('park', Icons.park_outlined),
+  ('fitness_center', Icons.fitness_center_outlined),
+  ('phone_iphone', Icons.phone_iphone_outlined),
+  ('laptop_mac', Icons.laptop_mac_outlined),
+  ('headset', Icons.headset_outlined),
+  ('medication', Icons.medication_outlined),
+  ('savings', Icons.savings_outlined),
+  ('redeem', Icons.redeem_outlined),
+];
+
+/// 分類顏色庫（10 個）。
+const List<(String, Color)> categoryColors = [
+  ('teal', AppTokens.brandSeed),
+  ('amber', Color(0xFFF59E0B)),
+  ('red', Color(0xFFD64545)),
+  ('purple', Color(0xFF6D4FC4)),
+  ('blue', Color(0xFF1D6FD1)),
+  ('green', Color(0xFF3B9B46)),
+  ('orange', Color(0xFFF97316)),
+  ('pink', Color(0xFFEC4899)),
+  ('indigo', Color(0xFF6366F1)),
+  ('grey', Color(0xFF6B7280)),
+];

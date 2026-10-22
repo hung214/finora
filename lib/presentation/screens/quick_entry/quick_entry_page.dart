@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../application/providers.dart';
 import 'amount_keypad.dart';
 import 'quick_date_time_picker.dart';
+import '../settings/category_settings_page.dart';
 import 'quick_entry_controller.dart';
 
 /// 快記頁（FR-Q1~Q8，acceptance F01）。
@@ -129,6 +130,9 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
                       text: state.splitCat0?.name ?? '選擇分類',
                       entries: _hierarchicalEntries(categories),
                       recent: recent,
+                      addCategoryAction: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                              builder: (_) => const CategorySettingsPage())),
                       onSelected: (id) => controller.selectSplitCategoryById(0, id),
                     ),
                   ),
@@ -153,6 +157,9 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
                       text: state.splitCat1?.name ?? '選擇分類',
                       entries: _hierarchicalEntries(categories),
                       recent: recent,
+                      addCategoryAction: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                              builder: (_) => const CategorySettingsPage())),
                       onSelected: (id) => controller.selectSplitCategoryById(1, id),
                     ),
                   ),
@@ -180,6 +187,9 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
                 text: state.category?.name ?? '選擇分類',
                 entries: _hierarchicalEntries(categories),
                       recent: recent,
+                      addCategoryAction: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                              builder: (_) => const CategorySettingsPage())),
                 onSelected: controller.selectCategoryById,
               ),
               const SizedBox(height: 12),
@@ -274,12 +284,26 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
     required List<(String, String, bool)> entries,
     required List<(String, String)> recent,
     required void Function(String?) onSelected,
+    VoidCallback? addCategoryAction, // 分類選擇器專用：＋新增分類（PM 2026-10-22）
   }) {
     return PopupMenuButton<String>(
       key: key,
       initialValue: null,
       onSelected: onSelected,
       itemBuilder: (_) => [
+        // ＋新增分類（PM 2026-10-22）：**選單頂部**常駐（長清單底部
+        // 項目在 LazyListView 未建/超出畫面，底部入口會點不到）。
+        if (addCategoryAction != null)
+          PopupMenuItem<String>(
+            key: const Key('picker-add-category'),
+            onTap: addCategoryAction,
+            child: Row(children: [
+              Icon(Icons.add,
+                  size: 18, color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: 6),
+              const Text('新增分類'),
+            ]),
+          ),
         // 常用類別（FR-B1 常用區）：最近使用 10 個，常駐最上方。
         if (recent.isNotEmpty) ...[
           const PopupMenuItem(

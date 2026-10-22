@@ -522,6 +522,9 @@
 | `Then 介面立即以深色呈現（AppTokens 深色組）` | Theme.of(context).brightness == dark＋AppTokens.dark.bg 比對 |
 | `Then 分類列表「{parent}」展開顯示子分類「{name}」` | 展開後子列（key cat-sub-row-{name}） |
 | `Then 外觀仍為「{label}」` | 重啟後 themeMode 持久化 |
+| `When 嘗試新增{kind}分類「{name}」`（v1.7） | 同層重名拒絕（CategoryException；先於 `新增{kind}分類` 註冊） |
+| `When 於選擇器點「＋ 新增分類」`（v1.7） | 快記選擇器**頂部**新增入口（key picker-add-category→CategorySettingsPage；長清單底部項目 LazyListView 點不到之教訓） |
+| `Then 進入分類管理頁`（v1.7） | AppBar「分類管理」存在 |
 | `When 將子分類「{a}」拖曳至子分類「{b}」之前`（v1.7） | 群組內嵌清單拖曳（key cat-sub-drag-{a}；PM 決策：子分類可拖曳） |
 | `Then 子分類列表「{a}」在「{b}」之前`（v1.7） | 子列位置比對（dy） |
 | `Given 已有 {n} 筆支出分別使用「{a}」與「{b}」`（v1.7） | fixture 直寫交易（最新一筆用 {b}；寫後 invalidate ledgerProvider） |
