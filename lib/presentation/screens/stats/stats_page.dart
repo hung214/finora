@@ -108,9 +108,16 @@ class _StatsPageState extends ConsumerState<StatsPage> {
               ),
           ] else
             // 空狀態（M7 UI 統整——無資料月份引導）。
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
-              child: Text('尚無資料——記一筆後這裡會出現統計'),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Column(
+                children: [
+                  Icon(Icons.query_stats_outlined,
+                      size: 40, color: Theme.of(context).colorScheme.outline),
+                  const SizedBox(height: 8),
+                  const Text('尚無資料——記一筆後這裡會出現統計'),
+                ],
+              ),
             ),
           const SizedBox(height: 12),
           Text('月趨勢', style: Theme.of(context).textTheme.labelLarge),

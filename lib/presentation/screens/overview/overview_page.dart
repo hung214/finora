@@ -72,8 +72,14 @@ class OverviewPage extends ConsumerWidget {
             // 空狀態（M7 UI 統整；正常首啟由播種建現金帳戶——僅防護性提示）。
             const Card(
               child: Padding(
-                padding: EdgeInsets.all(12),
-                child: Text('尚無帳戶'),
+                padding: EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Icon(Icons.account_balance_wallet_outlined, size: 36),
+                    SizedBox(height: 8),
+                    Text('尚無帳戶——建立帳戶後這裡會顯示餘額'),
+                  ],
+                ),
               ),
             ),
           for (final row in accounts)
@@ -85,8 +91,12 @@ class OverviewPage extends ConsumerWidget {
                               CreditCardPage(cardAccountId: row.id),
                         ))
                     : null,
-                leading: const Icon(Icons.account_balance_wallet_outlined),
+                // 帳戶類型圖示（UI 打磨）：現金/銀行/信用卡/票證可一眼辨識。
+                leading: Icon(_accountIcon(row.type)),
                 title: Text(row.name),
+                subtitle: row.type == 'credit'
+                    ? const Text('點擊檢視帳單') // 可點提示（避免誤以為唯讀）
+                    : null,
                 trailing: Text(
                   // F02-FE S2：餘額千分位顯示；F08-FE S5：隱私遮蔽（●●●●）。
                   ref.watch(privacyMaskedProvider)
@@ -135,3 +145,12 @@ class OverviewPage extends ConsumerWidget {
     );
   }
 }
+
+/// 帳戶類型圖示（UI 打磨；AccountType 對映——一眼辨識帳戶性質）。
+IconData _accountIcon(String type) => switch (type) {
+      'cash' => Icons.payments_outlined,
+      'bank' => Icons.account_balance_outlined,
+      'credit' => Icons.credit_card,
+      'ewallet' => Icons.contactless_outlined,
+      _ => Icons.account_balance_wallet_outlined,
+    };

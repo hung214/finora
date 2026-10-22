@@ -93,7 +93,21 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
           Expanded(
             child: rows.isEmpty
                 ? Center(
-                    child: Text(_hasFilter ? '無符合結果' : '尚無交易——點右下角快記第一筆'))
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _hasFilter
+                              ? Icons.search_off_outlined
+                              : Icons.receipt_long_outlined,
+                          size: 40,
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(_hasFilter ? '無符合結果' : '尚無交易——點右下角快記第一筆'),
+                      ],
+                    ),
+                  )
                 : ListView.builder(
                     itemCount: rows.length,
                     itemBuilder: (_, i) => TxTile(
