@@ -108,20 +108,13 @@ class OverviewPage extends ConsumerWidget {
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
-                    children: [
-                      Text(money(goal.achievedMinor),
-                          style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: tokens.success)),
-                      const SizedBox(width: 6),
-                      Text('/ 目標 ${money(goal.goalMinor)}',
-                          style: TextStyle(fontSize: 12, color: tokens.subText)),
-                    ],
-                  ),
+                  // 單一 Text 保留「{已達成} / 目標 {目標}」精確格式
+                  // （F05-FE 以 find.text 嚴格比對；勿拆成兩個 Text）。
+                  Text('${money(goal.achievedMinor)} / 目標 ${money(goal.goalMinor)}',
+                      style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: tokens.success)),
                   const SizedBox(height: 8),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(6),

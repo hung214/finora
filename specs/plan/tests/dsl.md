@@ -477,6 +477,50 @@
 | 信用卡預扣（AC-04） | `Then 交易 {id} 的 settlement_status = pending` | 卡片頁顯示「本期應付 8,000」且薪轉卡顯示 45,000 |
 | 衝突 LWW（AC-07） | `Then 衝突事件 1 筆，被覆蓋內容為 "A 版"` | 同步狀態頁可檢視「A 版」內容 |
 
+## 4.5 F11 句型登記（M8：帳戶/分類設定＋外觀；v1.6）
+
+> 缺口來源（2026-10-22 PM 走查）：帳戶「是否計入合併統計」與帳戶/分類設定頁
+> 未實作（分類設定雛型 `ui/09` 早已存在）；外觀主題（FR-O1）無 App 內切換。
+
+**BE（§2 補充）**
+
+| 句型 | 綁定行為 |
+|---|---|
+| `Given 內建預設帳戶「{name}」與分類集` | FirstRunBootstrap 播種（現金＋內建分類） |
+| `When 建立帳戶「{name}」類型 {type}、期初 {amt}、計入合併={flag}` | AccountService.create（accounts＋oplog 同 transaction） |
+| `When 更新帳戶「{from}」為 名稱「{to}」、類型 {type}` | AccountService.update（oplog 整列快照） |
+| `When 刪除帳戶「{name}」` | AccountService.delete（有未結算交易→拋例外） |
+| `Given 帳戶「{name}」期初 {amt} 且計入合併={flag}` | fixture 直寫 accounts（含 `include_in_totals`） |
+| `When 計算資產合計` | BalanceCalculator 合計（僅 include_in_totals=true） |
+| `When 新增{kind}分類「{name}」` | CategoryService.create（sort_order 尾端） |
+| `When 將分類「{a}」排在「{b}」之前` | CategoryService.reorder（sort_order 連續化） |
+| `When 於「{parent}」下新增子分類「{name}」` | CategoryService.create(parentId)（限一層） |
+| `When 設定外觀為 {mode}` | settings `app.theme_mode` 寫入（system\|light\|dark） |
+| `Then 拋出例外「{msg}」` | 期例外型別＋訊息比對 |
+| `Then 各分類 sort_order 為連續遞增整數` | 排序不變式 |
+| `Then settings app.theme_mode = {mode}` | 設定落地斷言 |
+
+**FE（§3 補充）**
+
+| 句型 | 綁定行為 |
+|---|---|
+| `Given 開啟設定→帳戶管理` | Hub→AccountSettingsPage（key settings-accounts） |
+| `Given 開啟設定→分類管理（{kind}）` | Hub→CategorySettingsPage（key settings-categories） |
+| `When 新增帳戶「{name}」類型 {type}、期初 {amt}、關閉「計入合併統計」` | 新增表單（key acct-add／acct-name／acct-type／acct-opening／acct-include-totals） |
+| `When 設定→帳戶管理→刪除「{name}」` | 列表滑動/選單刪除（key acct-delete-{name}） |
+| `When 設定→帳戶管理→編輯「{from}」為「{to}」、類型 {type}` | 編輯表單（key acct-edit-{from}） |
+| `When 新增分類「{name}」（圖示 {icon}、顏色 {color}）` | 分類表單（key cat-add／cat-name／cat-icon／cat-color） |
+| `When 將「{a}」拖曳至「{b}」之前` | ReorderableListView 拖曳 |
+| `When 設定→分類管理→新增子分類「{name}」於「{parent}」下` | 子分類建立（key cat-sub-{parent}） |
+| `When 設定→外觀→選擇「{label}」` | 主題選擇（key theme-system／theme-light／theme-dark） |
+| `Then 帳戶列表顯示「{name}」且標示「不計入合併」` | 列表列＋標籤（key acct-row-{name}／acct-excluded-badge） |
+| `Then 資產合計顯示 {amt}` | 總覽資產卡（key overview-asset） |
+| `Then 介面立即以深色呈現（AppTokens 深色組）` | Theme.of(context).brightness == dark＋AppTokens.dark.bg 比對 |
+| `Then 分類列表「{parent}」展開顯示子分類「{name}」` | 展開後子列（key cat-sub-row-{name}） |
+| `Then 外觀仍為「{label}」` | 重啟後 themeMode 持久化 |
+
+---
+
 ## 5. 禁例
 
 - 禁止在 feature 檔寫 selector/id/CSS/內部 API。

@@ -154,6 +154,7 @@ CREATE TABLE accounts (
   currency TEXT NOT NULL DEFAULT 'TWD',
   opening_amount_minor INTEGER NOT NULL DEFAULT 0,
   color TEXT, icon TEXT, sort_order INTEGER,
+  include_in_totals INTEGER NOT NULL DEFAULT 1,  -- 是否計入合併統計（FR-A2/A6；0=不列入資產/負債/淨值）
   archived INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER, updated_at INTEGER, hlc TEXT, deleted_at INTEGER
 );
@@ -475,6 +476,24 @@ sequenceDiagram
 
 ---
 
+### 5.6 設定群：帳戶／分類 CRUD（FR-A7／FR-B1；M8）
+
+**契約與既有寫入路徑一致**（SDD §5.1）：每次變更＝`業務表 + oplog` 同 transaction，
+`entity` 用 `accounts`／`categories`，`payload` 為整列快照（含 `hlc`）——
+故多裝置以既有 LWW（§5.5.4）合併，**不需新增同步邏輯**。
+
+| 服務 | 職責 | 邊界 |
+|---|---|---|
+| `AccountService` | create/update（名稱、類型、期初餘額、`include_in_totals`、封存）／archive／delete | 刪除：有未結算交易 → 拒絕並提示轉移（FR-A2）；有交易引用 → 僅允許封存 |
+| `CategoryService` | create/update（名稱、圖示、顏色、父分類）／reorder（`sort_order` 連續化）／archive／delete | 一層子分類（FR-B1）；有交易引用 → 拒絕刪除並提示；系統內建分類僅可封存 |
+| `BalanceCalculator`（改動） | 資產/負債/淨值（FR-A6）**僅計入 `include_in_totals＝true`** 且未封存之帳戶 | 個別帳戶餘額顯示不受影響（僅合計排除） |
+
+**FE 設定頁**：`AccountSettingsPage`／`CategorySettingsPage`／`AppearanceSettingsPage`
+（主題 `app.theme_mode`：system|light|dark → `MaterialApp.themeMode` 即時套用）。
+測試鍵前綴：`acct-*`／`cat-*`／`theme-*`（dsl §3 登記）。
+
+---
+
 ## 6. 雲端儲存抽象層
 
 ```dart
@@ -542,7 +561,8 @@ abstract interface class CloudStorageAdapter {
   明細：帳戶橫滑列 + 交易時間軸（依日分組、日小計；含「掃描」按鈕與「待確認」badge）
   快記：全螢幕數字鍵盤 + 分類快捷格（連續記帳）
   預算：預算卡列表 + 分類明細鑽取
-  設定：帳戶管理、雲端與同步、安全、外觀、關於
+  設定：帳戶管理（FR-A7）、分類管理（FR-B1）、外觀（FR-O1 主題/語系）、
+        雲端與同步（FR-Y7）、資料管理（FR-O3）、安全（FR-X）、關於
 ```
 
 **桌面版**（Win/Mac）：
@@ -557,6 +577,20 @@ abstract interface class CloudStorageAdapter {
 ```
 
 關鍵流程頁面：`掃描頁（相機+掃描框+連拍）` → `確認頁（欄位高亮低信賴項、原圖縮圖）`；`同步狀態頁（裝置列表、進度、衝突檢視）`。
+
+**設定群（FR-A7／FR-B1／FR-O1；M8）**：
+
+```
+設定 → 帳戶管理    列表（名稱/類型/餘額/是否計入合併）→ 編輯頁
+                    （名稱、類型、期初餘額、計入合併統計、封存、刪除）
+     → 分類管理    支出/收入 分頁 → 列表（可拖曳排序、子分類展開）
+                    → 編輯（名稱、圖示、顏色、封存、刪除——有交易引用時提示）
+     → 外觀        主題：跟隨系統／淺色／深色（立即生效；settings app.theme_mode）
+```
+
+> 原型對照：分類管理＝`specs/plan/ui/09-category-settings.html`（＋畫廊
+> `category_settings_demo_page.dart`）；帳戶管理原型待補（`11-account-settings.html`，
+> 樣式沿用 09 卡片語彙）；外觀＝`07-settings-sync.html` 之外觀段。
 
 ---
 

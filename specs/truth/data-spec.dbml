@@ -96,6 +96,7 @@ Table accounts {
   color varchar
   icon varchar
   sort_order integer
+  include_in_totals boolean [not null, default: true, note: "是否計入合併統計（FR-A2/A6）——false 者不列入資產/負債/淨值"]
   archived boolean [not null, default: false]
   created_at integer [not null, note: "ms, UTC"]
   updated_at integer [not null]
