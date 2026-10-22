@@ -60,7 +60,7 @@ class BudgetDemoContent extends StatelessWidget {
             child: Column(
               children: [
                 _BudgetItem(
-                    name: '餐飲',
+                    name: '餐飲食品',
                     usage: '7,000 / 8,000',
                     pct: '87.5%',
                     pctColor: DemoTheme.amber,
@@ -69,7 +69,7 @@ class BudgetDemoContent extends StatelessWidget {
                     extra: '預扣 1,000',
                     daily: '日均 388'),
                 _BudgetItem(
-                    name: '購物',
+                    name: '服飾美容',
                     usage: '5,260 / 5,000',
                     pct: '105%',
                     pctColor: DemoTheme.red,
@@ -78,7 +78,7 @@ class BudgetDemoContent extends StatelessWidget {
                     extra: '超支 260',
                     daily: null),
                 _BudgetItem(
-                    name: '交通',
+                    name: '交通運輸',
                     usage: '840 / 2,000',
                     pct: '42%',
                     pctColor: DemoTheme.green,

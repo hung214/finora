@@ -29,7 +29,7 @@ Feature: 同步協議與備份（後端自動化）
   @P0 @FR-Y11
   Scenario: 每筆自動同步模式
     Given 同步模式 = 每筆自動同步
-    When 呼叫 SaveTransactionUseCase（帳戶「現金」、分類「餐飲」、金額 120、時間 2026/10/18）
+    When 呼叫 SaveTransactionUseCase（帳戶「現金」、分類「餐飲食品」、金額 120、時間 2026/10/18）
     Then 雲端 ops/d-A/00000001.opbundle 存在（1 op）
     And oplog 皆已打包（packed_seq 非 null）
 

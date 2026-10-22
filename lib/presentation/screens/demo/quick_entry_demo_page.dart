@@ -51,9 +51,9 @@ class QuickEntryDemoContent extends StatelessWidget {
                     spacing: 8,
                     runSpacing: 8,
                     children: const [
-                      _Cat(icon: Icons.ramen_dining, label: '餐飲'),
-                      _Cat(icon: Icons.shopping_basket, label: '購物', on: true),
-                      _Cat(icon: Icons.subway, label: '交通'),
+                      _Cat(icon: Icons.ramen_dining, label: '餐飲食品'),
+                      _Cat(icon: Icons.shopping_basket, label: '服飾美容', on: true),
+                      _Cat(icon: Icons.subway, label: '交通運輸'),
                       _Cat(icon: Icons.home_outlined, label: '居住'),
                       _Cat(icon: Icons.movie_outlined, label: '娛樂'),
                       _Cat(icon: Icons.medical_services_outlined, label: '醫療'),

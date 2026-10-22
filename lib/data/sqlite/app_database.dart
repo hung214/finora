@@ -171,13 +171,45 @@ class AppDatabase {
   // ── 帳戶（FR-A） ──────────────────────────────────────────
 
   void insertAccount(AccountRow a) => _db.execute(
-        'INSERT INTO accounts (id, type, name, currency, opening_amount_minor, archived, created_at, updated_at, hlc)'
-        ' VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO accounts (id, type, name, currency, opening_amount_minor, include_in_totals, archived, created_at, updated_at, hlc)'
+        ' VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [
           a.id, a.type, a.name, a.currency, a.openingAmountMinor,
-          a.archived ? 1 : 0, a.createdAt, a.updatedAt, a.hlc,
+          a.includeInTotals ? 1 : 0, a.archived ? 1 : 0, a.createdAt,
+          a.updatedAt, a.hlc,
         ],
       );
+
+  /// 帳戶更新（整列覆寫；FR-A7 編輯）——呼叫端負責同 transaction 之 oplog。
+  void updateAccount(AccountRow a) => _db.execute(
+        'UPDATE accounts SET type = ?, name = ?, currency = ?, opening_amount_minor = ?,'
+        ' include_in_totals = ?, archived = ?, updated_at = ?, hlc = ? WHERE id = ?',
+        [
+          a.type, a.name, a.currency, a.openingAmountMinor,
+          a.includeInTotals ? 1 : 0, a.archived ? 1 : 0, a.updatedAt, a.hlc, a.id,
+        ],
+      );
+
+  /// 帳戶刪除（實體刪除；FR-A2 需無未結算交易——由 AccountService 把關）。
+  void deleteAccount(String id) =>
+      _db.execute('DELETE FROM accounts WHERE id = ?', [id]);
+
+  /// 帳戶變更 + oplog 追加於同一 transaction（SDD §5.1 契約；F11 FR-A7）。
+  void mutateAccountWithOplog(AccountRow a, OplogRow o, {required bool delete}) {
+    _db.execute('BEGIN');
+    try {
+      if (delete) {
+        deleteAccount(a.id);
+      } else {
+        updateAccount(a);
+      }
+      appendOp(o);
+      _db.execute('COMMIT');
+    } catch (_) {
+      _db.execute('ROLLBACK');
+      rethrow;
+    }
+  }
 
   /// 帳戶寫入 + oplog 追加於同一 transaction（SDD §5.1 契約；首次啟動播種用）。
   void insertAccountWithOplog(AccountRow a, OplogRow o) {
@@ -200,10 +232,61 @@ class AppDatabase {
   // ── 分類（FR-B1） ─────────────────────────────────────────
 
   void insertCategory(CategoryRow c) => _db.execute(
-        'INSERT INTO categories (id, kind, parent_id, name, is_system, created_at, updated_at, hlc)'
-        ' VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [c.id, c.kind, c.parentId, c.name, c.isSystem ? 1 : 0, c.createdAt, c.updatedAt, c.hlc],
+        'INSERT INTO categories (id, kind, parent_id, name, icon, color, sort_order, is_system, created_at, updated_at, hlc, deleted_at)'
+        ' VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          c.id, c.kind, c.parentId, c.name, c.icon, c.color, c.sortOrder,
+          c.isSystem ? 1 : 0, c.createdAt, c.updatedAt, c.hlc, c.deletedAt,
+        ],
       );
+
+  /// 分類更新（整列覆寫；FR-B1 編輯/排序/封存）——呼叫端負責同 transaction
+  /// 之 oplog。
+  void updateCategory(CategoryRow c) => _db.execute(
+        'UPDATE categories SET name = ?, icon = ?, color = ?, sort_order = ?,'
+        ' is_system = ?, updated_at = ?, hlc = ?, deleted_at = ? WHERE id = ?',
+        [
+          c.name, c.icon, c.color, c.sortOrder, c.isSystem ? 1 : 0,
+          c.updatedAt, c.hlc, c.deletedAt, c.id,
+        ],
+      );
+
+  /// 分類刪除（實體；FR-B1 有交易引用→由 CategoryService 拒絕）。
+  void deleteCategory(String id) =>
+      _db.execute('DELETE FROM categories WHERE id = ?', [id]);
+
+  /// 分類變更 + oplog 追加於同一 transaction（SDD §5.1 契約；F11 FR-B1）。
+  void mutateCategoryWithOplog(CategoryRow c, OplogRow o,
+      {required bool delete}) {
+    _db.execute('BEGIN');
+    try {
+      if (delete) {
+        deleteCategory(c.id);
+      } else {
+        updateCategory(c);
+      }
+      appendOp(o);
+      _db.execute('COMMIT');
+    } catch (_) {
+      _db.execute('ROLLBACK');
+      rethrow;
+    }
+  }
+
+  /// 分類排序批次寫入 + 各自 oplog（同一 transaction；FR-B1 reorder）。
+  void reorderCategoriesWithOplog(List<(CategoryRow, OplogRow)> items) {
+    _db.execute('BEGIN');
+    try {
+      for (final (c, o) in items) {
+        updateCategory(c);
+        appendOp(o);
+      }
+      _db.execute('COMMIT');
+    } catch (_) {
+      _db.execute('ROLLBACK');
+      rethrow;
+    }
+  }
 
   /// 分類寫入 + oplog 追加於同一 transaction（SDD §5.1 契約；首次啟動播種用）。
   void insertCategoryWithOplog(CategoryRow c, OplogRow o) {
@@ -1078,6 +1161,7 @@ class AccountRow {
     required this.name,
     required this.currency,
     required this.openingAmountMinor,
+    this.includeInTotals = true,
     required this.archived,
     required this.createdAt,
     required this.updatedAt,
@@ -1089,6 +1173,10 @@ class AccountRow {
   final String name;
   final String currency;
   final int openingAmountMinor;
+
+  /// 是否計入合併統計（SPEC FR-A2/A6/A7；預設 true——總覽資產/負債/淨值
+  /// 僅計入 `includeInTotals && !archived` 之帳戶）。
+  final bool includeInTotals;
   final bool archived;
   final int createdAt;
   final int updatedAt;
@@ -1100,6 +1188,7 @@ class AccountRow {
         name: r['name'] as String,
         currency: r['currency'] as String,
         openingAmountMinor: r['opening_amount_minor'] as int,
+        includeInTotals: (r['include_in_totals'] as int? ?? 1) == 1,
         archived: (r['archived'] as int) == 1,
         createdAt: r['created_at'] as int,
         updatedAt: r['updated_at'] as int,
@@ -1113,11 +1202,34 @@ class AccountRow {
         'name': name,
         'currency': currency,
         'opening_amount_minor': openingAmountMinor,
+        'include_in_totals': includeInTotals,
         'archived': archived,
         'created_at': createdAt,
         'updated_at': updatedAt,
         'hlc': hlc,
       };
+
+  AccountRow copyWith({
+    String? type,
+    String? name,
+    int? openingAmountMinor,
+    bool? includeInTotals,
+    bool? archived,
+    int? updatedAt,
+    String? hlc,
+  }) =>
+      AccountRow(
+        id: id,
+        type: type ?? this.type,
+        name: name ?? this.name,
+        currency: currency,
+        openingAmountMinor: openingAmountMinor ?? this.openingAmountMinor,
+        includeInTotals: includeInTotals ?? this.includeInTotals,
+        archived: archived ?? this.archived,
+        createdAt: createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+        hlc: hlc ?? this.hlc,
+      );
 }
 
 class CategoryRow {
@@ -1126,30 +1238,46 @@ class CategoryRow {
     required this.kind,
     required this.parentId,
     required this.name,
-    required this.isSystem,
+    this.icon,
+    this.color,
+    this.sortOrder,
+    this.isSystem = false,
     required this.createdAt,
     required this.updatedAt,
     required this.hlc,
+    this.deletedAt,
   });
 
   final String id;
   final String kind;
   final String? parentId;
   final String name;
+
+  /// 圖示與顏色（SPEC FR-B1；分類管理設定用）。
+  final String? icon;
+  final String? color;
+
+  /// 排序（FR-B1；連續遞增整數，CategoryService.reorder 維護）。
+  final int? sortOrder;
   final bool isSystem;
   final int createdAt;
   final int updatedAt;
   final String hlc;
+  final int? deletedAt;
 
   factory CategoryRow.fromRow(Map<String, Object?> r) => CategoryRow(
         id: r['id'] as String,
         kind: r['kind'] as String,
         parentId: r['parent_id'] as String?,
         name: r['name'] as String,
+        icon: r['icon'] as String?,
+        color: r['color'] as String?,
+        sortOrder: r['sort_order'] as int?,
         isSystem: (r['is_system'] as int) == 1,
         createdAt: r['created_at'] as int,
         updatedAt: r['updated_at'] as int,
         hlc: r['hlc'] as String,
+        deletedAt: r['deleted_at'] as int?,
       );
 
   /// oplog payload 之整列快照（SDD §5.5.4）。
@@ -1158,11 +1286,40 @@ class CategoryRow {
         'kind': kind,
         'parent_id': parentId,
         'name': name,
+        'icon': icon,
+        'color': color,
+        'sort_order': sortOrder,
         'is_system': isSystem,
         'created_at': createdAt,
         'updated_at': updatedAt,
         'hlc': hlc,
+        'deleted_at': deletedAt,
       };
+
+  CategoryRow copyWith({
+    String? name,
+    String? icon,
+    String? color,
+    int? sortOrder,
+    bool? isSystem,
+    int? updatedAt,
+    String? hlc,
+    int? deletedAt,
+  }) =>
+      CategoryRow(
+        id: id,
+        kind: kind,
+        parentId: parentId,
+        name: name ?? this.name,
+        icon: icon ?? this.icon,
+        color: color ?? this.color,
+        sortOrder: sortOrder ?? this.sortOrder,
+        isSystem: isSystem ?? this.isSystem,
+        createdAt: createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+        hlc: hlc ?? this.hlc,
+        deletedAt: deletedAt ?? this.deletedAt,
+      );
 }
 
 class TxRow {

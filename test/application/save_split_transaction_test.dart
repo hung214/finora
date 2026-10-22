@@ -17,7 +17,7 @@ void main() {
       totalMinor: 1000,
       items: const [
         (categoryId: 'c-food', amountMinor: 600),
-        (categoryId: 'c-shop', amountMinor: 400),
+        (categoryId: 'c-beauty', amountMinor: 400),
       ],
       occurredAt: DateTime(2026, 10, 20, 12),
     );
@@ -33,7 +33,7 @@ void main() {
     // 微回退（NTP slew）可使後生成者 id 較小 → 陳列順序翻轉。拆分子交易的
     // 順序非契約，斷言以集合驗兩筆金額皆在。）
     expect(rows.map((r) => r.amountMinor).toSet(), {600, 400});
-    expect(rows.map((r) => r.categoryId).toSet(), {'c-food', 'c-shop'});
+    expect(rows.map((r) => r.categoryId).toSet(), {'c-food', 'c-beauty'});
     // oplog 逐筆（SDD §5.1：同一 transaction，中斷不產生孤兒）
     final ops = db.allOps();
     expect(ops, hasLength(2));
@@ -55,7 +55,7 @@ void main() {
         totalMinor: 1000,
         items: const [
           (categoryId: 'c-food', amountMinor: 600),
-          (categoryId: 'c-shop', amountMinor: 300), // 加總 900 ≠ 1000
+          (categoryId: 'c-beauty', amountMinor: 300), // 加總 900 ≠ 1000
         ],
         occurredAt: DateTime(2026, 10, 20, 12),
       ),

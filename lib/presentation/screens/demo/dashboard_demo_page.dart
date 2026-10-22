@@ -72,7 +72,7 @@ class DashboardDemoContent extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('餐飲',
+                    Text('餐飲食品',
                         style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
@@ -132,13 +132,13 @@ class DashboardDemoContent extends StatelessWidget {
               DemoTxTile(
                   icon: Icons.shopping_basket_outlined,
                   title: '陽光超商',
-                  subtitle: '今天 09:12 · 現金 · 購物 · 掃描',
+                  subtitle: '今天 09:12 · 現金 · 服飾美容 · 掃描',
                   amount: -195,
                   hasAttachment: true),
               DemoTxTile(
                   icon: Icons.bakery_dining_outlined,
                   title: '晨光早餐店',
-                  subtitle: '今天 08:15 · 現金 · 餐飲',
+                  subtitle: '今天 08:15 · 現金 · 餐飲食品',
                   amount: -120),
               DemoTxTile(
                   icon: Icons.credit_card,

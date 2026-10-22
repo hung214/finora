@@ -36,27 +36,27 @@ Feature: 帳戶與分類設定（後端自動化）
   @P0 @FR-B1
   Scenario: 新增分類並重排 sort_order
     When 新增支出分類「寵物」
-    And 將分類「寵物」排在「餐飲」之前
-    Then 分類列表首位為「寵物」、次位為「餐飲」
+    And 將分類「寵物」排在「餐飲食品」之前
+    Then 分類列表首位為「寵物」、次位為「餐飲食品」
     And 各分類 sort_order 為連續遞增整數
 
   @P0 @FR-B1
   Scenario: 刪除有交易引用的分類被拒絕
-    Given 分類「餐飲」已有 3 筆交易
-    When 刪除分類「餐飲」
+    Given 分類「餐飲食品」已有 3 筆交易
+    When 刪除分類「餐飲食品」
     Then 拋出例外「此分類已有交易引用，可改為封存或改用其他分類」
-    And 分類「餐飲」仍存在
+    And 分類「餐飲食品」仍存在
 
   @P1 @FR-B1
   Scenario: 一層子分類限制
-    When 於「餐飲」下新增子分類「早餐」
-    Then 分類「早餐」父分類為「餐飲」
+    When 於「餐飲食品」下新增子分類「早餐」
+    Then 分類「早餐」父分類為「餐飲食品」
     When 嘗試於「早餐」下再新增子分類「豆漿」
     Then 拋出例外「僅支援一層子分類」
 
   @P0 @FR-O1
-  Scenario: 外觀設定持久化
+  Scenario: 外觀設定持久化（檔案 DB）
+    Given 已開啟檔案資料庫（暫存檔）
     When 設定外觀為 dark
+    And 關閉並重新開啟同一資料庫
     Then settings app.theme_mode = dark
-    When 重新開啟資料庫（同檔）
-    Then 外觀設定仍為 dark

@@ -2,10 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/clock.dart';
 import '../data/sqlite/app_database.dart';
-import '../domain/entities/account.dart';
-import '../domain/entities/transaction.dart';
 import 'budgets/budget_alert_service.dart';
 import 'credit_card/repay_statement_use_case.dart';
+export 'mappers.dart';
 import 'notifications/notification_service.dart';
 import 'quick_entry/quick_entry_preset_service.dart';
 import 'quick_entry/save_transaction_use_case.dart';
@@ -116,6 +115,22 @@ final activeAccountsProvider = Provider((ref) =>
 final expenseCategoriesProvider =
     Provider((ref) => ref.watch(dbProvider).categoriesByKind('expense'));
 
+/// 常用類別（FR-B1 常用區）：最近使用分類（依交易時間新→舊去重，取前 10）。
+/// 監看 [ledgerProvider]——存帳後即時反映（下一筆選單最上方）。
+final recentCategoryIdsProvider = Provider<List<String>>((ref) {
+  final txs = ref.watch(ledgerProvider); // 已濾刪除＋occurred_at 降冪
+  final seen = <String>{};
+  final mru = <String>[];
+  for (final t in txs) {
+    final cat = t.categoryId;
+    if (cat != null && seen.add(cat)) {
+      mru.add(cat);
+      if (mru.length >= 10) break;
+    }
+  }
+  return mru;
+});
+
 /// 明細（未刪除交易，occurred_at 降冪；SDD 原則 2：衍生值一律重算）。
 final ledgerProvider =
     NotifierProvider<LedgerNotifier, List<TxRow>>(LedgerNotifier.new);
@@ -157,31 +172,4 @@ class RecentDeletionsNotifier extends Notifier<List<TxRow>> {
   void refresh() => ref.invalidateSelf();
 }
 
-// ── Row → 領域實體對映（BalanceCalculator 介面對齊） ──────────
-
-Account accountEntity(AccountRow r) => Account(
-      id: r.id,
-      type: AccountType.values.byName(r.type),
-      name: r.name,
-      currency: r.currency,
-      openingAmountMinor: r.openingAmountMinor,
-      archived: r.archived,
-    );
-
-Tx txEntity(TxRow r) => Tx(
-      id: r.id,
-      kind: TxKind.values.byName(r.kind),
-      amountMinor: r.amountMinor,
-      currency: r.currency,
-      fxRate: r.fxRate,
-      splitGroupId: r.splitGroupId,
-      accountId: r.accountId,
-      toAccountId: r.toAccountId,
-      categoryId: r.categoryId,
-      merchant: r.merchant,
-      note: r.note,
-      occurredAt: r.occurredAt,
-      source: TxSource.values.byName(r.source),
-      settlementStatus: SettlementStatus.values.byName(r.settlementStatus),
-      deleted: r.deletedAt != null,
-    );
+// ── Row → 領域實體對映：移至 mappers.dart（頂部 export；服務層共用） ──

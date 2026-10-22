@@ -477,10 +477,12 @@
 | 信用卡預扣（AC-04） | `Then 交易 {id} 的 settlement_status = pending` | 卡片頁顯示「本期應付 8,000」且薪轉卡顯示 45,000 |
 | 衝突 LWW（AC-07） | `Then 衝突事件 1 筆，被覆蓋內容為 "A 版"` | 同步狀態頁可檢視「A 版」內容 |
 
-## 4.5 F11 句型登記（M8：帳戶/分類設定＋外觀；v1.6）
+## 4.5 F11 句型登記（M8：帳戶/分類設定＋外觀；v1.7）
 
 > 缺口來源（2026-10-22 PM 走查）：帳戶「是否計入合併統計」與帳戶/分類設定頁
 > 未實作（分類設定雛型 `ui/09` 早已存在）；外觀主題（FR-O1）無 App 內切換。
+> v1.7（2026-10-22 PM 決策）：主類別集重定義（支出 14＋收入 2）、子分類可拖曳、
+> 常用類別區（最近使用 10 個常駐選擇器最上方）。
 
 **BE（§2 補充）**
 
@@ -496,6 +498,8 @@
 | `When 將分類「{a}」排在「{b}」之前` | CategoryService.reorder（sort_order 連續化） |
 | `When 於「{parent}」下新增子分類「{name}」` | CategoryService.create(parentId)（限一層） |
 | `When 設定外觀為 {mode}` | settings `app.theme_mode` 寫入（system\|light\|dark） |
+| `Given 已開啟檔案資料庫（暫存檔）` | 暫存檔 `AppDatabase.open`＋播種（持久化驗證須檔案 DB——記憶體無法重啟） |
+| `And 關閉並重新開啟同一資料庫` | close→同 path 重開（DBG-004 冪等語意） |
 | `Then 拋出例外「{msg}」` | 期例外型別＋訊息比對 |
 | `Then 各分類 sort_order 為連續遞增整數` | 排序不變式 |
 | `Then settings app.theme_mode = {mode}` | 設定落地斷言 |
@@ -518,6 +522,11 @@
 | `Then 介面立即以深色呈現（AppTokens 深色組）` | Theme.of(context).brightness == dark＋AppTokens.dark.bg 比對 |
 | `Then 分類列表「{parent}」展開顯示子分類「{name}」` | 展開後子列（key cat-sub-row-{name}） |
 | `Then 外觀仍為「{label}」` | 重啟後 themeMode 持久化 |
+| `When 將子分類「{a}」拖曳至子分類「{b}」之前`（v1.7） | 群組內嵌清單拖曳（key cat-sub-drag-{a}；PM 決策：子分類可拖曳） |
+| `Then 子分類列表「{a}」在「{b}」之前`（v1.7） | 子列位置比對（dy） |
+| `Given 已有 {n} 筆支出分別使用「{a}」與「{b}」`（v1.7） | fixture 直寫交易（最新一筆用 {b}；寫後 invalidate ledgerProvider） |
+| `When 開啟快記並展開分類選擇器`（v1.7） | popUntil 回根→fab-quick-entry→quick-entry-category |
+| `Then 選單最上方為「{label}」且「{name}」出現於常用區（在完整清單之前）`（v1.7） | 常用區標題（text）＋常用項 key `recent-cat-{name}`（find.text 全樹會誤中主殼交易列） |
 
 ---
 

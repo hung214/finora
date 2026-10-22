@@ -92,7 +92,7 @@ void _bind(GherkinRunner runner, _World w) {
       DbFixture.seedCategory(
         w.db,
         id: id,
-        kind: name == '薪資' ? 'income' : 'expense',
+        kind: name == '一般收入' ? 'income' : 'expense',
         name: name,
       );
       w.categories[name] = id;
@@ -151,7 +151,7 @@ void _bind(GherkinRunner runner, _World w) {
       kind: 'income',
       amountMinor: _amount(p['amt']!),
       accountId: _firstActiveAccount(w.db).id,
-      category: w.categories['薪資'],
+      category: w.categories['一般收入'],
       occurredAt: Clock.now().millisecondsSinceEpoch,
     );
   });
@@ -204,7 +204,7 @@ void _bind(GherkinRunner runner, _World w) {
   runner.on(r'{cat}預算用量 = {amt}$', (p) => _expectUsage(w, p));
 
   runner.on(r'預算明細標記預扣部分 {amt}$', (p) {
-    final usage = _evaluator(w).categoryUsage(w.categories['餐飲']!)!;
+    final usage = _evaluator(w).categoryUsage(w.categories['餐飲食品']!)!;
     expect(usage.pendingMinor, _amount(p['amt']!),
         reason: 'FR-B5：預扣分量可辨識（settlement=pending）');
   });
@@ -223,8 +223,8 @@ void _bind(GherkinRunner runner, _World w) {
   });
 
   runner.on(r'目前週期 = {start} ~ {end}$', (p) {
-    final period = _evaluator(w).categoryPeriod(w.categories['餐飲']!);
-    expect(period, isNotNull, reason: '餐飲預算應已設定（FR-B2）');
+    final period = _evaluator(w).categoryPeriod(w.categories['餐飲食品']!);
+    expect(period, isNotNull, reason: '餐飲食品預算應已設定（FR-B2）');
     expect(period!.display(), '${p['start']} ~ ${p['end']}',
         reason: 'S5.6：自訂起始日跨月週期');
   });

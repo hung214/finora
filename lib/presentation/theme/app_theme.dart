@@ -7,6 +7,9 @@ import 'package:flutter/material.dart';
 /// demo/demo_shared.dart）已驗證組合；正式頁一律經 [AppTokens] 取語意色，
 /// 禁止新增 Colors.* 硬編碼（ad-hoc 樣式為 M7 前已知債——本檔落地後清零）。
 class AppTokens extends ThemeExtension<AppTokens> {
+  /// 品牌主色（teal；AppShell seed 與雛型 `01~09` 同源）。
+  static const Color brandSeed = Color(0xFF0B7A75);
+
   const AppTokens({
     required this.danger,
     required this.warning,
@@ -47,7 +50,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
   /// 頁面底（雛型 --bg）。
   final Color bg;
 
-  static const Color _seed = Color(0xFF0B7A75);
+  static const Color _seed = brandSeed;
 
   /// 淺色組（DemoTheme.light 同源）。
   static const AppTokens light = AppTokens(

@@ -11,7 +11,7 @@ Feature: 信用卡帳單引擎（後端自動化）
 
   @P0 @FR-C1
   Scenario: 刷卡預扣即時累計且不動銀行餘額
-    When 以「卡A」記錄支出 3000（購物）
+    When 以「卡A」記錄支出 3000（服飾美容）
     Then 交易 settlement_status = pending
     And 帳戶「卡A」重算餘額 = 3000（本期應付）
     And 帳戶「薪轉」重算餘額 = 50000

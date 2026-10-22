@@ -396,7 +396,7 @@ Future<void> _seedCloudData(_World w, String email) async {
   final srcDb = DbFixture.create();
   w.dbs.add(srcDb);
   DbFixture.seedAccount(srcDb, id: 'a-src', type: 'cash', name: '現金', opening: 1000);
-  DbFixture.seedCategory(srcDb, id: 'c-src', kind: 'expense', name: '餐飲');
+  DbFixture.seedCategory(srcDb, id: 'c-src', kind: 'expense', name: '餐飲食品');
   await DbFixture.seedTx(srcDb,
       id: 'tx-cloud',
       kind: 'expense',

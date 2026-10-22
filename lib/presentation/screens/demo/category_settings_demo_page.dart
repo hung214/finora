@@ -58,19 +58,19 @@ class CategorySettingsDemoContent extends StatelessWidget {
           const _CatTile(
               icon: Icons.ramen_dining,
               color: Color(0xFFFFD8A8),
-              name: '餐飲',
+              name: '餐飲食品',
               sub: '子分類 2：咖啡、手搖',
               system: false),
           const _CatTile(
               icon: Icons.shopping_basket_outlined,
               color: Color(0xFFB2F2BB),
-              name: '購物',
+              name: '服飾美容',
               sub: null,
               system: false),
           const _CatTile(
               icon: Icons.subway_outlined,
               color: Color(0xFFA5D8FF),
-              name: '交通',
+              name: '交通運輸',
               sub: null,
               system: false),
           const _CatTile(
@@ -109,7 +109,7 @@ class CategorySettingsDemoContent extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('薪資 · 獎金 · 投資 · 其他',
+                Text('一般收入 · 獎金 · 投資 · 其他',
                     style: TextStyle(fontSize: 13, color: t.text)),
                 const SizedBox(height: 6),
                 const _Note('收入分類獨立管理（FR-B1）'),
@@ -121,7 +121,7 @@ class CategorySettingsDemoContent extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const _Note('① 一層子分類（例：餐飲 → 咖啡）'),
+                const _Note('① 一層子分類（例：餐飲食品 → 咖啡）'),
                 const _Note('② 內建分類可隱藏、不可刪除（is_system）'),
                 const _Note('③ 已有交易之分類刪除 → 提示轉移或保留歷史'),
                 const _Note('④ 圖示／顏色／排序皆可自訂；異動隨雲端同步'),

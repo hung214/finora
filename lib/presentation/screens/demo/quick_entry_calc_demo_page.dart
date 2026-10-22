@@ -98,7 +98,7 @@ class _QuickEntryCalcDemoContentState extends State<QuickEntryCalcDemoContent> {
                   const _Field(label: '分類／商家', value: '不適用（轉帳語意）'),
                 ] else ...[
                   const _Field(label: '帳戶', value: '現金'),
-                  const _Field(label: '分類', value: '餐飲'),
+                  const _Field(label: '分類', value: '餐飲食品'),
                   const _Field(label: '商家', value: '晨光早餐店'),
                 ],
                 const SizedBox(height: 6),
