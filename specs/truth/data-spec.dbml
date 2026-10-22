@@ -1,7 +1,7 @@
 // ============================================================
 // LedgerSync Data Spec — SQLite（本地，SQLCipher）— 單一事實來源
 // ============================================================
-// 版本：v0.3（初版）｜由 /system-analysis 產出
+// 版本：v0.3.3（M8：accounts.include_in_totals——FR-A2/A6/A7 合併計算）｜由 /system-analysis 產出
 // 來源：SDD §4.2（核心摘要）＋ FR-T5/FR-Q9/FR-Y5 所需之完整表
 // 規則：
 //   1. 金額一律 INTEGER minor units（TWD 無小數＝元），禁用浮點

@@ -293,3 +293,18 @@ class SchemaV5 {
     ''',
   ];
 }
+
+/// v6（M8）：帳戶「是否計入合併統計」（SPEC FR-A2/A6/A7）。
+///
+/// 增量：既有 `accounts` 補欄。`DEFAULT 1` → 既有資料維持「計入合併」語意
+/// （升級不改變既有使用者所見合計）。V1 DDL 維持原樣（T-H9 truth 對齊 regex
+/// 相容——新裝亦經本增量取得欄位，避免重複欄位）。
+class SchemaV6 {
+  SchemaV6._();
+
+  static const int version = 6;
+
+  static const List<String> statements = [
+    'ALTER TABLE accounts ADD COLUMN include_in_totals INTEGER NOT NULL DEFAULT 1',
+  ];
+}
