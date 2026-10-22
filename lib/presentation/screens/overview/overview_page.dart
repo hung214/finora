@@ -2,18 +2,29 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../../application/lock/lock_fe_state.dart';
 import '../../../application/budgets/budget_evaluator.dart';
+import '../../../application/lock/lock_fe_state.dart';
 import '../../../application/providers.dart';
+import '../../../application/stats/monthly_stats_service.dart';
 import '../../../core/version.dart';
 import '../../../domain/services/balance_calculator.dart';
-import '../../screens/budget/budget_page.dart';
-import '../../screens/credit_card/credit_card_page.dart';
-import '../../screens/demo/demo_gallery_page.dart';
-import '../../screens/scan/scan_page.dart';
+import '../../theme/app_theme.dart';
+import '../budget/budget_page.dart';
+import '../credit_card/credit_card_page.dart';
+import '../demo/demo_gallery_page.dart';
+import '../scan/scan_page.dart';
 import '../settings/settings_hub_page.dart';
 
-/// 總覽頁（M1 精簡）：帳戶餘額＋收入目標卡＋預算進度（SDD 原則 2：衍生值重算）。
+/// 總覽頁（FR-R1；對照雛型 `specs/plan/ui/01-dashboard.html`）。
+///
+/// 版面：本月收支（支出/收入/結餘）→ 資產/負債/淨值 → 收入目標 →
+/// 預算摘要 → 帳戶 → 最近交易（版本頁尾）。
+/// **雙殼辨識**：寬螢幕（≥700px，桌面 Rail 殼）**雙欄**並排；窄螢幕（行動
+/// 底部導覽殼）單欄堆疊——同一份元件、密度與欄數依寬度分流。
+///
+/// 相容性（FE 斷言紅線）：`privacy-toggle`／`scan-entry`／`app-settings`
+/// key、帳戶列 `find.text('餘額 N')`（唯一）、帳戶名可點（f04 進信用卡）、
+/// 遮蔽時**全部金額** `●●●●`。
 class OverviewPage extends ConsumerWidget {
   const OverviewPage({super.key});
 
@@ -25,7 +36,169 @@ class OverviewPage extends ConsumerWidget {
     final db = ref.watch(dbProvider);
     final evaluator = BudgetEvaluator(db);
     final goal = evaluator.incomeGoalStatus();
+    final monthly = MonthlyStatsService(db);
+    final masked = ref.watch(privacyMaskedProvider);
     final fmt = NumberFormat('#,###');
+    final tokens = AppTokens.of(context);
+
+    String money(int minor) => masked ? '●●●●' : fmt.format(minor);
+    String signed(int minor, {required bool minus}) =>
+        masked ? '●●●●' : '${minus ? '−' : '+'}${fmt.format(minor)}';
+
+    final expense = monthly.expenseMinorThisMonth();
+    final income = monthly.incomeMinorThisMonth();
+    final asset = accounts
+        .where((a) => a.type != 'credit')
+        .fold<int>(0, (s, a) => s + calc.assetBalance(account: accountEntity(a), txs: txs));
+    final liability = accounts
+        .where((a) => a.type == 'credit')
+        .fold<int>(
+            0,
+            (s, a) =>
+                s + calc.creditUnpaidTotal(card: accountEntity(a), txs: txs));
+    final recent = [...txs]..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+
+    final now = DateTime.now();
+    final primary = <Widget>[
+      if (accounts.isEmpty)
+        const _Section(
+          child: Column(
+            children: [
+              Icon(Icons.account_balance_wallet_outlined, size: 36),
+              SizedBox(height: 8),
+              Text('尚無帳戶——建立帳戶後這裡會顯示餘額'),
+            ],
+          ),
+        ),
+      _Section(
+        title: '本月收支（${now.month} 月）',
+        child: Column(
+          children: [
+            // 標籤帶「本月」前綴——避免與明細語意斷言（F02「儲值不顯示『支出』」）
+            // 之全域文字比對衝突（IndexedStack 會同時建入所有分頁）。
+            _MoneyRow(label: '本月支出', value: signed(expense, minus: true), color: tokens.danger),
+            const SizedBox(height: 6),
+            _MoneyRow(label: '本月收入', value: signed(income, minus: false), color: tokens.success),
+            const SizedBox(height: 6),
+            _MoneyRow(label: '結餘', value: money(income - expense)),
+          ],
+        ),
+      ),
+      const SizedBox(height: 8),
+      Row(
+        children: [
+          Expanded(child: _StatCard(label: '資產', value: money(asset))),
+          const SizedBox(width: 8),
+          Expanded(
+              child: _StatCard(
+                  label: '負債（信用卡）', value: money(liability), danger: true)),
+          const SizedBox(width: 8),
+          Expanded(child: _StatCard(label: '淨值', value: money(asset - liability))),
+        ],
+      ),
+      const SizedBox(height: 8),
+      _Section(
+        title: '收入目標',
+        trailing: goal == null
+            ? null
+            : _Badge(goal.achieved ? '已達成 ${goal.ratePercent}%' : '進行中 ${goal.ratePercent}%'),
+        child: goal == null
+            ? Text('未設定——於預算頁設定後顯示進度',
+                style: TextStyle(color: tokens.subText))
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text(money(goal.achievedMinor),
+                          style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: tokens.success)),
+                      const SizedBox(width: 6),
+                      Text('/ 目標 ${money(goal.goalMinor)}',
+                          style: TextStyle(fontSize: 12, color: tokens.subText)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: LinearProgressIndicator(
+                      value: goal.goalMinor <= 0
+                          ? 0
+                          : (goal.achievedMinor / goal.goalMinor).clamp(0.0, 1.0),
+                      minHeight: 8,
+                      color: tokens.success,
+                      backgroundColor: tokens.track,
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    ];
+
+    final secondary = <Widget>[
+      if (db.allBudgets().where((b) => b.categoryId != null).isNotEmpty)
+        _Section(
+          title: '預算摘要',
+          child: Column(
+            children: [
+              for (final b in db.allBudgets())
+                if (b.categoryId != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: BudgetProgressBar(
+                      name: db.categoryName(b.categoryId!) ?? '分類預算',
+                      usageMinor:
+                          evaluator.categoryUsage(b.categoryId!)?.totalMinor ?? 0,
+                      amountMinor: b.amountMinor,
+                    ),
+                  ),
+            ],
+          ),
+        ),
+      _Section(
+        title: '帳戶',
+        child: Column(
+          children: [
+            for (final row in accounts)
+              ListTile(
+                key: Key('account-${row.id}'),
+                contentPadding: EdgeInsets.zero,
+                onTap: row.type == 'credit'
+                    ? () => Navigator.of(context).push(MaterialPageRoute<void>(
+                          builder: (_) => CreditCardPage(cardAccountId: row.id),
+                        ))
+                    : null,
+                leading: Icon(_accountIcon(row.type)),
+                title: Text(row.name),
+                subtitle: row.type == 'credit' ? const Text('點擊檢視帳單') : null,
+                trailing: Text(
+                  // F02-FE S2：餘額千分位；F08-FE S5：隱私遮蔽（●●●●）。
+                  '餘額 ${money(calc.assetBalance(account: accountEntity(row), txs: txs))}',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+          ],
+        ),
+      ),
+      _Section(
+        title: '最近交易',
+        child: recent.isEmpty
+            ? Text('尚無交易——點「+」快記第一筆',
+                style: TextStyle(color: tokens.subText))
+            : Column(
+                children: [
+                  for (final tx in recent.take(3)) ...[
+                    _RecentTxRow(tx: tx, fmt: fmt, masked: masked),
+                    if (tx != recent.take(3).last) const Divider(height: 1),
+                  ],
+                ],
+              ),
+      ),
+    ];
 
     return Scaffold(
       appBar: AppBar(
@@ -47,8 +220,7 @@ class OverviewPage extends ConsumerWidget {
             onPressed: () => openScanFlow(context, ref),
             icon: const Icon(Icons.document_scanner_outlined),
           ),
-          // 設定入口（M7 恢復——PM 2026-10-21 決策含雲端同步；f07 harness
-          // 回頭時補 app-settings → settings-sync 導航步）。
+          // 設定入口（M7 恢復——PM 2026-10-21 決策含雲端同步）。
           IconButton(
             key: const Key('app-settings'),
             tooltip: '設定',
@@ -65,83 +237,188 @@ class OverviewPage extends ConsumerWidget {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(12),
-        children: [
-          if (accounts.isEmpty)
-            // 空狀態（M7 UI 統整；正常首啟由播種建現金帳戶——僅防護性提示）。
-            const Card(
-              child: Padding(
-                padding: EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    Icon(Icons.account_balance_wallet_outlined, size: 36),
-                    SizedBox(height: 8),
-                    Text('尚無帳戶——建立帳戶後這裡會顯示餘額'),
-                  ],
-                ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          // 桌面板（Rail 殼／寬視窗）雙欄；行動版單欄堆疊（雙殼辨識）。
+          final wide = constraints.maxWidth >= 700;
+          final footer = Padding(
+            padding: const EdgeInsets.only(top: 24, bottom: 8),
+            child: Center(
+              child: Text('LedgerSync v$appVersion',
+                  style: Theme.of(context).textTheme.bodySmall),
+            ),
+          );
+          if (!wide) {
+            return ListView(
+              padding: const EdgeInsets.all(12),
+              children: [...primary, ...secondary, footer],
+            );
+          }
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: Column(children: primary)),
+                  const SizedBox(width: 16),
+                  Expanded(child: Column(children: secondary)),
+                ],
               ),
-            ),
-          for (final row in accounts)
-            Card(
-              child: ListTile(
-                onTap: row.type == 'credit'
-                    ? () => Navigator.of(context).push(MaterialPageRoute<void>(
-                          builder: (_) =>
-                              CreditCardPage(cardAccountId: row.id),
-                        ))
-                    : null,
-                // 帳戶類型圖示（UI 打磨）：現金/銀行/信用卡/票證可一眼辨識。
-                leading: Icon(_accountIcon(row.type)),
-                title: Text(row.name),
-                subtitle: row.type == 'credit'
-                    ? const Text('點擊檢視帳單') // 可點提示（避免誤以為唯讀）
-                    : null,
-                trailing: Text(
-                  // F02-FE S2：餘額千分位顯示；F08-FE S5：隱私遮蔽（●●●●）。
-                  ref.watch(privacyMaskedProvider)
-                      ? '餘額 ●●●●'
-                      : '餘額 ${NumberFormat('#,###').format(calc.assetBalance(account: accountEntity(row), txs: txs))}',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ),
-            ),
-          // 收入目標卡（FR-B6；S5.4 達標率不封頂；未設定顯示引導）。
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.flag_outlined),
-              title: goal == null
-                  ? const Text('收入目標 未設定')
-                  : Text(goal.achieved
-                      ? '已達成 ${goal.ratePercent}%'
-                      : '進行中 ${goal.ratePercent}%'),
-              subtitle: goal == null
-                  ? null
-                  : Text(
-                      '${fmt.format(goal.achievedMinor)} / 目標 ${fmt.format(goal.goalMinor)}'),
-            ),
-          ),
-          // 預算進度（FR-B4 呈現；<80% 主色、≥80% 橙、≥100% 紅——AC-05）。
-          for (final b in db.allBudgets())
-            if (b.categoryId != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: BudgetProgressBar(
-                  name: db.categoryName(b.categoryId!) ?? '分類預算',
-                  usageMinor:
-                      evaluator.categoryUsage(b.categoryId!)?.totalMinor ?? 0,
-                  amountMinor: b.amountMinor,
-                ),
-              ),
-          const SizedBox(height: 24),
-          Center(
-            child: Text(
-              'LedgerSync v$appVersion',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ),
-        ],
+              footer,
+            ],
+          );
+        },
       ),
+    );
+  }
+}
+
+/// 區塊卡（標題＋內容；對照雛型卡片樣式）。
+class _Section extends StatelessWidget {
+  const _Section({this.title, this.trailing, required this.child});
+
+  final String? title;
+  final Widget? trailing;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = AppTokens.of(context);
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (title != null) ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(title!,
+                      style: TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.w600, color: tokens.subText)),
+                  ?trailing,
+                ],
+              ),
+              const SizedBox(height: 10),
+            ],
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MoneyRow extends StatelessWidget {
+  const _MoneyRow({required this.label, required this.value, this.color});
+
+  final String label;
+  final String value;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = AppTokens.of(context);
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: TextStyle(fontSize: 13, color: tokens.subText)),
+        Text(value,
+            style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: color ?? Theme.of(context).colorScheme.onSurface)),
+      ],
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  const _StatCard({required this.label, required this.value, this.danger = false});
+
+  final String label;
+  final String value;
+  final bool danger;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = AppTokens.of(context);
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: TextStyle(fontSize: 11, color: tokens.subText)),
+            const SizedBox(height: 4),
+            Text(value,
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: danger ? tokens.danger : Theme.of(context).colorScheme.onSurface)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Badge extends StatelessWidget {
+  const _Badge(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = AppTokens.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+          color: tokens.success.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(10)),
+      child: Text(text,
+          style: TextStyle(
+              fontSize: 11, color: tokens.success, fontWeight: FontWeight.w600)),
+    );
+  }
+}
+
+class _RecentTxRow extends StatelessWidget {
+  const _RecentTxRow({required this.tx, required this.fmt, required this.masked});
+
+  final dynamic tx;
+  final NumberFormat fmt;
+  final bool masked;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = AppTokens.of(context);
+    final db = ProviderScope.containerOf(context).read(dbProvider);
+    final hasAttachment = db.attachmentsForTransaction(tx.id).isNotEmpty;
+    final isExpense = tx.kind == 'expense';
+    final amountText = masked
+        ? '●●●●'
+        : (isExpense ? '−' : '+') + fmt.format(tx.amountMinor);
+    return ListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.receipt_long_outlined),
+      title: Text(tx.merchant ??
+          (tx.categoryId == null ? null : db.categoryName(tx.categoryId)) ??
+          '交易'),
+      subtitle: Text(
+        '${DateFormat('M/d HH:mm').format(DateTime.fromMillisecondsSinceEpoch(tx.occurredAt))}'
+        '${hasAttachment ? ' · 📷' : ''}',
+        style: TextStyle(fontSize: 12, color: tokens.subText),
+      ),
+      trailing: Text(amountText,
+          style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: isExpense ? tokens.danger : tokens.success)),
     );
   }
 }

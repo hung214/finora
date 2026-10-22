@@ -15,6 +15,48 @@ import '../helpers/db_fixture.dart';
 /// 驗證：各主頁於 **深色主題**下可建構、不拋例外、關鍵內容可見——防範
 /// 之後新增頁面時漏用 token（硬編碼色）或深色下崩版。視覺美感仍由 PM 走查。
 void main() {
+  testWidgets('總覽邊界：無帳戶／無分類商家交易不崩（快速護欄——取代慢速 FE 抓此類 bug）', (tester) async {
+    final db = DbFixture.create();
+    // 零帳戶（空帳本）＋一筆「無分類、無商家、無備註」交易（邊界）。
+    await DbFixture.seedAccount(db, id: 'a-0', type: 'cash', name: '現金');
+    await DbFixture.seedTx(db,
+        id: 't-edge',
+        kind: 'expense',
+        amountMinor: 100,
+        accountId: 'a-0',
+        occurredAt: DateTime.now().millisecondsSinceEpoch);
+    final container = ProviderContainer(overrides: [
+      dbProvider.overrideWithValue(db),
+    ]);
+    try {
+      // (a) 無分類/無商家交易（categoryId=null）→ 最近交易列以「交易」回退、不得崩。
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+            theme: buildAppTheme(Brightness.light), home: const OverviewPage()),
+      ));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull,
+          reason: '無分類/商家交易（categoryId=null）不得崩（曾為 TypeError）');
+      expect(find.text('交易'), findsWidgets, reason: '標題回退為「交易」');
+
+      // (b) 空帳本 → 尚無帳戶提示（provider 為派生快取——改 DB 後須 invalidate）。
+      db.execute('DELETE FROM accounts');
+      container.invalidate(activeAccountsProvider);
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+            theme: buildAppTheme(Brightness.light), home: const OverviewPage()),
+      ));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull, reason: '空帳本不得崩');
+      expect(find.textContaining('尚無帳戶'), findsWidgets);
+    } finally {
+      db.close();
+      container.dispose();
+    }
+  });
+
   testWidgets('深色模式：四個主分頁不崩且關鍵內容可見', (tester) async {
     final db = DbFixture.create();
     await DbFixture.seedAccount(db,
