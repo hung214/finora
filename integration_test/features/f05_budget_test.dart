@@ -199,7 +199,7 @@ void _bind(GherkinRunner runner, _World w) {
   runner.on(r'進度條為警示色（{color}）$', (p) async {
     // 總覽橫幅與預算頁皆有同名進度條（同資料同色）——取第一個。
     final bar = w.tester.widget<LinearProgressIndicator>(
-        find.byKey(const Key('budget-progress-餐飲'), skipOffstage: false).first);
+        find.byKey(const Key('budget-progress-餐飲食品'), skipOffstage: false).first);
     final expected = switch (p['color']) {
       'orange' => Colors.orange,
       'red' => Colors.red,

@@ -118,11 +118,11 @@ void _bind(GherkinRunner runner, _World w) {
     for (var i = 0; i < names.length; i++) {
       final name = names[i];
       final id = 'c-${w.categories.length}';
-      // kind 對齊內建集（first_run_bootstrap）：薪資 = income，其餘 = expense。
+      // kind 對齊內建集（first_run_bootstrap）：一般收入 = income，其餘 = expense。
       await DbFixture.seedCategory(
         w.db!,
         id: id,
-        kind: name == '薪資' ? 'income' : 'expense',
+        kind: name == '一般收入' ? 'income' : 'expense',
         name: name,
       );
       w.categories[name] = id;

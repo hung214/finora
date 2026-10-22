@@ -72,7 +72,7 @@ void _bind(GherkinRunner runner, _World w) {
     w.seededIdsByMonth.clear();
   });
 
-  /// `已存在 6 月支出: 餐飲 3 筆共 900、交通 2 筆共 400（經 fixture）`
+  /// `已存在 6 月支出: 餐飲食品 3 筆共 900、交通運輸 2 筆共 400（經 fixture）`
   runner.on(r'已存在 {month} 月支出: {desc}（經 fixture）$', (p) async {
     final month = int.parse(p['month']!);
     final year = Clock.now().year;
