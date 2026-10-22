@@ -336,6 +336,39 @@ class AppDatabase {
     }
   }
 
+  /// 預算更新（同 transaction 寫 oplog；UI 編輯用——LWW 整列快照）。
+  void updateBudgetWithOplog(BudgetRow b, OplogRow o) {
+    _db.execute('BEGIN');
+    try {
+      _db.execute(
+        'UPDATE budgets SET category_id = ?, amount_minor = ?, period_start_day = ?,'
+        ' updated_at = ?, hlc = ?, deleted_at = NULL WHERE id = ?',
+        [b.categoryId, b.amountMinor, b.periodStartDay, b.updatedAt, b.hlc, b.id],
+      );
+      appendOp(o);
+      _db.execute('COMMIT');
+    } catch (_) {
+      _db.execute('ROLLBACK');
+      rethrow;
+    }
+  }
+
+  /// 預算軟刪除（deleted_at 標記＋oplog；多裝置合併語意與 categories/accounts 一致）。
+  void softDeleteBudgetWithOplog(String id, int deletedAtMs, OplogRow o) {
+    _db.execute('BEGIN');
+    try {
+      _db.execute(
+        'UPDATE budgets SET deleted_at = ?, updated_at = ? WHERE id = ?',
+        [deletedAtMs, deletedAtMs, id],
+      );
+      appendOp(o);
+      _db.execute('COMMIT');
+    } catch (_) {
+      _db.execute('ROLLBACK');
+      rethrow;
+    }
+  }
+
   /// 同 scope（分類／總額）預算之實體清除（fixture 重設語意用；UI 刪除走軟刪除）。
   void deleteBudgetsByCategory(String? categoryId) => _db.execute(
         categoryId == null
