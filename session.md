@@ -20,16 +20,17 @@
 
 | 欄位 | 內容 |
 |---|---|
-| 更新時間 | 2026-10-22（**UI 雛型整合 P1/P2＋F11 規格＋T-S6** 併入 main——v0.4.14 已 tag；111 unit 綠） |
+| 更新時間 | 2026-10-22 下午（**F11 設定群＋分類體系 v2** 併入 main——**v0.4.15**：T-F11-BE 8/8＋T-F11-FE 10/10；112 unit＋FE 11/11 全綠；部署驗證 ✅） |
 | 階段 | **M1~M7＋M5 全數完成**，並已完成**雲端生產接線**（GoogleDriveAdapter／降級／main() 注入／三平台連網權限——v0.4.12）。**上架僅剩外部相依（PM 憑證／帳號）＋驗收走查單**：見 **`specs/plan/pm-actions.md`**（唯一 PM 入口文件） |
 | 當前分支 | **main**（cadd29a 已 push）；本地分支已清；遠端僅 main／session/handoff |
-| 當前任務 | ①**M8 UI 對照雛型整合**：UI-P1 總覽 ✅、UI-P2 明細 ✅、**UI-P3 預算（進行中）**、UI-P4 快記、UI-P5 掃描/信用卡/設定、UI-P6 分類設定頁 ②**T-F11 設定群（規格已備）**：T-S6 schema v6 → T-F11-BE（帳戶/分類 CRUD＋合併計算）→ T-F11-FE（帳戶管理＋分類管理＋外觀主題）——**SPEC/SDD/BDD/data-spec/dsl/acceptance/tasks 已全部更新** ③併行：`pm-actions.md`（PM 憑證/帳號/決策） ④測試分流：頁面情境遷 widget test |
+| 當前任務 | **M8/F11 全數完成**（v0.4.15）：帳戶管理/分類管理（主子階層＋雙層拖曳）/外觀主題（持久化）＋**分類體系 v2**（主類別集 PM 定稿：支出 14＋收入 2）＋**常用類別區**（MRU 10 常駐快記選擇器最上方）＋快記選擇器階層化。後續：①UI-P3 預算→P4 快記→P5 掃描·信用卡·設定 ②測試分流（頁面情境遷 widget test） ③`pm-actions.md`（PM 憑證/帳號/決策——§9 新增分類決策記錄） |
 | 缺口（PM 走查 2026-10-22 發現） | ①**帳戶設定頁**（名稱/類型/**是否合併計算**）未實作→ FR-A7 新增（SPEC/SDD/BDD/tasks 已補）②**分類設定頁**未實作（雛型 `ui/09-category-settings.html` 早已存在）→ FR-B1 補 ③**外觀主題（明亮/暗色/跟隨系統）**無 App 內切換（FR-O1 P0，設定雛型有外觀段）→ 已納入 F11 ④**`CategoryRow`/`insertCategory` 未帶 `icon/color/sort_order/deleted_at`**（V1 DDL 與 data-spec.dbml 早已有——truth 未對齊，分類管理做不出來之根因）→ T-F11-BE 修 ⑤**UI 未對照雛型**（例：總覽/明細版面）→ UI-P1/P2 已修，P3~P6 待續 |
-| 下輪起點（TODOLIST） | ①**T-F11-BE 8 情境**（AccountService／CategoryService／TotalsService 合併計算；補 CategoryRow 欄位＋insertCategory；oplog 契約同 §5.1）②**T-F11-FE 8 情境**（帳戶管理頁／分類管理頁（依 ui/09 雛型）／外觀主題切換＋持久化；設定 Hub 入口）③**UI-P3 預算**（04-budget：總預算摘要/每日可用/月底預測）→ UI-P4 快記 → UI-P5 掃描·信用卡·設定 ④測試分流：頁面情境遷 widget test（~1s） |
-| 紅綠燈狀態 | main 上 `dart analyze` 0＋**unit 104 全綠**；FE：**逐檔全回歸 10/10**（f01~f10）；v0.4.13 部署驗證 ✅（Release 48.7MB＋Info.plist 0.4.13＋二次啟動＋RSS 121.1MB＋乾淨退出） |
+| 下輪起點（TODOLIST） | ①**UI-P3 預算**（04-budget：總預算摘要/每日可用/月底預測）→ UI-P4 快記 → UI-P5 掃描·信用卡·設定 ②測試分流：f01~f10 頁面情境分批遷 widget test（10-20× 提速）③**PM 待辦**（pm-actions §8 順序）：OAuth 送審＋商店帳號；§9：子分類預設清單（每主類別）、既有裝置清空重建 ④上架前驗收走查簽核 |
+| 紅綠燈狀態 | main 上 `dart analyze` 0＋**unit 112 全綠**；FE：**逐檔全回歸 11/11**（f01~f11）；**v0.4.15 部署驗證 ✅**（Release 49.4MB＋Info.plist 0.4.15＋二次啟動＋RSS ~134MB＋乾淨退出） |
 | 工作區 | 乾淨（文件回寫後 commit） |
 | truth 對齊 | techstack v0.3.7（**待追加 googleapis／googleapis_auth／google_sign_in——需 PM 簽核**）；dsl v1.5；data-spec v0.3.2；debug.md DBG-001~007 結案；新增 `pm-actions.md` v0.1 |
 | 環境筆記 | 延續上輪全部。新增（v0.4.12）：①**Flutter macOS App 預設沙箱**——資料在 `~/Library/Containers/<bundle-id>/Data/Documents/`（非 `~/Documents`）；**沙箱須 `com.apple.security.network.client` 才能連外**（原缺→Release 連不出去）②**Android release 需在 main manifest 加 `INTERNET`**（Flutter 範本只在 debug/profile 內建）——「程式對但連不出去」首查清單見 pm-actions §1.4③`_tapUntil` 穩健 tap（macOS 遮擋節流；未生效才真實等待）④harness 每個 Scenario 都要 `_ensureApp`⑤`Uuid().v7()` 可 const |
+| 環境筆記（本輪新增） | ①**ReorderableListView 自動化拖曳**：單次 `dragFrom` 會早一步落下——必須**分段 move**（startGesture→小步 move×8→up）＋**重試**（拖曳中列表即時重排，預估距離會漂移；每次重試多補償 24px＋early-exit「已在目標前」檢查）②**find.text 全樹誤中**：主殼 IndexedStack 其他分頁（明細交易列）文字會多算——常用區斷言改專屬 key（`recent-cat-{name}`）③**選單顯示勿用文字 hack**：子分類縮排用結構（Padding+Icon）而非 '　↳ ' 前綴——否則 find.text 精確比對落空 ④FE harness 逐檔改名時**兩份都要**（test/bdd/＋integration_test/features/——本輪漏後者導致 f05 紅）⑤句型順序：長句型先註冊（`餘額 X 且不計入` 搶配 `餘額 X`） |
 | 阻塞／待決 | ①**Google 憑證（PM）**——最高優先；DriveApi／OAuth 實作待其到位②商店帳號＋簽章（Apple/Google）③gh 未安裝（Release 下載驗證）④acceptance F03 測資字串修正待 PM 複核⑤SP-1 SQLCipher⑥SP-2b 行動相機（F03 走查前）⑦SP-4 Argon2id（PIN FNV）⑧多幣別 900／notify_enabled=off 語意⑨NFR-03 定義⑩首次啟動引導頁決策⑪深色模式 PM 走查 |
 
 ## 3. 下一步（唯一入口：`specs/plan/pm-actions.md`）
