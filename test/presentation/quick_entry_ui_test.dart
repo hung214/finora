@@ -78,9 +78,9 @@ void main() {
       expect(
           find.descendant(
               of: find.byKey(const Key('quick-entry-category')),
-              matching: find.text('早餐')),
+              matching: find.text('🍜 早餐')),
           findsOneWidget,
-          reason: '分類欄顯示所選子分類（c-food-s0）');
+          reason: '分類欄顯示主類別 emoji ＋ 子類別名（圖示跟隨主類別；PM 2026-10-24）');
       expect(container.read(quickEntryControllerProvider).category?.id,
           'c-food-s0');
       expect(tester.takeException(), isNull);

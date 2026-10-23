@@ -381,24 +381,22 @@ void _bind(GherkinRunner runner, _World w) {
     await w.tester.pumpAndSettle();
   });
 
-  // DBG-009：編輯子分類（改名/圖示）——即時連動快記。
-  runner.on(r'設定→分類管理→編輯子分類「{name}」改名「{to}」圖示 {icon}$', (p) async {
+  // DBG-009：編輯子分類（改名）——即時連動快記。
+  // PM 2026-10-24：**子類別無圖示**（跟隨主類別）→ 表單不提供圖示選項。
+  runner.on(r'設定→分類管理→編輯子分類「{name}」改名「{to}」$', (p) async {
     await w.tester.tap(find.byKey(Key('cat-edit-${p['name']}')));
     await w.tester.pumpAndSettle();
     expect(w.tester.any(find.text('編輯子分類')), isTrue, reason: '編輯模式標題');
+    expect(find.text('圖示跟隨主類別（子類別不另設圖示）'), findsOneWidget,
+        reason: '子類別無圖示（PM 2026-10-24）');
     await w.tester.enterText(find.byKey(const Key('cat-name')), p['to']!);
     await w.tester.pump();
-    final iconChip = find.byKey(Key('cat-icon-${p['icon']}'));
-    await w.tester.ensureVisible(iconChip); // emoji 庫位於捲動區——須先捲入
-    await w.tester.pumpAndSettle();
-    await w.tester.tap(iconChip);
-    await w.tester.pumpAndSettle();
     await w.tester.tap(find.byKey(const Key('cat-save')));
     await w.tester.pumpAndSettle();
   });
 
   runner.on(
-      r'快記分類選擇器展開「{parent}」後「{name}」格顯示新圖示 {icon}$', (p) async {
+      r'快記分類選擇器展開「{parent}」後「{name}」項顯示且無圖示$', (p) async {
     await _ensureApp(w);
     final navigator =
         w.tester.state<NavigatorState>(find.byType(Navigator).first);
@@ -413,11 +411,11 @@ void _bind(GherkinRunner runner, _World w) {
     await w.tester.pumpAndSettle();
     final chip = find.byKey(Key('picker-sub-${p['name']}'));
     expect(w.tester.any(chip), isTrue, reason: '子分類項存在（改名已連動）');
+    // 子類別無圖示（PM 2026-10-24）：label 即名稱、不含 emoji。
     expect(
-        find.descendant(
-            of: chip, matching: find.text('${p['icon']} ${p['name']}')),
+        find.descendant(of: chip, matching: find.text(p['name']!)),
         findsOneWidget,
-        reason: 'DBG-009：改名/換圖示即時連動快記（無需重啟）');
+        reason: 'DBG-009：改名即時連動快記，且子類別**無圖示**');
   });
 
   runner.on(r'分類列表「{parent}」展開顯示子分類「{name}」$', (p) {

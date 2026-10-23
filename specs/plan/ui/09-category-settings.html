@@ -46,8 +46,8 @@ body{background:#e8ecef;display:flex;gap:300px;padding:40px;align-items:flex-sta
 
       <div class="cat"><div class="ic" style="background:#FFD8A8">🍜</div><div class="m"><b>餐飲</b><span>子分類 2：咖啡、手搖</span></div><span class="op">✏️</span><span class="op">☰</span></div>
       <!-- v3（PM 2026-10-23）：點列本體展開＝子分類列；每列同享 ✏️ 編輯（改名/emoji/顏色）＋🗑 刪除＋☰ 子層拖曳 -->
-      <div class="sub"><span class="op">☰</span><span>↳</span><span class="emoji">☕</span><span class="sname">咖啡</span><span class="op">✏️</span><span class="op">🗑</span></div>
-      <div class="sub"><span class="op">☰</span><span>↳</span><span class="emoji">🧋</span><span class="sname">手搖</span><span class="op">✏️</span><span class="op">🗑</span></div>
+      <div class="sub"><span class="op">☰</span><span>↳</span><span class="sname">咖啡</span><span class="op">✏️</span><span class="op">🗑</span></div>
+      <div class="sub"><span class="op">☰</span><span>↳</span><span class="sname">手搖</span><span class="op">✏️</span><span class="op">🗑</span></div>
       <div class="cat"><div class="ic" style="background:#B2F2BB">🛒</div><div class="m"><b>購物</b></div><span class="op">✏️</span><span class="op">☰</span></div>
       <div class="cat"><div class="ic" style="background:#A5D8FF">🚇</div><div class="m"><b>交通</b></div><span class="op">✏️</span><span class="op">☰</span></div>
       <div class="cat"><div class="ic" style="background:#FFC9C9">🏠</div><div class="m"><b>居住</b><span>子分類 1：房租</span></div><span class="op">✏️</span><span class="op">☰</span></div>
@@ -58,13 +58,13 @@ body{background:#e8ecef;display:flex;gap:300px;padding:40px;align-items:flex-sta
 
       <div class="card"><h3>收入分類（切換「收入」分頁）</h3><p>薪資 · 獎金 · 投資 · 其他（收入分類獨立管理）</p></div>
       <div class="card"><h3>規則（FR-B1）</h3>
-        <p>① 一層子分類（例：餐飲 → 咖啡）<br>② 內建分類可隱藏、不可刪除（is_system）<br>③ 已有交易之分類刪除 → 提示轉移或保留歷史<br>④ 圖示／顏色／排序皆可自訂；異動隨雲端同步</p>
+        <p>① 一層子分類（例：餐飲 → 咖啡）<br>② 內建分類可隱藏、不可刪除（is_system）<br>③ 已有交易之分類刪除 → 提示轉移或保留歷史<br>④ 圖示／顏色／排序皆可自訂；異動隨雲端同步<br>⑤ <b>子類別無圖示</b>——圖示一律跟隨主類別（PM 2026-10-24）</p>
       </div>
     </div>
   </div>
 
   <div class="note" style="top:60px"><b>FR-B1 · S3.3/分類設定</b>分類管理：自訂圖示/顏色/排序（拖曳）、一層子分類；支出與收入分開。</div>
-  <div class="note" style="top:240px"><b>FR-Q1 · S1.1</b>快記快捷格 = 常用分類（依使用頻率排序），此處排序影響快記。<br><b>v2（PM 2026-10-23）</b>預設**收合**為摘要列（子分類 N：名稱…）；**點列本體展開**子分類列；「＋子分類」自動展開。<br><b>v3（PM 2026-10-23）</b>子分類列同享 <b>✏️ 編輯</b>（改名/emoji/顏色）＋🗑 刪除＋☰ 子層拖曳；分類異動<b>即時連動全 App</b>（DBG-009）。</div>
+  <div class="note" style="top:240px"><b>FR-Q1 · S1.1</b>快記快捷格 = 常用分類（依使用頻率排序），此處排序影響快記。<br><b>v2（PM 2026-10-23）</b>預設**收合**為摘要列（子分類 N：名稱…）；**點列本體展開**子分類列；「＋子分類」自動展開。<br><b>v3（PM 2026-10-23）</b>子分類列同享 <b>✏️ 編輯</b>＋🗑 刪除＋☰ 子層拖曳；分類異動<b>即時連動全 App</b>（DBG-009）。<br><b>v4（PM 2026-10-24）</b><b>子類別無圖示</b>——子列不顯示 emoji、編輯表單不提供圖示（跟隨主類別）。</div>
   <div class="note" style="top:430px"><b>FR-B1 規則</b>內建分類（is_system）可隱藏不可刪；有交易之分類刪除需轉移；異動寫 oplog 隨同步。</div>
 </div>
 </body>

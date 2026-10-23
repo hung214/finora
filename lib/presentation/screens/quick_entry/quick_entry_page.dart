@@ -6,6 +6,7 @@ import '../../../application/appearance/theme_mode_state.dart';
 import '../../../application/budgets/budget_service.dart';
 import '../../../application/categories/category_service.dart';
 import '../../../application/providers.dart';
+import '../../../data/sqlite/app_database.dart';
 import 'amount_keypad.dart';
 import 'category_picker_dialog.dart';
 import 'quick_date_time_picker.dart';
@@ -88,6 +89,12 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
     final controller = ref.read(quickEntryControllerProvider.notifier);
     final accounts = ref.watch(activeAccountsProvider);
     final categories = ref.watch(expenseCategoriesProvider);
+    // 分類圖示解析（PM 2026-10-24）：子類別無自身圖示——取**主類別**圖示。
+    final catById = {for (final c in categories) c.id: c};
+    String? iconOfCategory(CategoryRow? c) => c == null
+        ? null
+        : (c.icon ??
+            (c.parentId == null ? null : catById[c.parentId]?.icon));
     // 常用類別（FR-B1 常用區）：拆分模式分類欄（_pickerField）用——最近使用 10 個。
     final nameById = {for (final c in categories) c.id: c.name};
     final emojiById = {for (final c in categories) c.id: c.icon};
@@ -340,8 +347,8 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
                             isDense: true),
                         child: Text(state.category == null
                             ? '選擇分類'
-                            : _chipLabel(
-                                state.category!.icon, state.category!.name)),
+                            : _chipLabel(iconOfCategory(state.category),
+                                state.category!.name)),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -731,7 +738,8 @@ class _BudgetTargetGrid extends StatelessWidget {
           Wrap(spacing: 6, runSpacing: 6, children: [
             for (final s in subs)
               chip(
-                  label: _chipLabel(s.icon as String?, s.name as String),
+                  // 子類別無圖示（PM 2026-10-24）。
+                  label: s.name as String,
                   selected: selectedId == s.id,
                   key: Key('budget-chip-${s.name}'),
                   onTap: () => onSelect(s.id as String, selectedMainId)),

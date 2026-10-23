@@ -387,6 +387,8 @@ class _DesktopQuickPanelState extends ConsumerState<_DesktopQuickPanel> {
     final accounts = ref.watch(activeAccountsProvider);
     final categories = ref.watch(expenseCategoriesProvider);
     final mains = categories.where((c) => c.parentId == null).toList();
+    // 分類圖示/選取跟隨主類別（PM 2026-10-24）：子類別無自身圖示——高亮其所屬主類別。
+    final selMainId = state.category?.parentId ?? state.category?.id;
     // 欄位 ↔ state 同步（PM 2026-10-24）：記住上次帶入金額/商家時反映。
     ref.listen(
       quickEntryControllerProvider
@@ -450,7 +452,7 @@ class _DesktopQuickPanelState extends ConsumerState<_DesktopQuickPanel> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 8, vertical: 8),
                     decoration: BoxDecoration(
-                      color: state.category?.id == m.id
+                      color: selMainId == m.id
                           ? Theme.of(context).colorScheme.primary
                           : Theme.of(context)
                               .colorScheme
@@ -463,7 +465,7 @@ class _DesktopQuickPanelState extends ConsumerState<_DesktopQuickPanel> {
                       (m.icon != null ? '${m.icon} ' : '') + m.name,
                       style: TextStyle(
                           fontSize: 11,
-                          color: state.category?.id == m.id
+                          color: selMainId == m.id
                               ? Theme.of(context).colorScheme.onPrimary
                               : null),
                     ),

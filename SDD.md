@@ -503,7 +503,11 @@ sequenceDiagram
 **跨頁連動（DBG-009；PM 2026-10-23）**：分類/帳戶 CRUD 完成後，除本頁 `setState` 外**必須使衍生快取失效**
 （FE `ref.invalidate(expenseCategoriesProvider／incomeCategoriesProvider／ledgerProvider)`）——
 否則快記分類格／預算頁／明細列停留舊名稱、舊圖示（Riverpod `Provider` 快取語意）。
-子分類列同享編輯入口（`cat-edit-{name}`：改名／圖示／顏色）。
+子分類列同享編輯入口（`cat-edit-{name}`：改名／顏色）。
+
+**子類別無圖示（PM 2026-10-24）**：子類別不擁有 `icon`——顯示一律取**主類別**圖示
+（`icon = 子.icon ?? 主.icon`）；編輯表單對子類別**不提供**圖示選項（儲存清為空）；
+彈窗右欄與分類管理子列僅顯示名稱（圖示已由主類別承載）。
 
 ---
 

@@ -61,6 +61,9 @@ class CategorySettingsDemoContent extends StatelessWidget {
               name: '餐飲食品',
               sub: '子分類 2：咖啡、手搖',
               system: false),
+          // 展開態（v3）：子類別列**無圖示**（PM 2026-10-24：圖示跟隨主類別）。
+          const _SubRow(name: '咖啡'),
+          const _SubRow(name: '手搖'),
           const _CatTile(
               icon: Icons.shopping_basket_outlined,
               color: Color(0xFFB2F2BB),
@@ -125,6 +128,7 @@ class CategorySettingsDemoContent extends StatelessWidget {
                 const _Note('② 內建分類可隱藏、不可刪除（is_system）'),
                 const _Note('③ 已有交易之分類刪除 → 提示轉移或保留歷史'),
                 const _Note('④ 圖示／顏色／排序皆可自訂；異動隨雲端同步'),
+                const _Note('⑤ 子類別**無圖示**——圖示一律跟隨主類別（PM 2026-10-24）'),
               ],
             ),
           ),
@@ -154,6 +158,33 @@ class _Tab extends StatelessWidget {
               fontSize: 12,
               fontWeight: on ? FontWeight.w700 : FontWeight.normal,
               color: on ? Colors.white : t.sub)),
+    );
+  }
+}
+
+/// 展開態之子類別列（PM 2026-10-24）：結構縮排、**無圖示**。
+class _SubRow extends StatelessWidget {
+  const _SubRow({required this.name});
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = DemoThemeScope.of(context);
+    return Container(
+      margin: const EdgeInsets.only(left: 42, right: 16, top: 2, bottom: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: t.card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: t.line),
+      ),
+      child: Row(children: [
+        Icon(Icons.subdirectory_arrow_right, size: 16, color: t.faint),
+        const SizedBox(width: 6),
+        Text(name, style: TextStyle(fontSize: 13, color: t.text)),
+        const Spacer(),
+        Text('✏️ 🗑 ☰', style: TextStyle(fontSize: 12, color: t.faint)),
+      ]),
     );
   }
 }

@@ -240,7 +240,8 @@ class _CategoryPickerDialogState extends ConsumerState<_CategoryPickerDialog> {
                         for (final s in subs)
                           row(
                             key: Key('picker-sub-${s.name}'),
-                            label: _label(s.icon, s.name),
+                            // 子類別無圖示（PM 2026-10-24；左欄主類別已載圖示）。
+                            label: s.name,
                             selected: s.id == widget.selectedId,
                             onTap: () => Navigator.of(context)
                                 .pop(CategoryPicked(s.id)),

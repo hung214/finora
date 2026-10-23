@@ -50,7 +50,10 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
         ? null
         : db.categoriesByKind(_kind).firstWhere((c) => c.id == editId);
     final nameCtrl = TextEditingController(text: existing?.name ?? '');
-    var icon = existing?.icon ?? 'shopping_basket';
+    // 子類別**不擁有圖示**（PM 2026-10-24：圖示跟隨主類別）——表單不提供圖示選項，
+    // 儲存一律清為空（''＝無圖示；顯示端取主類別圖示）。
+    final isSub = parentId != null;
+    var icon = isSub ? '' : (existing?.icon ?? 'shopping_basket');
     var color = existing?.color ?? 'teal';
     showModalBottomSheet<void>(
       context: context,
@@ -83,29 +86,36 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                Text(
-                  '圖示（32 個 emoji）',
-                  style: Theme.of(sheetCtx).textTheme.labelMedium,
-                ),
-                // PM 2026-10-23：emoji 圖示（對齊 DEMO）——icon 欄存 emoji 字元。
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 150),
-                  child: SingleChildScrollView(
-                    child: Wrap(
-                      spacing: 6,
-                      runSpacing: 4,
-                      children: [
-                        for (final e in categoryEmojis)
-                          ChoiceChip(
-                            key: Key('cat-icon-$e'),
-                            label: Text(e, style: const TextStyle(fontSize: 18)),
-                            selected: icon == e,
-                            onSelected: (_) => setSheet(() => icon = e),
-                          ),
-                      ],
+                if (isSub)
+                  // 子類別無圖示（PM 2026-10-24）：圖示一律跟隨主類別。
+                  Text('圖示跟隨主類別（子類別不另設圖示）',
+                      style: Theme.of(sheetCtx).textTheme.labelSmall)
+                else ...[
+                  Text(
+                    '圖示（34 個 emoji）',
+                    style: Theme.of(sheetCtx).textTheme.labelMedium,
+                  ),
+                  // PM 2026-10-23：emoji 圖示（對齊 DEMO）——icon 欄存 emoji 字元。
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 150),
+                    child: SingleChildScrollView(
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: [
+                          for (final e in categoryEmojis)
+                            ChoiceChip(
+                              key: Key('cat-icon-$e'),
+                              label:
+                                  Text(e, style: const TextStyle(fontSize: 18)),
+                              selected: icon == e,
+                              onSelected: (_) => setSheet(() => icon = e),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
+                ],
                 const SizedBox(height: 12),
                 Text('顏色', style: Theme.of(sheetCtx).textTheme.labelMedium),
                 Wrap(
@@ -397,9 +407,7 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
                       ),
                       const Icon(Icons.subdirectory_arrow_right, size: 16),
                       const SizedBox(width: 6),
-                      Text(_emojiOf(sub.icon),
-                          style: const TextStyle(fontSize: 15)),
-                      const SizedBox(width: 6),
+                      // 子類別無圖示（PM 2026-10-24：跟隨主類別）。
                       Text(sub.name),
                       const Spacer(),
                       IconButton(

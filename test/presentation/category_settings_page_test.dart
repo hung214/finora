@@ -65,22 +65,23 @@ void main() {
       expect(find.textContaining('同層已有同名分類'), findsWidgets,
           reason: '重名拒絕提示');
 
-      // 子分類編輯（PM 2026-10-23）：改名＋改圖示 → 全域快取失效（連動）。
+      // 子分類編輯（PM 2026-10-23/24）：改名（**無圖示選項**——跟隨主類別）
+      // → 全域快取失效（連動）。
       await tester.tap(find.byKey(const Key('cat-edit-甜點')));
       await tester.pumpAndSettle();
       expect(find.text('編輯子分類'), findsOneWidget, reason: '編輯模式標題');
+      expect(find.text('圖示跟隨主類別（子類別不另設圖示）'), findsOneWidget,
+          reason: '子類別無圖示（PM 2026-10-24）');
+      expect(find.byKey(const Key('cat-icon-🍜')), findsNothing,
+          reason: '子類別表單不提供圖示選項');
       await tester.enterText(find.byKey(const Key('cat-name')), '甜點心');
-      await tester.ensureVisible(find.byKey(const Key('cat-icon-🍰')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('cat-icon-🍰')));
-      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('cat-save')));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('cat-sub-row-甜點心')), findsOneWidget,
           reason: '子分類改名即時反映');
       final refreshed = container.read(expenseCategoriesProvider);
       final edited = refreshed.firstWhere((c) => c.name == '甜點心');
-      expect(edited.icon, '🍰', reason: '圖示入庫');
+      expect(edited.icon ?? '', isEmpty, reason: '子類別無圖示（不入庫 emoji）');
       expect(refreshed.any((c) => c.name == '甜點'), isFalse,
           reason: '全域快取已失效（其他頁面會拿到新值）');
 
