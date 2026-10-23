@@ -136,6 +136,7 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
                     children: [
                       IconButton(
                         key: const Key('date-prev'),
+                        iconSize: 30,
                         tooltip: '前一天',
                         onPressed: () => controller.setOccurredAt(
                             state.occurredAt.subtract(const Duration(days: 1))),
@@ -162,11 +163,17 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
                         },
                         child: Text(
                           _dateLabel(state.occurredAt),
-                          style: Theme.of(context).textTheme.labelLarge,
+                          // PM 2026-10-23：日期放大（labelLarge 1.5×）。
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(
+                                  fontSize: 20, fontWeight: FontWeight.w700),
                         ),
                       ),
                       IconButton(
                         key: const Key('date-next'),
+                        iconSize: 30,
                         tooltip: '後一天',
                         onPressed: () => controller.setOccurredAt(
                             state.occurredAt.add(const Duration(days: 1))),
