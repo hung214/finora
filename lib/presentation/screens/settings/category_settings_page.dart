@@ -440,14 +440,14 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
       .$2;
 }
 
-/// 分類圖示庫（33 個 emoji；PM 2026-10-23：對齊 DEMO 活潑圖示——
+/// 分類圖示庫（34 個 emoji；PM 2026-10-23：對齊 DEMO 活潑圖示——
 /// icon 欄直接存 emoji 字元，多色向量改單字元渲染）。
 const List<String> categoryEmojis = [
   '🍜', '🍚', '🍣', '🍞', '☕', '🍔', '🛒', '👗',
   '👜', '💄', '🏠', '🛏️', '🧹', '🚇', '🚌', '🚗',
   '✈️', '🎓', '📚', '✏️', '🎬', '🎮', '🏀', '📱',
   '💻', '🎧', '💊', '🏥', '🎁', '🧧', '💰', '📈',
-  '🍰',
+  '🍰', '🐱',
 ];
 
 /// 分類顏色庫（10 個）。

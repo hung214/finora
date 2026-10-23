@@ -519,7 +519,7 @@
 | `When 新增帳戶「{name}」類型 {type}、期初 {amt}、關閉「計入合併統計」` | 新增表單（key acct-add／acct-name／acct-type／acct-opening／acct-include-totals） |
 | `When 設定→帳戶管理→刪除「{name}」` | 列表滑動/選單刪除（key acct-delete-{name}） |
 | `When 設定→帳戶管理→編輯「{from}」為「{to}」、類型 {type}` | 編輯表單（key acct-edit-{from}） |
-| `When 新增分類「{name}」（圖示 {icon}、顏色 {color}）` | 分類表單（key cat-add／cat-name／cat-icon／cat-color） |
+| `When 新增分類「{name}」（圖示 {icon}、顏色 {color}）`（v1.10 更新） | 分類表單（key cat-add／cat-name／cat-save）；**emoji 圖示制**：圖示 chip key＝`cat-icon-{emoji}`（語意「貓」→🐱 由 harness 對映；捲動區須 `ensureVisible`）；顏色 key `cat-color-{name}` |
 | `When 將「{a}」拖曳至「{b}」之前` | ReorderableListView 拖曳 |
 | `When 設定→分類管理→新增子分類「{name}」於「{parent}」下` | 子分類建立（key cat-sub-{parent}） |
 | `When 設定→外觀→選擇「{label}」` | 主題選擇（key theme-system／theme-light／theme-dark） |
@@ -529,13 +529,13 @@
 | `Then 分類列表「{parent}」展開顯示子分類「{name}」` | 展開後子列（key cat-sub-row-{name}） |
 | `Then 外觀仍為「{label}」` | 重啟後 themeMode 持久化 |
 | `When 嘗試新增{kind}分類「{name}」`（v1.7） | 同層重名拒絕（CategoryException；先於 `新增{kind}分類` 註冊） |
-| `When 於選擇器點「＋ 新增分類」`（v1.7） | 快記選擇器**頂部**新增入口（key picker-add-category→CategorySettingsPage；長清單底部項目 LazyListView 點不到之教訓） |
-| `Then 進入分類管理頁`（v1.7） | AppBar「分類管理」存在 |
+| `When 於選擇器點「＋ 新增分類」`（v1.7／v1.10 更新） | UI-P4 後：頁內格主類別層尾「＋」（key `cat-add-main`）→**即建即選**對話框（不再是 popup 頂部→分類管理頁；`picker-add-category` 僅存於拆分模式分類欄） |
+| `Then 顯示「新增主類別」對話框`（v1.10 取代 v1.7 `進入分類管理頁`） | key `quick-add-category-name`（UI-P4 即建即選） |
 | `When 將子分類「{a}」拖曳至子分類「{b}」之前`（v1.7） | 群組內嵌清單拖曳（key cat-sub-drag-{a}；PM 決策：子分類可拖曳） |
 | `Then 子分類列表「{a}」在「{b}」之前`（v1.7） | 子列位置比對（dy） |
 | `Given 已有 {n} 筆支出分別使用「{a}」與「{b}」`（v1.7） | fixture 直寫交易（最新一筆用 {b}；寫後 invalidate ledgerProvider） |
-| `When 開啟快記並展開分類選擇器`（v1.7） | popUntil 回根→fab-quick-entry→quick-entry-category |
-| `Then 選單最上方為「{label}」且「{name}」出現於常用區（在完整清單之前）`（v1.7） | 常用區標題（text）＋常用項 key `recent-cat-{name}`（find.text 全樹會誤中主殼交易列） |
+| `When 開啟快記並展開分類選擇器`（v1.7／v1.10 更新） | popUntil 回根→`fab-quick-entry`（UI-P4：分類格為頁內網格，**無 popup**；舊 key `quick-entry-category` 已移除） |
+| `Then 選單最上方為「{label}」且「{name}」出現於常用區（在完整清單之前）`（v1.7／v1.10 更新） | 常用區標題（text）＋常用格 key **`recent-chip-{name}`**（UI-P4 頁內格）＋dy < 主類別格 |
 | `When 設定→分類管理→編輯子分類「{name}」改名「{to}」圖示 {icon}`（v1.9） | 子列編輯入口（key `cat-edit-{name}`）→表單（標題「編輯子分類」）改名＋emoji chip（key `cat-icon-{emoji}`；**捲動區須 ensureVisible**）→`cat-save`（DBG-009） |
 | `Then 快記分類選擇器展開「{parent}」後「{name}」格顯示新圖示 {icon}`（v1.9） | 展開 `cat-chip-{parent}`→子格 `cat-chip-{name}` 之 label＝「{icon} {name}」（`_chipLabel`）——**證明 provider 快取已失效、跨頁連動**（DBG-009） |
 

@@ -264,13 +264,14 @@ void _bind(GherkinRunner runner, _World w) {
       }
     }
     await w.tester.enterText(nameField, p['name']!);
-    // feature 給中文語意（貓/紫）→ 對映 chip key（pets/purple…）。
+    // emoji 圖示制（PM 2026-10-23）：表單圖示 chip key＝`cat-icon-{emoji}`；
+    // feature 給中文語意（貓/餐飲食品…）→ 對映圖示庫 emoji。
     final iconKey = switch (p['icon']) {
-      '貓' => 'pets',
-      '餐飲食品' => 'restaurant',
-      '交通運輸' => 'directions_car',
-      '家' => 'home',
-      _ => 'shopping_basket',
+      '貓' => '🐱',
+      '餐飲食品' => '🍜',
+      '交通運輸' => '🚗',
+      '家' => '🏠',
+      _ => p['icon']!, // 已是 emoji（圖示庫值）
     };
     final colorKey = switch (p['color']) {
       '紫' => 'purple',
@@ -279,9 +280,16 @@ void _bind(GherkinRunner runner, _World w) {
       '藍' => 'blue',
       _ => 'teal',
     };
-    await w.tester.tap(find.byKey(Key('cat-icon-$iconKey')));
+    // 圖示庫為捲動區——先捲入再點（否則 tap 落空、靜默不改值）。
+    final iconChip = find.byKey(Key('cat-icon-$iconKey'));
+    await w.tester.ensureVisible(iconChip);
     await w.tester.pumpAndSettle();
-    await w.tester.tap(find.byKey(Key('cat-color-$colorKey')));
+    await w.tester.tap(iconChip);
+    await w.tester.pumpAndSettle();
+    final colorChip = find.byKey(Key('cat-color-$colorKey'));
+    await w.tester.ensureVisible(colorChip);
+    await w.tester.pumpAndSettle();
+    await w.tester.tap(colorChip);
     await w.tester.pumpAndSettle();
     await w.tester.tap(find.byKey(const Key('cat-save')));
     await w.tester.pumpAndSettle();
@@ -324,7 +332,8 @@ void _bind(GherkinRunner runner, _World w) {
   });
 
   runner.on(r'回到快記其分類快捷格依序含「{name}」$', (p) async {
-    // 回主殼（推入路由後主殼 offstage——先 pop）→ 開快記 → 分類選單。
+    // UI-P4（PM 2026-10-23）：分類選擇器改為**頁內兩層網格**（無 popup）——
+    // 開快記即可見「主類別」格（key cat-chip-{name}）。
     await _ensureApp(w);
     final navigator =
         w.tester.state<NavigatorState>(find.byType(Navigator).first);
@@ -332,11 +341,8 @@ void _bind(GherkinRunner runner, _World w) {
     await w.tester.pumpAndSettle();
     await w.tester.tap(find.byKey(const Key('fab-quick-entry')));
     await w.tester.pumpAndSettle();
-    await w.tester.tap(find.byKey(const Key('quick-entry-category')));
-    await w.tester.pumpAndSettle();
-    final aDy = w.tester.getTopLeft(find.text(p['name']!)).dy;
-    final bDy = w.tester.getTopLeft(find.text('餐飲食品')).dy;
-    expect(aDy, lessThan(bDy), reason: '快記快捷格依新排序（FR-B1）');
+    expect(w.tester.any(find.byKey(Key('cat-chip-${p['name']}'))), isTrue,
+        reason: '快記分類格含新增分類（FR-B1；排序另由分類管理列斷言）');
   });
 
   runner.on(r'分類「{name}」已有 {n} 筆交易$', (p) async {
@@ -399,8 +405,7 @@ void _bind(GherkinRunner runner, _World w) {
     await w.tester.pumpAndSettle();
     await w.tester.tap(find.byKey(const Key('fab-quick-entry')));
     await w.tester.pumpAndSettle();
-    await w.tester.tap(find.byKey(const Key('quick-entry-category')));
-    await w.tester.pumpAndSettle();
+    // UI-P4：分類格為頁內網格（無 popup）。
     // 展開主類別 → 子分類格（key cat-chip-{name}；DBG-009 快取失效連動）。
     await w.tester.tap(find.byKey(Key('cat-chip-${p['parent']}')));
     await w.tester.pumpAndSettle();
@@ -426,9 +431,11 @@ void _bind(GherkinRunner runner, _World w) {
     await w.tester.pumpAndSettle();
     await w.tester.tap(find.byKey(const Key('fab-quick-entry')));
     await w.tester.pumpAndSettle();
-    await w.tester.tap(find.byKey(const Key('quick-entry-category')));
+    // 兩層格（PM 2026-10-22）：點主類別格 → 展開子分類格。
+    await w.tester.tap(find.byKey(const Key('cat-chip-餐飲食品')));
     await w.tester.pumpAndSettle();
-    expect(find.text(p['name']!), findsWidgets, reason: '分類選擇器含子分類');
+    expect(w.tester.any(find.byKey(Key('cat-chip-${p['name']}'))), isTrue,
+        reason: '分類格含子分類（FR-B1 一層）');
   });
 
   // ── 子分類拖曳（PM 2026-10-22：子分類也可拖曳）──────────
@@ -503,28 +510,34 @@ void _bind(GherkinRunner runner, _World w) {
     await w.tester.pumpAndSettle();
     await w.tester.tap(find.byKey(const Key('fab-quick-entry')));
     await w.tester.pumpAndSettle();
-    await w.tester.tap(find.byKey(const Key('quick-entry-category')));
-    await w.tester.pumpAndSettle();
+    // UI-P4：分類格為頁內網格，無需再開 popup。
   });
 
   runner.on(r'選單最上方為「{label}」且「{name}」出現於常用區（在完整清單之前）$',
       (p) {
     expect(find.text(p['label']!), findsOneWidget, reason: '常用區標題');
-    // 常用區專屬 key（recent-cat-{name}）——find.text 全樹搜尋會誤中主殼
-    // IndexedStack 交易列（f02 範圍化教訓），改以 key 精準定位。
-    expect(
-        w.tester.any(find.byKey(Key('recent-cat-${p['name']}'))), isTrue,
+    // UI-P4：常用區為頁內格（key recent-chip-{name}）——find.text 全樹搜尋會
+    // 誤中主殼 IndexedStack 交易列（f02 教訓），改以 key 精準定位。
+    final recent = find.byKey(Key('recent-chip-${p['name']}'));
+    expect(w.tester.any(recent), isTrue,
         reason: '常用區含「${p['name']}」（FR-B1 常用區）');
+    // 「在完整清單之前」：常用區 dy < 主類別格 dy。
+    final aDy = w.tester.getTopLeft(recent).dy;
+    final bDy = w.tester
+        .getTopLeft(find.byKey(const Key('cat-chip-餐飲食品')))
+        .dy;
+    expect(aDy, lessThan(bDy), reason: '常用區在完整清單之前');
   });
 
   runner.on(r'於選擇器點「＋ 新增分類」$', (p) async {
-    await w.tester.tap(find.byKey(const Key('picker-add-category')));
+    // UI-P4（PM 2026-10-23）：各層尾「＋」即建即選（頁內對話框），不再跳頁。
+    await w.tester.tap(find.byKey(const Key('cat-add-main')));
     await w.tester.pumpAndSettle();
   });
 
-  runner.on(r'進入分類管理頁$', (p) {
-    expect(find.text('分類管理'), findsWidgets,
-        reason: '選擇器內新增入口應導向分類管理（PM 2026-10-22）');
+  runner.on(r'顯示「新增主類別」對話框$', (p) {
+    expect(w.tester.any(find.byKey(const Key('quick-add-category-name'))), isTrue,
+        reason: 'UI-P4：＋主類別 → 即建即選對話框');
   });
 
   // ── 外觀 ────────────────────────────────────────────────
