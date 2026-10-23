@@ -13,8 +13,10 @@ import '../../data/sqlite/app_database.dart';
 /// 狀態存 settings：lock.pin_hash（sha256 最小實作——TODO(SP-4) Argon2id）、
 /// lock.threshold_sec、lock.biometric。
 class AppLockController {
-  AppLockController(this._db, {required String pin, bool biometricEnabled = true, int thresholdSec = 30}) {
-    setPin(pin);
+  /// [pin] 未提供 → **不寫入 pin_hash**（裝置從未設定 PIN——
+  /// PM 2026-10-23 修復：此前建構子強制寫 hash，與「無 PIN」情境矛盾）。
+  AppLockController(this._db, {String? pin, bool biometricEnabled = true, int thresholdSec = 30}) {
+    if (pin != null) setPin(pin);
     _db.setSetting('lock.threshold_sec', '$thresholdSec');
     _db.setSetting('lock.biometric', biometricEnabled ? 'true' : 'false');
   }
@@ -48,6 +50,10 @@ class AppLockController {
 
   bool verifyPin(String pin) =>
       _db.getSetting('lock.pin_hash') == _hash(pin);
+
+  /// 是否已設定 PIN（PM 2026-10-23 修復：從未設定 PIN 時，
+  /// 清空資料流程應**跳過** PIN 步驟——否則 null 比對恆 false 鎖死）。
+  bool get hasPin => _db.getSetting('lock.pin_hash') != null;
 
   /// 切至背景（lifecycle 鉤子呼叫）。
   void onBackground() => _backgroundAt = Clock.now();

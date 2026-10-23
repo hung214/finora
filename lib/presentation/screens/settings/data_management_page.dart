@@ -200,7 +200,12 @@ class _DataManagementPageState extends ConsumerState<DataManagementPage> {
           const SizedBox(height: 12),
           FilledButton(
             key: const Key('wipe-warning-continue'),
-            onPressed: () => setState(() => _step = _WipeStep.pin),
+            // 未設定 PIN → 跳過 PIN 步驟（PM 2026-10-23 修復：null 比對恆
+            // false 會把沒設過 PIN 的使用者鎖死在 PIN 關卡）。
+            onPressed: () => setState(
+                () => _step = ref.read(appLockControllerProvider).hasPin
+                    ? _WipeStep.pin
+                    : _WipeStep.confirm),
             child: const Text('下一步'),
           ),
         ],
