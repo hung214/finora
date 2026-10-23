@@ -151,7 +151,8 @@ void _bind(GherkinRunner runner, _World w) {
     await _ensureApp(w);
     await w.tester.tap(find.byKey(const Key('nav-總覽')));
     await w.tester.pumpAndSettle();
-    await w.tester.tap(find.text('示例卡'));
+    // 總覽同時可能顯示「示例卡」於帳戶卡與最近交易列——取第一個（帳戶卡）。
+    await w.tester.tap(find.text('示例卡').first);
     await w.tester.pumpAndSettle();
     expect(w.tester.any(find.byType(CreditCardPage)), isTrue, reason: '信用卡頁應已開啟');
   });
@@ -160,7 +161,7 @@ void _bind(GherkinRunner runner, _World w) {
     await _ensureApp(w);
     await w.tester.tap(find.byKey(const Key('nav-總覽')));
     await w.tester.pumpAndSettle();
-    await w.tester.tap(find.text('示例卡'));
+    await w.tester.tap(find.text('示例卡').first);
     await w.tester.pumpAndSettle();
     await w.tester.tap(find.byKey(const Key('repay-button')));
     await w.tester.pumpAndSettle();
@@ -175,7 +176,7 @@ void _bind(GherkinRunner runner, _World w) {
     await _ensureApp(w);
     await w.tester.tap(find.byKey(const Key('nav-總覽')));
     await w.tester.pumpAndSettle();
-    await w.tester.tap(find.text('示例卡'));
+    await w.tester.tap(find.text('示例卡').first);
     await w.tester.pumpAndSettle();
     await w.tester.tap(find.byKey(const Key('repay-button')));
     await w.tester.pumpAndSettle();
@@ -189,7 +190,7 @@ void _bind(GherkinRunner runner, _World w) {
     await _ensureApp(w);
     await w.tester.tap(find.byKey(const Key('nav-總覽')));
     await w.tester.pumpAndSettle();
-    await w.tester.tap(find.text('示例卡'));
+    await w.tester.tap(find.text('示例卡').first);
     await w.tester.pumpAndSettle();
     await w.tester.tap(find.byKey(const Key('card-settings-entry')));
     await w.tester.pumpAndSettle();

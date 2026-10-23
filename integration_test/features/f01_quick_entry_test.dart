@@ -241,7 +241,13 @@ void _bind(GherkinRunner runner, _World w) {
   runner.on(r'開啟快速記帳頁$', (p) async => _ensureQuickEntry(w));
 
   runner.on(r'按下「{label}」$', (p) async {
-    await w.tester.tap(find.text(p['label']!));
+    final label = p['label']!;
+    // UI-P4：儲存鈕文案＝「OK 儲存」→ 以 key 精準鎖定；其餘（繼續/完成/復原…）
+    // 以包含比對（對話框動作鈕）。
+    final target = label.contains('儲存')
+        ? find.byKey(const Key('quick-entry-save'))
+        : find.textContaining(label).first;
+    await w.tester.tap(target);
     await w.tester.pumpAndSettle();
   });
 
@@ -252,10 +258,25 @@ void _bind(GherkinRunner runner, _World w) {
 
   // ── Then：預填與欄位 ──────────────────────────────────────
   runner.on(r'{field}預填為「{value}」$', (p) async {
+    final field = p['field']!;
+    final value = p['value']!;
+    if (field == '分類') {
+      // emoji 圖示制＋UI-P4 頁內兩層格：預填＝該主類別格存在且為**選取態**。
+      final chip = find.byKey(Key('cat-chip-$value'));
+      expect(w.tester.any(chip), isTrue, reason: '分類格應含「$value」');
+      final box = w.tester.widget<Container>(
+          find.descendant(of: chip, matching: find.byType(Container)).first);
+      final scheme =
+          Theme.of(w.tester.element(find.byType(QuickEntryPage))).colorScheme;
+      expect((box.decoration as BoxDecoration?)?.color, scheme.primary,
+          reason: '「$value」應為選取態（FR-Q4 預填）');
+      return;
+    }
     final finder = find.descendant(
-        of: find.byType(QuickEntryPage), matching: _presetFinder(p['field']!, p['value']!));
+        of: find.byType(QuickEntryPage),
+        matching: _presetFinder(field, value));
     expect(w.tester.any(finder), isTrue,
-        reason: '${p['field']} 應預填為「${p['value']}」（FR-Q4）');
+        reason: '$field 應預填為「$value」（FR-Q4）');
   });
 
   runner.on(r'金額欄為空且鍵盤已聚焦$', (p) async {
@@ -399,7 +420,14 @@ Finder _presetFinder(String field, String value) {
   switch (field) {
     case '時間':
       final dt = value == '現在' ? Clock.now() : _dateTime(value);
-      return find.text(DateFormat('yyyy/MM/dd HH:mm').format(dt));
+      // UI-P4 日期列（PM 2026-10-23）：`yyyy/MM/dd（週）HH:mm` 為單一 Text
+      // ——以「同時含日期與時分」的述詞比對（非連續子字串）。
+      final date = DateFormat('yyyy/MM/dd').format(dt);
+      final hm = DateFormat('HH:mm').format(dt);
+      return find.byWidgetPredicate((widget) =>
+          widget is Text &&
+          (widget.data ?? '').contains(date) &&
+          (widget.data ?? '').contains(hm));
     default: // 帳戶／分類／商家
       return find.text(value);
   }

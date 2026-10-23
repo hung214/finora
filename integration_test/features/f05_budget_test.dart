@@ -190,7 +190,9 @@ void _bind(GherkinRunner runner, _World w) {
   });
 
   runner.on(r'顯示「{text}」且為可點擊$', (p) async {
-    expect(find.text(p['text']!), findsOneWidget, reason: '應顯示「${p['text']}」');
+    // UI-P4：儲存鈕文案＝`OK 儲存`（PM 2026-10-23）——以包含比對。
+    expect(find.textContaining(p['text']!), findsWidgets,
+        reason: '應顯示含「${p['text']}」之鈕');
     final btn =
         w.tester.widget<FilledButton>(find.byKey(const Key('quick-entry-save')));
     expect(btn.onPressed, isNotNull, reason: '「${p['text']}」應為可點擊（超支不封鎖記帳）');
