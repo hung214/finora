@@ -174,6 +174,11 @@
 > **根因只有一個**：**Xcode／Apple SDK 授權未同意** → macOS 的 `xcrun` 被鎖 → 連帶
 > `git`、`flutter`、`cocoapods` 全部不能用（連 `flutter analyze`／`flutter test` 都被擋，錯誤訊息就是那行 license）。
 > 同意後**一次全解**。
+>
+> **為何突然要重新同意**（2026-10-23 實證）：`/Library/Preferences/com.apple.dt.Xcode.plist` 記載
+> `IDEXcodeVersionForAgreedToGMLicense = 26.6`，而目前安裝的是 **Xcode 27.1** ——
+> **Xcode 版本升級後 Apple 要求重新同意授權**（與 macOS 更新、磁碟權限無關；
+> 開 Full Disk Access／隱私權限**不會**解此鎖）。
 
 ### 11.1 必做：一行解鎖（請在 Terminal 執行，需管理員密碼）
 
