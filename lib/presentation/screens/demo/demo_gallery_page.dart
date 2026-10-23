@@ -8,6 +8,7 @@ import 'ledger_demo_page.dart';
 import 'quick_entry_calc_demo_page.dart';
 import 'quick_entry_demo_page.dart';
 import 'settings_demo_page.dart';
+import 'stats_demo_page.dart';
 import 'budget_demo_page.dart';
 
 /// UI Demo 畫廊：瀏覽 7 個主要畫面的靜態呈現（含深色/淺色切換，FR-O1）。
@@ -33,6 +34,7 @@ class _DemoGalleryPageState extends State<DemoGalleryPage> {
       ('06 信用卡與帳單', 'specs/plan/ui/06-credit-card.html', const CreditCardDemoContent()),
       ('09 分類設定', 'specs/plan/ui/09-category-settings.html', const CategorySettingsDemoContent()),
       ('10 新增資料（金額輸入＋計算機）', 'specs/plan/ui/10-quick-entry-calc.html', const QuickEntryCalcDemoContent()),
+      ('11 統計', 'specs/plan/ui/11-stats.html', const StatsDemoContent()),
       ('09 設定與同步', 'specs/plan/ui/07-settings-sync.html', const SettingsDemoContent()),
     ];
     return DemoThemeScope(

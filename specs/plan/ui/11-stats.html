@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>11 統計 — LedgerSync UI 雛型（PM 2026-10-24 新增）</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI","Noto Sans TC",system-ui,sans-serif}
+body{background:#e8ecef;display:flex;gap:300px;padding:40px;align-items:flex-start}
+.frame{position:relative;flex:none}
+.phone{width:390px;height:844px;background:#F5F7F8;border-radius:40px;border:10px solid #1c1f22;position:relative;overflow:hidden}
+.notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:120px;height:24px;background:#1c1f22;border-radius:0 0 16px 16px;z-index:9}
+.screen{position:absolute;inset:0;padding:48px 16px 20px;overflow-y:auto}
+.note{position:absolute;left:410px;width:250px;background:#FFF7C2;border-left:4px solid #E6B800;padding:10px 12px;font-size:12px;border-radius:6px;box-shadow:2px 2px 6px rgba(0,0,0,.15);line-height:1.5}
+.note b{display:block;margin-bottom:4px;color:#8a6d00}
+.h1{font-size:22px;font-weight:800;color:#1c2b2a;margin-bottom:10px}
+.mbar{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.mk{width:34px;height:30px;border-radius:10px;background:#fff;border:1px solid #e3e7ea;display:flex;align-items:center;justify-content:center;color:#0B7A75;font-size:16px}
+.msel{flex:1;background:#fff;border:1px solid #e3e7ea;border-radius:12px;padding:8px 12px;font-size:14px;font-weight:700;color:#1c2b2a;text-align:center}
+.msel small{color:#98a5a4;font-weight:400;font-size:10px;display:block}
+.cards{display:flex;gap:8px;margin-bottom:12px}
+.c{flex:1;background:#EDF1F2;border-radius:12px;padding:9px 8px;text-align:center}
+.c small{display:block;font-size:10px;color:#98a5a4;margin-bottom:3px}
+.c b{font-size:14px}
+.card{background:#fff;border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.card h3{font-size:12px;color:#7d8b8a;margin-bottom:10px}
+.donut{width:150px;height:150px;border-radius:50%;margin:0 auto 12px;background:conic-gradient(#0B7A75 0 46%,#F5C86B 46% 72%,#6D4FC4 72% 88%,#D64545 88% 100%);display:flex;align-items:center;justify-content:center}
+.donut .hole{width:88px;height:88px;background:#fff;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.donut .hole small{font-size:10px;color:#98a5a4}.donut .hole b{font-size:15px;color:#1c2b2a}
+.lg{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #F0F3F4;font-size:12px;color:#1c2b2a}
+.lg:last-child{border:none}
+.lg .dot{width:12px;height:12px;border-radius:4px}
+.lg .n{flex:1}.lg .p{color:#98a5a4;margin-right:8px}
+.bars{display:flex;align-items:flex-end;gap:10px;height:120px;padding:6px 4px 0}
+.bar{flex:1;background:#0B7A75;border-radius:6px 6px 0 0;position:relative}
+.bar span{position:absolute;bottom:-16px;left:0;right:0;text-align:center;font-size:10px;color:#98a5a4}
+.bwrap{padding-bottom:18px}
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="screen">
+      <div class="h1">統計</div>
+      <div class="mbar">
+        <div class="mk">‹</div>
+        <div class="msel">2026/10<small>期間（月份）</small></div>
+        <div class="mk">›</div>
+      </div>
+
+      <div class="cards">
+        <div class="c"><small>支出</small><b style="color:#D64545">-12,340</b></div>
+        <div class="c"><small>收入</small><b style="color:#0B7A75">+62,000</b></div>
+        <div class="c"><small>淨額</small><b style="color:#0B7A75">+49,660</b></div>
+      </div>
+
+      <div class="card">
+        <h3>分類占比（本月）</h3>
+        <div class="donut"><div class="hole"><small>合計</small><b>12,340</b></div></div>
+        <div class="lg"><span class="dot" style="background:#0B7A75"></span><span class="n">🍜 餐飲食品</span><span class="p">46%</span><b>5,700</b></div>
+        <div class="lg"><span class="dot" style="background:#F5C86B"></span><span class="n">🛒 購物</span><span class="p">26%</span><b>3,200</b></div>
+        <div class="lg"><span class="dot" style="background:#6D4FC4"></span><span class="n">🚇 交通運輸</span><span class="p">16%</span><b>2,000</b></div>
+        <div class="lg"><span class="dot" style="background:#D64545"></span><span class="n">🏠 居住</span><span class="p">12%</span><b>1,440</b></div>
+      </div>
+
+      <div class="card">
+        <h3>月趨勢（支出）</h3>
+        <div class="bwrap bars">
+          <div class="bar" style="height:40%"><span>8月</span></div>
+          <div class="bar" style="height:62%"><span>9月</span></div>
+          <div class="bar" style="height:100%"><span>10月</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note" style="top:60px"><b>FR-R2 · v1（PM 2026-10-24 新增原型）</b>①<b>月份列</b>：◀ 期間 ▾ ▶（切換月份；有資料月份清單）②<b>三卡</b>：支出（紅）／收入（綠）／<b>淨額</b>（收−支）③<b>分類占比</b>：甜甜圈＋<b>色點圖例</b>（名稱 % 金額；色板與甜甜圈一致）④<b>月趨勢</b>長條（有資料月份升冪）。</div>
+  <div class="note" style="top:330px"><b>可讀性規則</b>卡片式（白卡＋圓角＋陰影）；金額<b>千分位</b>；支出紅／收入綠；甜甜圈中心＝合計；圖例色點與扇區同色。</div>
+  <div class="note" style="top:520px"><b>桌面</b>：同內容寬版重排（三卡→橫列；甜甜圈＋圖例左右並置）——與 08 同殼。</div>
+</div>
+</body>
+</html>

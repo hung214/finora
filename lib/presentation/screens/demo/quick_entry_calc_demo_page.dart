@@ -6,8 +6,9 @@ import 'demo_shared.dart';
 /// 新增資料（快記 v2）Demo——對映 specs/plan/ui/10-quick-entry-calc.html。
 ///
 /// **可互動**：直接重用正式元件 [AmountKeypad]（S2.9 計算機鍵盤）——
-/// 按鍵／運算／＝ 求值／C／⌫ 皆為真實行為；模式切換（支出/轉帳/收入/還款，
-/// F02）與儲存啟用狀態（S2.1：純數字>0）同步呈現。不含資料庫（虛構劇例）。
+/// 按鍵／運算／**即時求值**／C／⌫ 皆為真實行為（PM 2026-10-24：第一排 C/⌫/OK、
+/// 移除＝、＋移位、0 跨兩格）；模式列＝**支出／收入／轉帳**（PM 2026-10-24）。
+/// 儲存啟用狀態（S2.1：求值>0）同步呈現。不含資料庫（虛構劇例）。
 class QuickEntryCalcDemoContent extends StatefulWidget {
   const QuickEntryCalcDemoContent({super.key});
 
@@ -19,7 +20,8 @@ class QuickEntryCalcDemoContent extends StatefulWidget {
 class _QuickEntryCalcDemoContentState extends State<QuickEntryCalcDemoContent> {
   String _expr = '120+45';
   String _mode = '支出';
-  final _modes = const ['支出', '轉帳', '收入', '還款'];
+  // PM 2026-10-24：模式列＝**支出／收入／轉帳**（拆分移至明細編輯；預算走預算頁）。
+  final _modes = const ['支出', '收入', '轉帳'];
 
   int? get _amount => AmountKeypadEvaluator.evaluate(_expr);
 
@@ -71,7 +73,7 @@ class _QuickEntryCalcDemoContentState extends State<QuickEntryCalcDemoContent> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                // 金額（運算式顯示；＝ 求值後為純數字——S2.9）。
+                // 金額（運算式顯示；**即時求值**——PM 2026-10-24 移除＝鍵）。
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 10),
@@ -126,8 +128,8 @@ class _QuickEntryCalcDemoContentState extends State<QuickEntryCalcDemoContent> {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  '💡 試試：120+45 ＝ 165／C 清空／⌫ 退位／連按運算子取代；'
-                  '÷0 → ＝ 無效（保留原式）。轉帳不計收支（AC-10）。',
+                  '💡 試試：120＋45 即時求值 165／C 清空／⌫ 退位／連按運算子取代；'
+                  '未完成式（尾運算子／÷0）→ OK 禁用。轉帳不計收支（AC-10）。',
                   style: TextStyle(fontSize: 11, color: DemoThemeScope.of(context).sub),
                 ),
                 const SizedBox(height: 12),
