@@ -90,6 +90,42 @@ void main() {
     }
   });
 
+  testWidgets('快記：金額欄 autofocus 且為空（FR-Q1）', (tester) async {
+    final db = DbFixture.create();
+    await FirstRunBootstrap.seedIfNeeded(db);
+    final container = ProviderContainer(overrides: [
+      dbProvider.overrideWithValue(db),
+    ]);
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    try {
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+            theme: buildAppTheme(Brightness.light),
+            home: const QuickEntryPage()),
+      ));
+      await tester.pumpAndSettle();
+      // 金額欄自動聚焦（S1.1-5）——widget test 決定性（FE 因 macOS 視窗焦點不穩）。
+      expect(find.byKey(const Key('quick-entry-amount')), findsOneWidget);
+      final field = tester.widget<TextField>(
+          find.byKey(const Key('quick-entry-amount')));
+      expect(field.controller?.text ?? '', isEmpty, reason: '金額欄應為空');
+      expect(field.autofocus, isTrue, reason: '金額欄標記 autofocus（FR-Q1）');
+      // 真值焦點（widget test 決定性——FE 因 macOS 視窗焦點不穩，故落此處）。
+      final editable = tester.widget<EditableText>(find.descendant(
+          of: find.byKey(const Key('quick-entry-amount')),
+          matching: find.byType(EditableText)));
+      expect(editable.focusNode.hasFocus, isTrue,
+          reason: '金額欄應已聚焦（FR-Q1；S1.1-5 數字鍵盤自動聚焦）');
+      expect(tester.takeException(), isNull);
+    } finally {
+      container.dispose();
+      db.close();
+    }
+  });
+
   testWidgets('快記 v3：備註欄位寫入交易（note）', (tester) async {
     final db = DbFixture.create();
     await FirstRunBootstrap.seedIfNeeded(db);
