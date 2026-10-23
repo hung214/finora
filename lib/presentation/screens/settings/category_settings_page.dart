@@ -75,10 +75,10 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  '圖示（31 個）',
+                  '圖示（32 個 emoji）',
                   style: Theme.of(sheetCtx).textTheme.labelMedium,
                 ),
-                // PM 2026-10-22：圖示至少 20 個——取 30 個語意化 Material 圖示。
+                // PM 2026-10-23：emoji 圖示（對齊 DEMO）——icon 欄存 emoji 字元。
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxHeight: 150),
                   child: SingleChildScrollView(
@@ -86,12 +86,12 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
                       spacing: 6,
                       runSpacing: 4,
                       children: [
-                        for (final e in categoryIcons)
+                        for (final e in categoryEmojis)
                           ChoiceChip(
-                            key: Key('cat-icon-${e.$1}'),
-                            label: Icon(e.$2, size: 18),
-                            selected: icon == e.$1,
-                            onSelected: (_) => setSheet(() => icon = e.$1),
+                            key: Key('cat-icon-$e'),
+                            label: Text(e, style: const TextStyle(fontSize: 18)),
+                            selected: icon == e,
+                            onSelected: (_) => setSheet(() => icon = e),
                           ),
                       ],
                     ),
@@ -283,11 +283,9 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
                           color: _colorOf(c.color).withValues(alpha: 0.18),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: Icon(
-                          _iconOf(c.icon),
-                          color: _colorOf(c.color),
-                          size: 20,
-                        ),
+                        alignment: Alignment.center,
+                        child: Text(_emojiOf(c.icon),
+                            style: const TextStyle(fontSize: 20)),
                       ),
                       const SizedBox(width: 10),
                       Column(
@@ -390,11 +388,8 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
                       ),
                       const Icon(Icons.subdirectory_arrow_right, size: 16),
                       const SizedBox(width: 6),
-                      Icon(
-                        _iconOf(sub.icon),
-                        size: 16,
-                        color: _colorOf(sub.color),
-                      ),
+                      Text(_emojiOf(sub.icon),
+                          style: const TextStyle(fontSize: 15)),
                       const SizedBox(width: 6),
                       Text(sub.name),
                       const Spacer(),
@@ -420,51 +415,23 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
     );
   }
 
-  IconData _iconOf(String? name) => categoryIcons
-      .firstWhere(
-        (e) => e.$1 == name,
-        orElse: () => ('label', Icons.label_outline),
-      )
-      .$2;
+  String _emojiOf(String? name) =>
+      (name != null && categoryEmojis.contains(name))
+          ? name
+          : '🏷️'; // 未設定→預設標籤
 
   Color _colorOf(String? name) => categoryColors
       .firstWhere((c) => c.$1 == name, orElse: () => categoryColors.first)
       .$2;
 }
 
-/// 分類圖示庫（31 個；表單選擇與列顯示共用——名稱存 db）。
-const List<(String, IconData)> categoryIcons = [
-  ('shopping_basket', Icons.shopping_basket_outlined),
-  ('pets', Icons.pets_outlined),
-  ('restaurant', Icons.restaurant_outlined),
-  ('ramen_dining', Icons.ramen_dining_outlined),
-  ('bakery_dining', Icons.bakery_dining_outlined),
-  ('local_cafe', Icons.local_cafe_outlined),
-  ('fastfood', Icons.fastfood_outlined),
-  ('checkroom', Icons.checkroom_outlined),
-  ('face', Icons.face_outlined),
-  ('spa', Icons.spa_outlined),
-  ('home', Icons.home_outlined),
-  ('king_bed', Icons.king_bed_outlined),
-  ('kitchen', Icons.kitchen_outlined),
-  ('cleaning_services', Icons.cleaning_services_outlined),
-  ('directions_bus', Icons.directions_bus_outlined),
-  ('train', Icons.train_outlined),
-  ('directions_car', Icons.directions_car_outlined),
-  ('two_wheeler', Icons.two_wheeler_outlined),
-  ('flight', Icons.flight_outlined),
-  ('school', Icons.school_outlined),
-  ('menu_book', Icons.menu_book_outlined),
-  ('sports_esports', Icons.sports_esports_outlined),
-  ('movie', Icons.movie_outlined),
-  ('park', Icons.park_outlined),
-  ('fitness_center', Icons.fitness_center_outlined),
-  ('phone_iphone', Icons.phone_iphone_outlined),
-  ('laptop_mac', Icons.laptop_mac_outlined),
-  ('headset', Icons.headset_outlined),
-  ('medication', Icons.medication_outlined),
-  ('savings', Icons.savings_outlined),
-  ('redeem', Icons.redeem_outlined),
+/// 分類圖示庫（32 個 emoji；PM 2026-10-23：對齊 DEMO 活潑圖示——
+/// icon 欄直接存 emoji 字元，多色向量改單字元渲染）。
+const List<String> categoryEmojis = [
+  '🍜', '🍚', '🍣', '🍞', '☕', '🍔', '🛒', '👗',
+  '👜', '💄', '🏠', '🛏️', '🧹', '🚇', '🚌', '🚗',
+  '✈️', '🎓', '📚', '✏️', '🎬', '🎮', '🏀', '📱',
+  '💻', '🎧', '💊', '🏥', '🎁', '🧧', '💰', '📈',
 ];
 
 /// 分類顏色庫（10 個）。

@@ -80,9 +80,11 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
     final categories = ref.watch(expenseCategoriesProvider);
     // 常用類別（FR-B1 常用區）：最近使用 10 個，常駐選單最上方。
     final nameById = {for (final c in categories) c.id: c.name};
+    final emojiById = {for (final c in categories) c.id: c.icon};
     final recent = [
       for (final id in ref.watch(recentCategoryIdsProvider))
-        if (nameById[id] != null) (id, nameById[id]!),
+        if (nameById[id] != null)
+          (id, nameById[id]!, emojiById[id]),
     ];
 
     ref.listen(
@@ -114,6 +116,23 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                 children: [
+                  // F02 S2.3：模式切換（支出/轉帳/拆分）。
+                  SegmentedButton<QuickEntryMode>(
+                    key: const Key('quick-entry-mode'),
+                    segments: const [
+                      ButtonSegment(
+                          value: QuickEntryMode.expense, label: Text('支出')),
+                      ButtonSegment(
+                          value: QuickEntryMode.transfer, label: Text('轉帳')),
+                      ButtonSegment(
+                          value: QuickEntryMode.split, label: Text('拆分')),
+                      ButtonSegment(
+                          value: QuickEntryMode.budget, label: Text('預算')),
+                    ],
+                    selected: {state.mode},
+                    onSelectionChanged: (modes) => controller.setMode(modes.first),
+                  ),
+                  const SizedBox(height: 12),
                   // 金額大顯示（03 雛型）。
                   TextField(
                     key: const Key('quick-entry-amount'),
@@ -181,23 +200,6 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
                       ),
                     ],
                   ),
-                  // F02 S2.3：模式切換（支出/轉帳/拆分）。
-                  SegmentedButton<QuickEntryMode>(
-                    key: const Key('quick-entry-mode'),
-                    segments: const [
-                      ButtonSegment(
-                          value: QuickEntryMode.expense, label: Text('支出')),
-                      ButtonSegment(
-                          value: QuickEntryMode.transfer, label: Text('轉帳')),
-                      ButtonSegment(
-                          value: QuickEntryMode.split, label: Text('拆分')),
-                      ButtonSegment(
-                          value: QuickEntryMode.budget, label: Text('預算')),
-                    ],
-                    selected: {state.mode},
-                    onSelectionChanged: (modes) => controller.setMode(modes.first),
-                  ),
-                  const SizedBox(height: 12),
                   _pickerField(
                     key: const Key('quick-entry-account'),
                     label: state.mode == QuickEntryMode.transfer ? '來源帳戶' : '帳戶',
@@ -495,7 +497,7 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
     required String label,
     required String text,
     required List<(String, String, bool)> entries,
-    required List<(String, String)> recent,
+    required List<(String, String, String?)> recent,
     required void Function(String?) onSelected,
     VoidCallback? addCategoryAction, // 分類選擇器專用：＋新增分類（PM 2026-10-22）
   }) {
@@ -526,7 +528,7 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
                 style:
                     TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
           ),
-          for (final (id, name) in recent)
+          for (final (id, name, _) in recent)
             PopupMenuItem(
               key: Key('recent-cat-$name'),
               value: id,
@@ -565,6 +567,10 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
   }
 }
 
+/// chip 標籤：emoji 前綴（有設定且在圖示庫內才顯示；PM 2026-10-23）。
+String _chipLabel(String? icon, String name) =>
+    (icon != null && categoryEmojis.contains(icon)) ? '$icon $name' : name;
+
 /// 兩層式分類格（PM 2026-10-22）：**常用 → 主類別 →（展開）子類別**；
 /// 主類別格尾「＋主類別」、子分類列尾「＋子分類」皆可直接新增
 /// （快速對話框即建即選；重名由 CategoryService 拒絕）。
@@ -578,7 +584,7 @@ class _CategoryGridSection extends StatelessWidget {
     required this.onQuickAdd,
   });
 
-  final List<(String, String)> recent;
+  final List<(String, String, String?)> recent; // (id, 名稱, emoji)
   final List<dynamic> categories;
   final dynamic selectedCategory; // CategoryRow?
   final String? selectedMainId;
@@ -650,9 +656,9 @@ class _CategoryGridSection extends StatelessWidget {
               spacing: 6,
               runSpacing: 6,
               children: [
-                for (final (id, name) in recent)
+                for (final (id, name, emoji) in recent)
                   chip(
-                      label: name,
+                      label: _chipLabel(emoji, name),
                       selected: selectedId == id,
                       key: Key('recent-chip-$name'),
                       icon: Icons.history,
@@ -663,7 +669,7 @@ class _CategoryGridSection extends StatelessWidget {
         Wrap(spacing: 6, runSpacing: 6, children: [
           for (final m in mains)
             chip(
-                label: m.name as String,
+                label: _chipLabel(m.icon as String?, m.name as String),
                 selected: selectedId == m.id || selectedMainId == m.id,
                 key: Key('cat-chip-${m.name}'),
                 onTap: () => onSelect(m.id as String, m.id as String)),
@@ -679,7 +685,7 @@ class _CategoryGridSection extends StatelessWidget {
           Wrap(spacing: 6, runSpacing: 6, children: [
             for (final s in subs)
               chip(
-                  label: s.name as String,
+                  label: _chipLabel(s.icon as String?, s.name as String),
                   selected: selectedId == s.id,
                   key: Key('cat-chip-${s.name}'),
                   onTap: () => onSelect(s.id as String, selectedMainId)),
@@ -787,7 +793,7 @@ class _BudgetTargetGrid extends StatelessWidget {
               onTap: onSelectTotal),
           for (final m in mains)
             chip(
-                label: m.name as String,
+                label: _chipLabel(m.icon as String?, m.name as String),
                 selected: !isTotal && selectedId == m.id,
                 key: Key('budget-chip-${m.name}'),
                 onTap: () => onSelect(m.id as String, m.id as String)),
@@ -803,7 +809,7 @@ class _BudgetTargetGrid extends StatelessWidget {
           Wrap(spacing: 6, runSpacing: 6, children: [
             for (final s in subs)
               chip(
-                  label: s.name as String,
+                  label: _chipLabel(s.icon as String?, s.name as String),
                   selected: selectedId == s.id,
                   key: Key('budget-chip-${s.name}'),
                   onTap: () => onSelect(s.id as String, selectedMainId)),

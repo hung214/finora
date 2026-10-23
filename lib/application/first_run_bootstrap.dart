@@ -26,12 +26,14 @@ class FirstRunBootstrap {
     final nowMs = Clock.now().millisecondsSinceEpoch;
 
     Future<void> seedCategory(String id, String kind, String name,
-        {bool system = false, String? parentId, int? sortOrder}) async {
+        {bool system = false, String? parentId, int? sortOrder,
+        String? icon}) async {
       final row = CategoryRow(
         id: id,
         kind: kind,
         parentId: parentId,
         name: name,
+        icon: icon,
         sortOrder: sortOrder,
         isSystem: system,
         createdAt: nowMs,
@@ -52,27 +54,31 @@ class FirstRunBootstrap {
 
     // 內建主類別集（PM 2026-10-22 定稿：支出 14＋收入 2；
     // 轉帳為交易類型非分類，不需分類列）。
+    // 內建主類別＋emoji 圖示（PM 2026-10-23：對齊 DEMO 活潑圖示）。
     const expenseMains = [
-      ('c-food', '餐飲食品'),
-      ('c-beauty', '服飾美容'),
-      ('c-home', '居家生活'),
-      ('c-transport', '交通運輸'),
-      ('c-edu', '教育學習'),
-      ('c-fun', '休閒娛樂'),
-      ('c-3c', '3C通訊'),
-      ('c-books', '圖書刊物'),
-      ('c-vehicle', '汽機車'),
-      ('c-health', '醫療保健'),
-      ('c-social', '人情交際'),
-      ('c-invest', '理財投資'),
-      ('c-fee', '費用'),
+      ('c-food', '餐飲食品', '🍜'),
+      ('c-beauty', '服飾美容', '👗'),
+      ('c-home', '居家生活', '🏠'),
+      ('c-transport', '交通運輸', '🚇'),
+      ('c-edu', '教育學習', '🎓'),
+      ('c-fun', '休閒娛樂', '🎬'),
+      ('c-3c', '3C通訊', '📱'),
+      ('c-books', '圖書刊物', '📖'),
+      ('c-vehicle', '汽機車', '🚗'),
+      ('c-health', '醫療保健', '💊'),
+      ('c-social', '人情交際', '🎁'),
+      ('c-invest', '理財投資', '💰'),
+      ('c-fee', '費用', '🧾'),
     ];
-    for (final (id, name) in expenseMains) {
-      await seedCategory(id, 'expense', name);
+    for (final (id, name, emoji) in expenseMains) {
+      await seedCategory(id, 'expense', name, icon: emoji);
     }
-    await seedCategory('c-other', 'expense', '其他', system: true);
-    await seedCategory('c-income-general', 'income', '一般收入');
-    await seedCategory('c-income-invest', 'income', '投資收入');
+    await seedCategory('c-other', 'expense', '其他',
+        system: true, icon: '📦');
+    await seedCategory('c-income-general', 'income', '一般收入',
+        icon: '💵');
+    await seedCategory('c-income-invest', 'income', '投資收入',
+        icon: '📈');
 
     // 內建子分類（PM 2026-10-22 簽核：全部主類別都配；sort_order＝索引）。
     const subs = <String, List<String>>{
@@ -94,7 +100,7 @@ class FirstRunBootstrap {
       'c-income-invest': ['股利', '利息', '基金收益'],
     };
     final kindByParent = <String, String>{
-      for (final (id, _) in expenseMains) id: 'expense',
+      for (final (id, _, _) in expenseMains) id: 'expense',
       'c-other': 'expense',
       'c-income-general': 'income',
       'c-income-invest': 'income',
