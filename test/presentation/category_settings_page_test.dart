@@ -65,6 +65,25 @@ void main() {
       expect(find.textContaining('同層已有同名分類'), findsWidgets,
           reason: '重名拒絕提示');
 
+      // 子分類編輯（PM 2026-10-23）：改名＋改圖示 → 全域快取失效（連動）。
+      await tester.tap(find.byKey(const Key('cat-edit-甜點')));
+      await tester.pumpAndSettle();
+      expect(find.text('編輯子分類'), findsOneWidget, reason: '編輯模式標題');
+      await tester.enterText(find.byKey(const Key('cat-name')), '甜點心');
+      await tester.ensureVisible(find.byKey(const Key('cat-icon-🍰')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('cat-icon-🍰')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('cat-save')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('cat-sub-row-甜點心')), findsOneWidget,
+          reason: '子分類改名即時反映');
+      final refreshed = container.read(expenseCategoriesProvider);
+      final edited = refreshed.firstWhere((c) => c.name == '甜點心');
+      expect(edited.icon, '🍰', reason: '圖示入庫');
+      expect(refreshed.any((c) => c.name == '甜點'), isFalse,
+          reason: '全域快取已失效（其他頁面會拿到新值）');
+
       expect(tester.takeException(), isNull);
     } finally {
       container.dispose();

@@ -115,6 +115,10 @@ final activeAccountsProvider = Provider((ref) =>
 final expenseCategoriesProvider =
     Provider((ref) => ref.watch(dbProvider).categoriesByKind('expense'));
 
+/// 收入分類（設定頁分頁；與支出同源快取策略）。
+final incomeCategoriesProvider =
+    Provider((ref) => ref.watch(dbProvider).categoriesByKind('income'));
+
 /// 常用類別（FR-B1 常用區）：最近使用分類（依交易時間新→舊去重，取前 10）。
 /// 監看 [ledgerProvider]——存帳後即時反映（下一筆選單最上方）。
 final recentCategoryIdsProvider = Provider<List<String>>((ref) {

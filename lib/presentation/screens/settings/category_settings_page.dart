@@ -29,7 +29,14 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
 
   bool _isOpen(String id) => _expanded.contains(id); // 預設收合（09 雛型）
 
-  void _refresh() => setState(() {});
+  /// 變更後刷新：本頁 setState＋**全域快取失效**（PM 2026-10-23 回報：
+  /// 分類/子分類改名或改圖示後，快記/預算/明細頁不會連動——provider 快取）。
+  void _refresh() {
+    ref.invalidate(expenseCategoriesProvider);
+    ref.invalidate(incomeCategoriesProvider);
+    ref.invalidate(ledgerProvider); // 交易列的分類名稱/圖示重新解析
+    setState(() {});
+  }
 
   void _showSnack(String msg) {
     if (!mounted) return;
@@ -61,7 +68,9 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  parentId == null ? '新增分類' : '新增子分類',
+                  editId == null
+                      ? (parentId == null ? '新增分類' : '新增子分類')
+                      : (parentId == null ? '編輯分類' : '編輯子分類'),
                   style: Theme.of(sheetCtx).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 12),
@@ -394,6 +403,12 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
                       Text(sub.name),
                       const Spacer(),
                       IconButton(
+                        key: Key('cat-edit-${sub.name}'),
+                        tooltip: '編輯',
+                        onPressed: () => _openForm(editId: sub.id, parentId: c.id),
+                        icon: const Icon(Icons.edit_outlined, size: 18),
+                      ),
+                      IconButton(
                         key: Key('cat-delete-${sub.name}'),
                         tooltip: '刪除',
                         onPressed: () => _delete(sub.id, sub.name),
@@ -425,13 +440,14 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
       .$2;
 }
 
-/// 分類圖示庫（32 個 emoji；PM 2026-10-23：對齊 DEMO 活潑圖示——
+/// 分類圖示庫（33 個 emoji；PM 2026-10-23：對齊 DEMO 活潑圖示——
 /// icon 欄直接存 emoji 字元，多色向量改單字元渲染）。
 const List<String> categoryEmojis = [
   '🍜', '🍚', '🍣', '🍞', '☕', '🍔', '🛒', '👗',
   '👜', '💄', '🏠', '🛏️', '🧹', '🚇', '🚌', '🚗',
   '✈️', '🎓', '📚', '✏️', '🎬', '🎮', '🏀', '📱',
   '💻', '🎧', '💊', '🏥', '🎁', '🧧', '💰', '📈',
+  '🍰',
 ];
 
 /// 分類顏色庫（10 個）。
