@@ -202,6 +202,7 @@ M8（**新增：UI 對照雛型整合＋設定群**）：
 | 對齊 | §5 清單自動化（pubspec/schema ✓ 已上 CI）；PR review 項人工 | 🟢 |
 | 發佈 | v0.1.0、v0.2.0（自動標籤；**Release 產物從未成功**——流水線鏈式缺陷）；**v0.4.3（DBG-004）／v0.4.4（首次啟動播種＋發佈格式定案：版本化檔名＋Inno Setup per-user exe／DMG／未簽名 IPA／軟體內版本）**；v0.4.5~v0.4.20（UI 對照雛型＋emoji 圖示制＋桌面三欄殼＋分類體系 v2） | ✅（v0.4.0~0.4.2 為修復迭代，v0.4.2/v0.4.0 壞包待刪） |
 | Fix | **DBG-008 清空資料無 PIN 鎖死**（PM 實機回報）：`AppLockController` 建構子 `pin` 可選＋`hasPin`；清空流程無 PIN 跳過 PIN 步驟；widget 護欄＋F08-BE 回歸 2 情境；同步 SPEC FR-O3／SDD §7.2/§7.3／BDD F9／dsl v1.8／acceptance F09／debug.md | ✅（v0.4.20） |
+| Feature | **快記 v3（PM 2026-10-24 回饋）**：分類選擇**彈窗**（上常用／左主類別／右子類別；＋置欄頂即建即選）＋**備註**欄（手機／PC）＋**記住上次**（`QuickEntryMemory`：選子分類帶入上次金額/帳戶/商家，settings 本機記憶）；PC 面板補日期列/帳戶/商家/備註（保留三欄分類格）。同步 SPEC FR-Q4/Q5／SDD §5.1／BDD F1／F01 acceptance S1.12-13／dsl §4.6／雛型 03/10/08 | ✅（待 PM 預覽確認後發版） |
 | Fix | **DBG-009 分類設定變更不連動＋子分類無法編輯**（PM 實機回報）：`_refresh` 失效衍生快取（expense/income/ledger）＋新增 `incomeCategoriesProvider`；子列 `cat-edit-{name}`（改名/emoji/顏色）；emoji 庫 33；同步 SPEC FR-B1／SDD §5.6/§7.2／BDD F11／acceptance F11 S11.2／ui 09／debug.md | ✅（待 v0.4.21 發佈） |
 
 - 狀態更新規則：🔴/🟢 由 CI 與 PR 自動可推導；🔵 與 ✅ 由開發者於 PR 描述更新；每 Sprint 結束回寫本表（對應 research §2.2 出口條件）。

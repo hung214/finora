@@ -62,8 +62,9 @@ body{background:#e8ecef;display:flex;gap:300px;padding:40px;align-items:flex-sta
         <span class="t" style="font-size:19px;font-weight:700;color:#fff">10/20（二）09:30</span>
         <span class="key" style="padding:4px 10px;font-size:18px">▶</span>
       </div>
-      <div class="field"><div class="f"><small>帳戶</small><b>現金</b></div><div class="f"><small>分類</small><b>餐飲食品</b></div></div>
+      <div class="field"><div class="f"><small>帳戶</small><b>現金</b></div><div class="f"><small>分類（點選開彈窗）</small><b>🍜 餐飲食品</b></div></div>
       <div class="field"><div class="f"><small>商家</small><b>晨光早餐店</b></div></div>
+      <div class="field"><div class="f"><small>備註（選填）</small>早餐</div></div>
       <div style="flex:1"></div>
       <div class="panel">
         <div class="save">OK 儲存</div>
@@ -79,6 +80,7 @@ body{background:#e8ecef;display:flex;gap:300px;padding:40px;align-items:flex-sta
   </div>
   <div class="note" style="top:60px"><b>S2.9 v2（PM 2026-10-23）</b>計算機＝**浮動面板貼底**；**OK 儲存在計算機上方**；鍵面 0-9／**.**／＋－×÷／＝／C／⌫（PM 補小數點；結果仍四捨五入至整數元）；連按運算子＝取代；÷0 → ＝ 無效（保留原式，儲存禁用）。</div>
   <div class="note" style="top:300px"><b>金額欄（唯讀顯示）</b>系統鍵盤不彈出（TextInputType.none）——輸入一律經常駐鍵盤；運算式未完成（如 120＋）→ 儲存禁用；＝ 求值 165 → 儲存啟用（S2.1 金額必填＞0 即時切換）。</div>
+  <div class="note" style="top:400px"><b>v3（PM 2026-10-24）</b>新增<b>備註欄位</b>（商家下方；手機／PC 皆有）。<br>「分類」欄點選→ <b>分類選擇彈窗</b>（上方常用／左下主類別／右下子類別）——同 03 雛型同一元件；選子類別會<b>帶入上次金額＋帳戶＋商家</b>。</div>
   <div class="note" style="top:560px"><b>日期（PM 2026-10-23）</b>日期在**金額下方**：◀▶ 快調 ±1 天；點擊日期開日曆（同 03 雛型）。<br><b>FR-Q1~Q5 既有語意不變</b>大金額鍵盤＋分類快捷格（見 03 雛型）；Sticky：繼續後金額清空、時間重設、帳戶/分類/商家保留。</div>
 </div>
 
@@ -102,6 +104,7 @@ body{background:#e8ecef;display:flex;gap:300px;padding:40px;align-items:flex-sta
       </div>
       <div class="field"><div class="f"><small>來源帳戶</small><b>銀行</b></div><div class="f"><small>目標帳戶</small><b>票證卡</b></div></div>
       <div class="field"><div class="f" style="opacity:.55"><small>分類／商家</small><b>不適用（轉帳語意）</b></div></div>
+      <div class="field"><div class="f"><small>備註（選填）</small>房租轉帳</div></div>
       <div style="flex:1"></div>
       <div class="panel">
         <div class="save">OK 儲存</div>

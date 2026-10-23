@@ -4,6 +4,7 @@ import '../../../application/providers.dart';
 import '../../../core/clock.dart';
 import '../../../data/sqlite/app_database.dart';
 import '../../../domain/entities/transaction.dart';
+import '../../../application/quick_entry/quick_entry_memory.dart';
 
 /// 快記狀態機階段（SDD §5.1）。
 enum QuickEntryPhase {
@@ -29,6 +30,7 @@ class QuickEntryState {
     this.splitAmount1 = '',
     this.category,
     this.merchant = '',
+    this.note = '',
     this.amount = '',
     required this.occurredAt,
     this.sessionCount = 0,
@@ -51,6 +53,9 @@ class QuickEntryState {
   final String splitAmount1;
   final CategoryRow? category;
   final String merchant;
+
+  /// 備註（PM 2026-10-24：手機與 PC 皆有；選填）。
+  final String note;
 
   /// 金額欄文字（數字鍵盤輸入；入庫時轉 minor units）。
   final String amount;
@@ -75,6 +80,7 @@ class QuickEntryState {
     String splitAmount1 = '',
     CategoryRow? category,
     String? merchant,
+    String? note,
     String? amount,
     DateTime? occurredAt,
     int? sessionCount,
@@ -91,6 +97,7 @@ class QuickEntryState {
         splitAmount1: clearSplitItems ? '' : splitAmount1,
         category: category ?? this.category,
         merchant: merchant ?? this.merchant,
+        note: note ?? this.note,
         amount: amount ?? this.amount,
         occurredAt: occurredAt ?? this.occurredAt,
         sessionCount: sessionCount ?? this.sessionCount,
@@ -123,6 +130,10 @@ class QuickEntryController extends AutoDisposeNotifier<QuickEntryState> {
   void setMerchant(String text) =>
       state = state.copyWith(merchant: text, phase: QuickEntryPhase.inputting);
 
+  /// 備註（PM 2026-10-24）。
+  void setNote(String text) =>
+      state = state.copyWith(note: text, phase: QuickEntryPhase.inputting);
+
   void setOccurredAt(DateTime t) =>
       state = state.copyWith(occurredAt: t, phase: QuickEntryPhase.inputting);
 
@@ -140,7 +151,26 @@ class QuickEntryController extends AutoDisposeNotifier<QuickEntryState> {
     if (id == null) return;
     for (final c in ref.read(expenseCategoriesProvider)) {
       if (c.id == id) {
-        state = state.copyWith(category: c, phase: QuickEntryPhase.inputting);
+        var next =
+            state.copyWith(category: c, phase: QuickEntryPhase.inputting);
+        // 「記住上次」（PM 2026-10-24）：帶入該分類上次的**金額/帳戶/商家**
+        // （日期仍為現在）；無紀錄或空值 → 沿用 Sticky（上一筆）值。
+        final mem = ref.read(quickEntryMemoryProvider).load(c.id);
+        if (mem != null) {
+          if (mem.amount.isNotEmpty) next = next.copyWith(amount: mem.amount);
+          if (mem.merchant.isNotEmpty) {
+            next = next.copyWith(merchant: mem.merchant);
+          }
+          if (mem.accountId != null) {
+            for (final a in ref.read(activeAccountsProvider)) {
+              if (a.id == mem.accountId) {
+                next = next.copyWith(account: a);
+                break;
+              }
+            }
+          }
+        }
+        state = next;
         return;
       }
     }
@@ -258,6 +288,7 @@ class QuickEntryController extends AutoDisposeNotifier<QuickEntryState> {
               (categoryId: state.splitCat1!.id, amountMinor: a1),
             ],
             occurredAt: state.occurredAt,
+            note: state.note.isEmpty ? null : state.note,
           );
       state = state.copyWith(
         phase: QuickEntryPhase.savedDialog,
@@ -281,6 +312,7 @@ class QuickEntryController extends AutoDisposeNotifier<QuickEntryState> {
             occurredAt: state.occurredAt,
             kind: TxKind.transfer,
             toAccountId: state.toAccount!.id,
+            note: state.note.isEmpty ? null : state.note,
           );
     } else {
       ref.read(saveTransactionProvider).execute(
@@ -289,6 +321,17 @@ class QuickEntryController extends AutoDisposeNotifier<QuickEntryState> {
             amountMinor: amountMinor,
             occurredAt: state.occurredAt,
             merchant: state.merchant.isEmpty ? null : state.merchant,
+            note: state.note.isEmpty ? null : state.note,
+          );
+    }
+    // 「記住上次」（PM 2026-10-24）：以分類為單位記住金額/帳戶/商家。
+    final catId = state.category?.id;
+    if (catId != null) {
+      ref.read(quickEntryMemoryProvider).remember(
+            categoryId: catId,
+            amount: state.amount,
+            accountId: state.account?.id,
+            merchant: state.merchant,
           );
     }
     // NFR-01 UI 計時（S1.6）：純入庫耗時（BE P95 已驗 <300ms）。
@@ -307,6 +350,7 @@ class QuickEntryController extends AutoDisposeNotifier<QuickEntryState> {
     state = state.copyWith(
       phase: QuickEntryPhase.inputting,
       amount: '',
+      note: '',
       occurredAt: Clock.now(),
     );
   }

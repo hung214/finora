@@ -37,6 +37,12 @@ td{padding:9px 12px;border-top:1px solid #F0F3F4;color:#1c2b2a}
 .qcat.on{background:#0B7A75;color:#fff;border-color:#0B7A75}
 .qsave{background:#0B7A75;color:#fff;text-align:center;font-weight:700;border-radius:12px;padding:12px;font-size:14px}
 .qmeta{font-size:11px;color:#98a5a4;margin-top:8px;line-height:1.8}
+.qlink{font-size:11px;color:#0B7A75;margin:-4px 0 8px;cursor:pointer}
+.qdate{display:flex;align-items:center;justify-content:center;gap:10px;font-size:13px;font-weight:700;color:#1c2b2a;margin-bottom:8px}
+.qk{background:#F7F9FA;border:1px solid #e3e7ea;border-radius:8px;padding:2px 9px;font-size:14px;color:#0B7A75}
+.qfield{background:#F7F9FA;border:1px solid #e3e7ea;border-radius:10px;padding:7px 10px;margin-bottom:6px;font-size:12px;color:#5c6b6a}
+.qfield b{color:#1c2b2a;font-size:13px}
+.qfield small{display:block;font-size:10px;color:#98a5a4;margin-bottom:1px}
 </style>
 </head>
 <body>
@@ -78,18 +84,23 @@ td{padding:9px 12px;border-top:1px solid #F0F3F4;color:#1c2b2a}
       <div class="sub">Ctrl+N 開啟 · Esc 收合</div>
       <div class="qamt">1,240</div>
       <div class="qgrid">
-        <div class="qcat">🍜 餐飲</div><div class="qcat on">🛒 購物</div><div class="qcat">🚇 交通</div>
-        <div class="qcat">🏠 居住</div><div class="qcat">🎬 娛樂</div><div class="qcat">⋯ 其他</div>
+        <div class="qcat">🍜 餐飲食品</div><div class="qcat on">👗 服飾美容</div><div class="qcat">🏠 居家生活</div>
+        <div class="qcat">🚇 交通運輸</div><div class="qcat">🎓 教育學習</div><div class="qcat">🎬 休閒娛樂</div>
       </div>
-      <div class="qmeta">帳戶：現金（Sticky）<br>商家：陽光（Sticky）· 時間：現在</div>
+      <div class="qlink">⋯ 更多分類／展開子類別（開彈窗）</div>
+      <div class="qdate"><span class="qk">◀</span> 10/18（六）09:12 <span class="qk">▶</span></div>
+      <div class="qfield"><small>帳戶</small><b>現金</b></div>
+      <div class="qfield"><small>商家（Sticky）</small><b>陽光</b></div>
+      <div class="qfield"><small>備註（選填）</small>早餐</div>
       <div style="flex:1"></div>
-      <div class="qsave">儲存（Enter）</div>
+      <div class="qsave">OK 儲存（Enter）</div>
       <div class="qmeta" style="text-align:center">儲存後停留此面板繼續記（每筆確認）</div>
     </div>
   </div>
 
   <div class="note"><b>SDD §8 · FR-Q7/S3.9</b>桌面三欄殼：側邊導航＋主內容＋右側快記面板（Ctrl/N，可收合）；工具列掃描（Ctrl+Shift+S）；表格支援寬版資訊（source 標籤：掃描/定期/預扣）。</div>
   <div class="note" style="bottom:120px"><b>F01-S1.11 · F03-S3.9</b>桌面快捷鍵；無相機 PC → 掃描導向相簿/檔案匯入。</div>
+  <div class="note" style="bottom:250px"><b>v3（PM 2026-10-24）PC 快記面板補正</b>金額以下依手機版欄位補齊：<b>三欄分類格保留</b>（快捷）＋「更多分類」<b>彈窗</b>（同 03：上常用／左主／右子）；<b>日期列</b>（◀▶ ±1 天／點擊開日曆）；<b>帳戶</b>／<b>商家</b>／<b>備註</b>（新增）；<b>OK 儲存</b>。<br>選子類別 → 帶入該子分類上次金額＋帳戶＋商家。</div>
 </div>
 </body>
 </html>

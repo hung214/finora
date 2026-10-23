@@ -261,15 +261,13 @@ void _bind(GherkinRunner runner, _World w) {
     final field = p['field']!;
     final value = p['value']!;
     if (field == '分類') {
-      // emoji 圖示制＋UI-P4 頁內兩層格：預填＝該主類別格存在且為**選取態**。
-      final chip = find.byKey(Key('cat-chip-$value'));
-      expect(w.tester.any(chip), isTrue, reason: '分類格應含「$value」');
-      final box = w.tester.widget<Container>(
-          find.descendant(of: chip, matching: find.byType(Container)).first);
-      final scheme =
-          Theme.of(w.tester.element(find.byType(QuickEntryPage))).colorScheme;
-      expect((box.decoration as BoxDecoration?)?.color, scheme.primary,
-          reason: '「$value」應為選取態（FR-Q4 預填）');
+      // v3（PM 2026-10-24）：分類欄（彈窗入口）顯示所選分類（emoji 前綴）。
+      expect(
+          find.descendant(
+              of: find.byKey(const Key('quick-entry-category')),
+              matching: find.textContaining(value)),
+          findsOneWidget,
+          reason: '分類欄應顯示「$value」（FR-Q4 預填）');
       return;
     }
     final finder = find.descendant(

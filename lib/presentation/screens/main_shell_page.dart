@@ -8,7 +8,11 @@ import '../../core/version.dart';
 import 'budget/budget_page.dart';
 import 'ledger/ledger_page.dart';
 import 'overview/overview_page.dart';
+import 'package:intl/intl.dart';
+
 import 'quick_entry/quick_entry_controller.dart';
+import 'quick_entry/category_picker_dialog.dart';
+import 'quick_entry/quick_date_time_picker.dart';
 import 'quick_entry/quick_entry_page.dart';
 import 'scan/scan_page.dart';
 import '../../application/sync/sync_fe_state.dart';
@@ -340,9 +344,39 @@ class _DesktopQuickPanel extends ConsumerStatefulWidget {
 class _DesktopQuickPanelState extends ConsumerState<_DesktopQuickPanel> {
   final _amountCtrl = TextEditingController();
 
+  /// 備註欄（PM 2026-10-24：PC 面板亦有）。
+  final _noteCtrl = TextEditingController();
+
+  /// 商家欄（與 state 同步——「記住上次」會帶入）。
+  final _merchantCtrl = TextEditingController();
+
+  static const _wd = ['一', '二', '三', '四', '五', '六', '日'];
+
+  static String _fmt(DateTime t) =>
+      '${DateFormat('MM/dd').format(t)}（${_wd[t.weekday - 1]}） '
+      '${DateFormat('HH:mm').format(t)}';
+
+  /// 分類選擇彈窗（PM 2026-10-24；與手機共用同一元件）。
+  Future<void> _openCategoryPicker() async {
+    final pick = await showCategoryPicker(context, ref,
+        selectedId: ref.read(quickEntryControllerProvider).category?.id);
+    if (!mounted || pick == null) return;
+    switch (pick) {
+      case CategoryPicked(:final categoryId):
+        ref
+            .read(quickEntryControllerProvider.notifier)
+            .selectCategoryById(categoryId);
+      case CategoryAddRequested():
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('新增分類請至 設定 → 分類管理')));
+    }
+  }
+
   @override
   void dispose() {
     _amountCtrl.dispose();
+    _noteCtrl.dispose();
+    _merchantCtrl.dispose();
     super.dispose();
   }
 
@@ -353,6 +387,18 @@ class _DesktopQuickPanelState extends ConsumerState<_DesktopQuickPanel> {
     final accounts = ref.watch(activeAccountsProvider);
     final categories = ref.watch(expenseCategoriesProvider);
     final mains = categories.where((c) => c.parentId == null).toList();
+    // 欄位 ↔ state 同步（PM 2026-10-24）：記住上次帶入金額/商家時反映。
+    ref.listen(
+      quickEntryControllerProvider
+          .select((s) => (s.amount, s.merchant, s.note)),
+      (prev, next) {
+        if (!mounted) return;
+        final (amount, merchant, note) = next;
+        if (_amountCtrl.text != amount) _amountCtrl.text = amount;
+        if (_merchantCtrl.text != merchant) _merchantCtrl.text = merchant;
+        if (_noteCtrl.text != note) _noteCtrl.text = note;
+      },
+    );
 
     return Container(
       width: 320,
@@ -400,6 +446,7 @@ class _DesktopQuickPanelState extends ConsumerState<_DesktopQuickPanel> {
                   key: Key('desktop-qcat-${m.name}'),
                   onTap: () => controller.selectCategoryById(m.id),
                   child: Container(
+                    width: 88, // 三欄分類格（08 雛型；PM 2026-10-24 保留）
                     padding: const EdgeInsets.symmetric(
                         horizontal: 8, vertical: 8),
                     decoration: BoxDecoration(
@@ -424,7 +471,65 @@ class _DesktopQuickPanelState extends ConsumerState<_DesktopQuickPanel> {
                 ),
             ],
           ),
-          const SizedBox(height: 10),
+          InkWell(
+            key: const Key('desktop-quick-more-categories'),
+            onTap: _openCategoryPicker,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Text('⋯ 更多分類／展開子類別',
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: Theme.of(context).colorScheme.primary)),
+            ),
+          ),
+          const SizedBox(height: 6),
+          // 日期列（PM 2026-10-24）：◀▶ 快調 ±1 天；點日期開日曆。
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                key: const Key('desktop-quick-date-prev'),
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints:
+                    const BoxConstraints(minWidth: 30, minHeight: 30),
+                tooltip: '前一天',
+                onPressed: () => controller.setOccurredAt(
+                    state.occurredAt.subtract(const Duration(days: 1))),
+                icon: const Icon(Icons.chevron_left, size: 20),
+              ),
+              TextButton(
+                key: const Key('desktop-quick-date'),
+                style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                onPressed: () => showModalBottomSheet<void>(
+                  context: context,
+                  isScrollControlled: true,
+                  builder: (_) => QuickDateTimePicker(
+                    initial: state.occurredAt,
+                    onSelected: controller.setOccurredAt,
+                  ),
+                ),
+                child: Text(_fmt(state.occurredAt),
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w700)),
+              ),
+              IconButton(
+                key: const Key('desktop-quick-date-next'),
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints:
+                    const BoxConstraints(minWidth: 30, minHeight: 30),
+                tooltip: '後一天',
+                onPressed: () => controller.setOccurredAt(
+                    state.occurredAt.add(const Duration(days: 1))),
+                icon: const Icon(Icons.chevron_right, size: 20),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
           DropdownButtonFormField<String>(
             key: const Key('desktop-quick-account'),
             initialValue: state.account?.id,
@@ -440,9 +545,21 @@ class _DesktopQuickPanelState extends ConsumerState<_DesktopQuickPanel> {
           const SizedBox(height: 8),
           TextField(
             key: const Key('desktop-quick-merchant'),
+            controller: _merchantCtrl,
             decoration: const InputDecoration(
                 labelText: '商家', isDense: true, border: OutlineInputBorder()),
             onChanged: controller.setMerchant,
+          ),
+          const SizedBox(height: 8),
+          // 備註（PM 2026-10-24）。
+          TextField(
+            key: const Key('desktop-quick-note'),
+            controller: _noteCtrl,
+            decoration: const InputDecoration(
+                labelText: '備註（選填）',
+                isDense: true,
+                border: OutlineInputBorder()),
+            onChanged: controller.setNote,
           ),
           const Spacer(),
           SizedBox(
@@ -459,11 +576,13 @@ class _DesktopQuickPanelState extends ConsumerState<_DesktopQuickPanel> {
                             content: Text(
                                 '已入庫（${s.lastSaveMs} ms）· 本次已記 ${s.sessionCount} 筆')));
                         _amountCtrl.clear();
+                        _noteCtrl.clear();
                         controller.setAmount(''); // FR-Q5：金額清空（Sticky 其餘保留）
+                        controller.setNote('');
                       }
                     }
                   : null,
-              child: const Text('儲存（Enter）'),
+              child: const Text('OK 儲存（Enter）'),
             ),
           ),
           Text('儲存後停留此面板繼續記（每筆確認）',

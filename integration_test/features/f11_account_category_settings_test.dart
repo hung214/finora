@@ -332,8 +332,7 @@ void _bind(GherkinRunner runner, _World w) {
   });
 
   runner.on(r'回到快記其分類快捷格依序含「{name}」$', (p) async {
-    // UI-P4（PM 2026-10-23）：分類選擇器改為**頁內兩層網格**（無 popup）——
-    // 開快記即可見「主類別」格（key cat-chip-{name}）。
+    // v3（PM 2026-10-24）：分類欄點選 → 彈窗（左欄＝主類別清單）。
     await _ensureApp(w);
     final navigator =
         w.tester.state<NavigatorState>(find.byType(Navigator).first);
@@ -341,8 +340,10 @@ void _bind(GherkinRunner runner, _World w) {
     await w.tester.pumpAndSettle();
     await w.tester.tap(find.byKey(const Key('fab-quick-entry')));
     await w.tester.pumpAndSettle();
-    expect(w.tester.any(find.byKey(Key('cat-chip-${p['name']}'))), isTrue,
-        reason: '快記分類格含新增分類（FR-B1；排序另由分類管理列斷言）');
+    await w.tester.tap(find.byKey(const Key('quick-entry-category')));
+    await w.tester.pumpAndSettle();
+    expect(w.tester.any(find.byKey(Key('picker-main-${p['name']}'))), isTrue,
+        reason: '分類彈窗左欄含新增主類別（FR-B1；排序另由分類管理列斷言）');
   });
 
   runner.on(r'分類「{name}」已有 {n} 筆交易$', (p) async {
@@ -405,12 +406,13 @@ void _bind(GherkinRunner runner, _World w) {
     await w.tester.pumpAndSettle();
     await w.tester.tap(find.byKey(const Key('fab-quick-entry')));
     await w.tester.pumpAndSettle();
-    // UI-P4：分類格為頁內網格（無 popup）。
-    // 展開主類別 → 子分類格（key cat-chip-{name}；DBG-009 快取失效連動）。
-    await w.tester.tap(find.byKey(Key('cat-chip-${p['parent']}')));
+    // v3：分類欄 → 彈窗 → 左欄主類別 → 右欄子類別項（DBG-009 快取失效連動）。
+    await w.tester.tap(find.byKey(const Key('quick-entry-category')));
     await w.tester.pumpAndSettle();
-    final chip = find.byKey(Key('cat-chip-${p['name']}'));
-    expect(w.tester.any(chip), isTrue, reason: '子分類格存在（改名已連動）');
+    await w.tester.tap(find.byKey(Key('picker-main-${p['parent']}')));
+    await w.tester.pumpAndSettle();
+    final chip = find.byKey(Key('picker-sub-${p['name']}'));
+    expect(w.tester.any(chip), isTrue, reason: '子分類項存在（改名已連動）');
     expect(
         find.descendant(
             of: chip, matching: find.text('${p['icon']} ${p['name']}')),
@@ -431,11 +433,22 @@ void _bind(GherkinRunner runner, _World w) {
     await w.tester.pumpAndSettle();
     await w.tester.tap(find.byKey(const Key('fab-quick-entry')));
     await w.tester.pumpAndSettle();
-    // 兩層格（PM 2026-10-22）：點主類別格 → 展開子分類格。
-    await w.tester.tap(find.byKey(const Key('cat-chip-餐飲食品')));
+    // v3：分類欄 → 彈窗 → 左欄主類別 → 右欄子類別可選。
+    await w.tester.tap(find.byKey(const Key('quick-entry-category')));
     await w.tester.pumpAndSettle();
-    expect(w.tester.any(find.byKey(Key('cat-chip-${p['name']}'))), isTrue,
-        reason: '分類格含子分類（FR-B1 一層）');
+    await w.tester.tap(find.byKey(const Key('picker-main-餐飲食品')));
+    await w.tester.pumpAndSettle();
+    final subItem = find.byKey(Key('picker-sub-${p['name']}'));
+    await w.tester.ensureVisible(subItem);
+    await w.tester.pumpAndSettle();
+    await w.tester.tap(subItem);
+    await w.tester.pumpAndSettle();
+    expect(
+        find.descendant(
+            of: find.byKey(const Key('quick-entry-category')),
+            matching: find.textContaining(p['name']!)),
+        findsOneWidget,
+        reason: '子分類可選（顯示於分類欄；FR-B1 一層）');
   });
 
   // ── 子分類拖曳（PM 2026-10-22：子分類也可拖曳）──────────
@@ -510,28 +523,30 @@ void _bind(GherkinRunner runner, _World w) {
     await w.tester.pumpAndSettle();
     await w.tester.tap(find.byKey(const Key('fab-quick-entry')));
     await w.tester.pumpAndSettle();
-    // UI-P4：分類格為頁內網格，無需再開 popup。
+    // v3：點分類欄 → 開啟選擇彈窗（上常用／左主類別／右子類別）。
+    await w.tester.tap(find.byKey(const Key('quick-entry-category')));
+    await w.tester.pumpAndSettle();
   });
 
   runner.on(r'選單最上方為「{label}」且「{name}」出現於常用區（在完整清單之前）$',
       (p) {
     expect(find.text(p['label']!), findsOneWidget, reason: '常用區標題');
-    // UI-P4：常用區為頁內格（key recent-chip-{name}）——find.text 全樹搜尋會
-    // 誤中主殼 IndexedStack 交易列（f02 教訓），改以 key 精準定位。
-    final recent = find.byKey(Key('recent-chip-${p['name']}'));
+    // v3 彈窗：常用區 key picker-recent-{name}——find.text 全樹搜尋會誤中主殼
+    // IndexedStack 交易列（f02 教訓），改以 key 精準定位。
+    final recent = find.byKey(Key('picker-recent-${p['name']}'));
     expect(w.tester.any(recent), isTrue,
         reason: '常用區含「${p['name']}」（FR-B1 常用區）');
-    // 「在完整清單之前」：常用區 dy < 主類別格 dy。
+    // 「在完整清單之前」：常用區 dy < 左欄主類別 dy。
     final aDy = w.tester.getTopLeft(recent).dy;
     final bDy = w.tester
-        .getTopLeft(find.byKey(const Key('cat-chip-餐飲食品')))
+        .getTopLeft(find.byKey(const Key('picker-main-餐飲食品')))
         .dy;
     expect(aDy, lessThan(bDy), reason: '常用區在完整清單之前');
   });
 
   runner.on(r'於選擇器點「＋ 新增分類」$', (p) async {
-    // UI-P4（PM 2026-10-23）：各層尾「＋」即建即選（頁內對話框），不再跳頁。
-    await w.tester.tap(find.byKey(const Key('cat-add-main')));
+    // v3（PM 2026-10-24）：彈窗左欄「＋ 新增主類別」→ 即建即選對話框。
+    await w.tester.tap(find.byKey(const Key('picker-add-main')));
     await w.tester.pumpAndSettle();
   });
 
