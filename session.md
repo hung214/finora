@@ -20,12 +20,13 @@
 
 | 欄位 | 內容 |
 |---|---|
-| 更新時間 | 2026-10-22 深夜二（**v0.4.17**：預算建立/編輯/刪除**表單**補全（S5.8——原 budget-add 只是 SnackBar 佔位，使用者無法建預算）＋INSTALL.md 直接下載安裝說明；113 unit 綠；tag 已建、CI 雲端建置中。**PM 方向調整：先不上架、走直接下載**；雲端功能保留未設定優雅降級） |
+| 更新時間 | 2026-10-23（**v0.4.18**：UI-P4 快記重整——①分類兩層式（常用→主類別→子類別＋各層「＋」即建即選）②計算機浮動貼底＋OK 儲存在上方＋「.」小數點鍵 ③AppBar 亮/暗主題切換 ④**預算設定併入快記**（預算模式：總預算/分類→金額→OK→存為預算內容）；116 unit 綠；PM 指示先不上架、直接下載） |
 | 階段 | **M1~M7＋M5 全數完成**，並已完成**雲端生產接線**（GoogleDriveAdapter／降級／main() 注入／三平台連網權限——v0.4.12）。**上架僅剩外部相依（PM 憑證／帳號）＋驗收走查單**：見 **`specs/plan/pm-actions.md`**（唯一 PM 入口文件） |
 | 當前分支 | **main**（cadd29a 已 push）；本地分支已清；遠端僅 main／session/handoff |
 | 當前任務 | **M8/F11 全數完成**（v0.4.15）：帳戶管理/分類管理（主子階層＋雙層拖曳）/外觀主題（持久化）＋**分類體系 v2**（主類別集 PM 定稿：支出 14＋收入 2）＋**常用類別區**（MRU 10 常駐快記選擇器最上方）＋快記選擇器階層化。後續：①UI-P3 預算→P4 快記→P5 掃描·信用卡·設定 ②測試分流（頁面情境遷 widget test） ③`pm-actions.md`（PM 憑證/帳號/決策——§9 新增分類決策記錄） |
 | 缺口（PM 走查 2026-10-22 發現） | ①**帳戶設定頁**（名稱/類型/**是否合併計算**）未實作→ FR-A7 新增（SPEC/SDD/BDD/tasks 已補）②**分類設定頁**未實作（雛型 `ui/09-category-settings.html` 早已存在）→ FR-B1 補 ③**外觀主題（明亮/暗色/跟隨系統）**無 App 內切換（FR-O1 P0，設定雛型有外觀段）→ 已納入 F11 ④**`CategoryRow`/`insertCategory` 未帶 `icon/color/sort_order/deleted_at`**（V1 DDL 與 data-spec.dbml 早已有——truth 未對齊，分類管理做不出來之根因）→ T-F11-BE 修 ⑤**UI 未對照雛型**（例：總覽/明細版面）→ UI-P1/P2 已修，P3~P6 待續 |
 | ⚠️ 環境重大變化 | **Xcode 已從本機消失**（/Applications 無、Spotlight 無、垃圾桶無——疑似磁碟告急時被刪，佔 30-40GB）。影響：本機無法 build macOS／跑 macOS integration test／部署驗證；**unit/widget test 不受影響（純 Dart）；CI 雲端建置不受影響（發佈照常）**。需本機 macOS 驗證時須重裝 Xcode |
+| 環境筆記（v0.4.18 追加） | ⑨**測試 viewport 折疊線**：長頁內容超出預設 600px 測試視窗時，`find` 預設略過視口外元素（offstage 語意）——放大 `tester.view.physicalSize`（如 1080×2400）＋reset ⑩**平面分類清單首位≠主類別**（sort_order NULL 排序在後）——下拉預設值須取 `parentId==null` 首項 ⑶python heredoc 產生 Dart 字串插值時 `\$` 會變字面——寫 `$` 即可 |
 | 下輪起點（TODOLIST） | ①**UI-P4 快記**（03-quick-entry 對照）→ UI-P5 掃描·信用卡·設定（02/06/07）②測試分流：f01~f10 頁面情境分批遷 widget test（**Xcode 已刪——macOS integration test 跑不了**，widget test 成為唯一頁面護欄，更該做）③PM：實機走查（清空資料後看新分類集）＋**直接下載試用**（Releases→INSTALL.md 四平台步驟）④PM 決策：首次啟動引導頁（file_picker 簽核）／NFR-03 |
 | 紅綠燈狀態 | main 上 `dart analyze` 0＋**unit 113 全綠**（新增 budget_form widget test）；FE：f01~f10 全綠＋F11-FE 11/11（v0.4.16 前測得）；**v0.4.17 tag 已建**（CI 四平台建置中——本機部署驗證因 Xcode 移除改由 CI 資產承擔） |
 | 工作區 | 乾淨（文件回寫後 commit） |
