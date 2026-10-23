@@ -47,6 +47,15 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
+      // 期間＝**月份制**（PM 2026-10-24）：預設本月——本測試資料為 2023/11，
+      // 先切「全部月份」再驗收支 chips（聚焦本測試主題）。
+      expect(find.byKey(const Key('month-prev')), findsOneWidget);
+      expect(find.byKey(const Key('month-next')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('filter-period')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('全部月份').last);
+      await tester.pumpAndSettle();
+
       // 全部：三筆（P2 預設不改變既有交集語意）。
       expect(find.byType(ListTile), findsNWidgets(3));
       expect(tester.takeException(), isNull);

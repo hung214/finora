@@ -12,6 +12,7 @@ import '../../../data/sqlite/app_database.dart';
 import '../../../domain/services/balance_calculator.dart';
 import '../../theme/app_theme.dart';
 import 'recent_deletions_page.dart';
+import 'tx_edit_sheet.dart';
 import '../recurring/recurring_queue_page.dart';
 import '../scan/scan_page.dart';
 
@@ -26,14 +27,34 @@ class LedgerPage extends ConsumerStatefulWidget {
 }
 
 class _LedgerPageState extends ConsumerState<LedgerPage> {
-  int? _periodMonth; // null = 全部（月，取 Clock.now().year）
+  /// 期間（PM 2026-10-24：**以月份為單位**，預設＝本月）：
+  /// `_range` 優先（自訂區間）；`_month`＝(年,月)；兩者皆 null＝全部。
+  (int, int)? _month;
+  DateTimeRange? _range;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = Clock.now();
+    _month = (now.year, now.month); // 預設顯示本月
+  }
+
+  /// 月份位移（◀▶；跨年）。
+  void _shiftMonth(int delta) {
+    final cur = _month ?? (Clock.now().year, Clock.now().month);
+    final d = DateTime(cur.$1, cur.$2 + delta);
+    setState(() {
+      _month = (d.year, d.month);
+      _range = null;
+    });
+  }
   String? _categoryFilter; // null = 全部（category id）
   String? _accountFilter; // null = 全部帳戶（P2 雛型帳戶 chips）
   String? _kindFilter; // null = 全部（expense/income/transfer；P2 篩選 chips）
   String _keyword = '';
 
   bool get _hasFilter =>
-      _periodMonth != null ||
+      _range != null ||
       _categoryFilter != null ||
       _accountFilter != null ||
       _kindFilter != null ||
@@ -46,7 +67,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
     final dueCount = ref.watch(recurringDueCountProvider);
     final db = ref.watch(dbProvider);
     final search = SearchService(db);
-    final range = _periodRange(_periodMonth);
+    final range = _periodRange();
     var rows = search.search(
       keyword: _keyword.isEmpty ? null : _keyword,
       startMs: range?.$1,
@@ -68,7 +89,6 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
     };
     // 附件索引（📷 標記；掃描儲存附件後 refresh——F03-FE S3）。
     final attachmentTxIds = ref.watch(attachmentTxIdsProvider);
-    final months = _availableMonths(db);
     // 分類索引（明細列顯示 分類＋圖示；PM 2026-10-24）。
     // 圖示規則：子類別無自身圖示 → 取**主類別**圖示。
     final catById = {
@@ -94,7 +114,9 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
           categoryIcon: iconOf(r.categoryId),
           note: r.note,
           hasAttachment: attachmentTxIds.contains(r.id),
-          onDelete: () => _confirmDelete(context, ref, r),
+          // 點列 → 編輯（含刪除/拆分；PM 2026-10-24）。
+          onTap: () => showTxEditSheet(context, ref, r,
+              onChanged: () => ref.invalidate(ledgerProvider)),
           tableLayout: tableLayout,
           showFullDate: false,
         );
@@ -133,8 +155,9 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
           // P2（雛型 02-ledger）：帳戶 chips 橫列＋收支性質篩選 chips。
           _accountChips(context, db),
           _duePill(context, dueCount),
+          _monthBar(context, db),
           _kindChips(context),
-          _filterBar(context, db, months),
+          _filterBar(context, db),
           const Divider(height: 1),
           Expanded(
             child: rows.isEmpty
@@ -395,14 +418,84 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
     );
   }
 
-  Widget _filterBar(BuildContext context, AppDatabase db, List<int> months) {
-    final chips = <Widget>[
-      if (_periodMonth != null)
-        InputChip(
-          key: const Key('chip-期間'),
-          label: Text('期間 $_periodMonth 月'),
-          onDeleted: () => setState(() => _periodMonth = null),
+  /// 月份列（PM 2026-10-24）：◀ 期間 ▾ ▶——**以月份為單位**，可切換／選區間。
+  Widget _monthBar(BuildContext context, AppDatabase db) {
+    final r = _range;
+    final m = _month;
+    final label = r != null
+        ? '${DateFormat('MM/dd').format(r.start)}–${DateFormat('MM/dd').format(r.end)}'
+        : (m == null ? '全部' : '${m.$1}/${m.$2.toString().padLeft(2, '0')}');
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 2, 8, 2),
+      child: Row(children: [
+        IconButton(
+          key: const Key('month-prev'),
+          visualDensity: VisualDensity.compact,
+          tooltip: '上個月',
+          onPressed: () => _shiftMonth(-1),
+          icon: const Icon(Icons.chevron_left),
         ),
+        Expanded(
+          child: PopupMenuButton<int>(
+            key: const Key('filter-period'),
+            tooltip: '期間',
+            onSelected: (v) async {
+              if (v == 0) {
+                setState(() {
+                  _month = null;
+                  _range = null;
+                });
+                return;
+              }
+              if (v == -1) {
+                final picked = await showDateRangePicker(
+                  context: context,
+                  firstDate: DateTime(2000),
+                  lastDate: DateTime(2100),
+                  initialDateRange: _range,
+                );
+                if (picked != null) {
+                  setState(() {
+                    _range = picked;
+                    _month = null;
+                  });
+                }
+                return;
+              }
+              setState(() {
+                _month = (v ~/ 100, v % 100);
+                _range = null;
+              });
+            },
+            itemBuilder: (_) => [
+              const PopupMenuItem(value: 0, child: Text('全部月份')),
+              const PopupMenuItem(value: -1, child: Text('自訂區間…')),
+              const PopupMenuDivider(),
+              for (final (y, mm) in _availableMonths(db))
+                PopupMenuItem(
+                    value: y * 100 + mm,
+                    child: Text('$y/${mm.toString().padLeft(2, '0')}')),
+            ],
+            child: InputDecorator(
+              decoration:
+                  const InputDecoration(labelText: '期間', isDense: true),
+              child: Text(label),
+            ),
+          ),
+        ),
+        IconButton(
+          key: const Key('month-next'),
+          visualDensity: VisualDensity.compact,
+          tooltip: '下個月',
+          onPressed: () => _shiftMonth(1),
+          icon: const Icon(Icons.chevron_right),
+        ),
+      ]),
+    );
+  }
+
+  Widget _filterBar(BuildContext context, AppDatabase db) {
+    final chips = <Widget>[
       if (_categoryFilter != null)
         InputChip(
           key: const Key('chip-分類'),
@@ -422,20 +515,6 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
         children: [
           Row(
             children: [
-              Flexible(
-                child: PopupMenuButton<int>(
-                  key: const Key('filter-period'),
-                  tooltip: '期間',
-                  onSelected: (m) => setState(() => _periodMonth = m),
-                  itemBuilder: (_) => [
-                    for (final m in months) PopupMenuItem(value: m, child: Text('$m 月')),
-                  ],
-                  child: InputDecorator(
-                    decoration: const InputDecoration(labelText: '期間', isDense: true),
-                    child: Text(_periodMonth == null ? '全部' : '$_periodMonth 月'),
-                  ),
-                ),
-              ),
               const SizedBox(width: 8),
               Flexible(
                 child: PopupMenuButton<String>(
@@ -475,7 +554,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
                 TextButton(
                   key: const Key('filter-clear'),
                   onPressed: () => setState(() {
-                    _periodMonth = null;
+                    _range = null;
                     _categoryFilter = null;
                     _keyword = '';
                   }),
@@ -488,23 +567,36 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
     );
   }
 
-  (int, int)? _periodRange(int? month) {
-    if (month == null) return null;
-    final year = DateTime.now().year;
+  /// 期間範圍（自訂區間優先；其次月份；皆無＝全部）。
+  (int, int)? _periodRange() {
+    final r = _range;
+    if (r != null) {
+      return (
+        DateTime(r.start.year, r.start.month, r.start.day).millisecondsSinceEpoch,
+        DateTime(r.end.year, r.end.month, r.end.day)
+            .add(const Duration(days: 1))
+            .millisecondsSinceEpoch,
+      );
+    }
+    final m = _month;
+    if (m == null) return null;
     return (
-      DateTime(year, month).millisecondsSinceEpoch,
-      DateTime(year, month + 1).millisecondsSinceEpoch,
+      DateTime(m.$1, m.$2).millisecondsSinceEpoch,
+      DateTime(m.$1, m.$2 + 1).millisecondsSinceEpoch,
     );
   }
 
-  /// 有交易之月份（升冪；期間選項）。
-  List<int> _availableMonths(AppDatabase db) {
-    final months = <int>{};
+  /// 有交易之月份（(年,月) 降冪；期間選項；PM 2026-10-24 月份制）。
+  List<(int, int)> _availableMonths(AppDatabase db) {
+    final months = <(int, int)>{};
     for (final t in db.allTransactions()) {
       if (t.deletedAt != null) continue;
-      months.add(DateTime.fromMillisecondsSinceEpoch(t.occurredAt).month);
+      final d = DateTime.fromMillisecondsSinceEpoch(t.occurredAt);
+      months.add((d.year, d.month));
     }
-    return months.toList()..sort();
+    final list = months.toList()
+      ..sort((a, b) => a.$1 == b.$1 ? b.$2.compareTo(a.$2) : b.$1.compareTo(a.$1));
+    return list;
   }
 
   void _exportCsv(BuildContext context, List<TxRow> rows) {
@@ -519,7 +611,10 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
     ).export(rows);
     // ignore: avoid_print
     print('CSV 匯出（${rows.length} 筆，UTF-8 BOM）：${csv.length} 字元');
-    final label = _periodMonth == null ? '全部' : '$_periodMonth 月';
+    final m0 = _month;
+    final label = _range != null
+        ? '${DateFormat('yyyy/MM/dd').format(_range!.start)}–${DateFormat('yyyy/MM/dd').format(_range!.end)}'
+        : (m0 == null ? '全部' : '${m0.$1}/${m0.$2.toString().padLeft(2, '0')}');
     showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(
@@ -536,37 +631,6 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
     );
   }
 
-  /// 刪除確認（F02 S2.5）：bottom sheet——軟刪除（30 天內可還原）。
-  void _confirmDelete(BuildContext context, WidgetRef ref, TxRow tx) {
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (sheetCtx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const ListTile(
-              title: Text('刪除這筆交易？'),
-              subtitle: Text('30 天內可於「最近刪除」還原'),
-            ),
-            FilledButton(
-              key: const Key('tx-delete'),
-              onPressed: () {
-                ref.read(deleteTransactionProvider).execute(tx.id);
-                ref.invalidate(ledgerProvider);
-                ref.invalidate(recentDeletionsProvider);
-                Navigator.of(sheetCtx).pop();
-              },
-              child: const Text('刪除'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(sheetCtx).pop(),
-              child: const Text('取消'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 /// 交易列左側分類圖示圓（02-ledger 雛型；PM 2026-10-24）。
@@ -592,13 +656,8 @@ class _CatCircle extends StatelessWidget {
 
 /// 交易列（BDD：明細頁即時顯示該 N 筆 → 金額文字計數）。
 ///
-/// 兩種版面（PM 2026-10-24：手機卡片／桌面表格；頁面依寬度選 `tableLayout`）：
-/// - 手機（false）＝02 雛型卡片列：分類圖示圓＋標題（商家／分類）＋副標
-///   `HH:mm · 帳戶 · 分類[ · 備註][ · 標籤]`（日期由**分日群組標題**承載）。
-/// - 桌面（true）＝08 雛型表格列：日期｜類型｜分類｜商家／對象｜帳戶｜金額（右對齊）。
-///
-/// 金額顏色：支出 `danger`（紅）／收入 `success`（teal）／轉帳中性；還款負號中性。
-/// 語意標籤：掃描入帳／預扣／定期／已繳（FR-S4、FR-T2、FR-C6）。
+/// 兩種版面（PM 2026-10-24）：手機＝02 卡片列（分日群組由頁面提供）；
+/// 桌面（`tableLayout`）＝08 表格列。金額千分位＋支出紅／收入綠／轉帳中性。
 class TxTile extends StatelessWidget {
   const TxTile({
     super.key,
@@ -610,7 +669,7 @@ class TxTile extends StatelessWidget {
     this.categoryIcon,
     this.note,
     this.hasAttachment = false,
-    this.onDelete,
+    this.onTap,
     this.tableLayout = false,
     this.showFullDate = true,
   });
@@ -631,7 +690,9 @@ class TxTile extends StatelessWidget {
 
   /// 掃描附件標記（FR-S4 呈現面：📷）。
   final bool hasAttachment;
-  final VoidCallback? onDelete;
+
+  /// 點列＝**編輯**（PM 2026-10-24：刪除改於編輯視窗內）。
+  final VoidCallback? onTap;
 
   /// 桌面表格版面（08 雛型）。
   final bool tableLayout;
@@ -722,7 +783,7 @@ class TxTile extends StatelessWidget {
     if (tx.splitGroupId != null) {
       // 拆分樣式（FR-T6）：群組可辨識（「拆分 · 分類」）。
       return ListTile(
-        onTap: onDelete,
+        onTap: onTap,
         leading: _CatCircle(emoji: categoryIcon ?? '🔀'),
         title: Text('拆分 · $categoryName'),
         subtitle: Text([_timeLabel, ..._tags].join(' · ')),
@@ -735,7 +796,7 @@ class TxTile extends StatelessWidget {
     }
     if (tx.kind == 'transfer') {
       return ListTile(
-        onTap: onDelete,
+        onTap: onTap,
         leading: _CatCircle(
             emoji: toAccount?.type == 'ewallet' ? '📲' : '🏦'),
         title: Text(_title),
@@ -755,7 +816,7 @@ class TxTile extends StatelessWidget {
       ..._tags,
     ].join(' · ');
     return ListTile(
-      onTap: onDelete,
+      onTap: onTap,
       leading: _CatCircle(emoji: categoryIcon ?? '🧾'),
       title: Row(
         mainAxisSize: MainAxisSize.min,
@@ -791,7 +852,7 @@ class TxTile extends StatelessWidget {
         : ((tx.merchant ?? '').isEmpty ? '—' : tx.merchant!);
     return InkWell(
       key: Key('tx-row-${tx.id}'),
-      onTap: onDelete,
+      onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(

@@ -1062,6 +1062,31 @@ class AppDatabase {
     }
   }
 
+  /// 交易編輯（FR-T3；PM 2026-10-24）：更新可編輯欄位＋oplog 整列快照於
+  /// **同一 DB transaction**（多裝置 LWW 合併語意與其他實體一致；SDD §5.5.4）。
+  void updateTransactionWithOplog(TxRow t, OplogRow o) {
+    _db.execute('BEGIN');
+    try {
+      _db.execute(
+        'UPDATE transactions SET kind = ?, amount_minor = ?, account_id = ?,'
+        ' to_account_id = ?, category_id = ?, merchant = ?, note = ?,'
+        ' occurred_at = ?, settlement_status = ?, updated_at = ?, hlc = ?'
+        ' WHERE id = ?',
+        [
+          t.kind, t.amountMinor, t.accountId, t.toAccountId, t.categoryId,
+          t.merchant, t.note, t.occurredAt, t.settlementStatus, t.updatedAt,
+          t.hlc, t.id,
+        ],
+      );
+      _ftsReindex(t); // FR-R3：FTS5 影子索引隨寫入維護
+      appendOp(o);
+      _db.execute('COMMIT');
+    } catch (_) {
+      _db.execute('ROLLBACK');
+      rethrow;
+    }
+  }
+
   /// 依 id 讀取單筆交易（含墓標）。
   TxRow? transactionById(String id) {
     final rows = _db.select('SELECT * FROM transactions WHERE id = ?', [id]);
@@ -1431,6 +1456,47 @@ class TxRow {
         updatedAt: r['updated_at'] as int,
         hlc: r['hlc'] as String,
         deletedAt: r['deleted_at'] as int?,
+      );
+
+  /// 複製並覆寫（交易編輯；PM 2026-10-24）。可空欄位以 clearX 明確清空。
+  TxRow copyWith({
+    String? kind,
+    int? amountMinor,
+    String? accountId,
+    String? toAccountId,
+    bool clearToAccount = false,
+    String? categoryId,
+    bool clearCategory = false,
+    String? merchant,
+    bool clearMerchant = false,
+    String? note,
+    bool clearNote = false,
+    int? occurredAt,
+    String? settlementStatus,
+    int? updatedAt,
+    String? hlc,
+    int? deletedAt,
+  }) =>
+      TxRow(
+        id: id,
+        kind: kind ?? this.kind,
+        amountMinor: amountMinor ?? this.amountMinor,
+        currency: currency,
+        fxRate: fxRate,
+        accountId: accountId ?? this.accountId,
+        toAccountId: clearToAccount ? null : (toAccountId ?? this.toAccountId),
+        categoryId: clearCategory ? null : (categoryId ?? this.categoryId),
+        merchant: clearMerchant ? null : (merchant ?? this.merchant),
+        note: clearNote ? null : (note ?? this.note),
+        occurredAt: occurredAt ?? this.occurredAt,
+        source: source,
+        settlementStatus: settlementStatus ?? this.settlementStatus,
+        splitGroupId: splitGroupId,
+        installmentSeq: installmentSeq,
+        createdAt: createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+        hlc: hlc ?? this.hlc,
+        deletedAt: deletedAt ?? this.deletedAt,
       );
 
   /// oplog payload 之整列快照（SDD §5.5.4：非欄位 diff，套用冪等）。

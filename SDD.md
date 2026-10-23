@@ -643,6 +643,14 @@ abstract interface class CloudStorageAdapter {
 - 待確認：AppBar 徽章改為**琥珀 pill**（`recurring-badge`；FR-T5 呈現面）。
 - 帳戶 chips：作用中 teal 實心、其餘白底（02 雛型）。
 - 桌面快記面板：分類欄與手機一致（顯示所選分類含子類別名）。
+- **月份制（PM 2026-10-24）**：明細**預設顯示本月**；**月份列**（◀ 期間 ▾ ▶）可切換
+  月份（有交易之月份清單）／**自訂區間**（DateRangePicker）／全部月份。
+- **交易編輯視窗（PM 2026-10-24）**：點交易列 → `tx_edit_sheet.dart`（bottom sheet）——
+  金額／日期（◀▶＋日曆）／帳戶／分類（彈窗）／商家／備註；動作 **刪除**（二次確認；
+  `DeleteTransactionUseCase` 軟刪除）／取消／**儲存**（`UpdateTransactionUseCase`：
+  `updateTransactionWithOplog` 整列快照，同一 DB transaction）；**拆分**（支出、
+  無 split_group）＝2 子項（分類＋金額）→ `executeSplit` ＋原交易軟刪除。
+  快記不再提供刪除/拆分入口。
 
 ---
 
