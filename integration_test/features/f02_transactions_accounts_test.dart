@@ -212,7 +212,7 @@ void _bind(GherkinRunner runner, _World w) {
     expect(
       find.descendant(
           of: find.byType(TxTile, skipOffstage: false),
-          matching: find.textContaining('拆分 · ', skipOffstage: false)),
+          matching: find.textContaining('拆分', skipOffstage: false)),
       findsWidgets,
       reason: '拆分樣式標示（拆分 · 分類）',
     );

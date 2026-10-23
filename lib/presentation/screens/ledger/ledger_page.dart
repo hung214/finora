@@ -7,6 +7,7 @@ import '../../../application/providers.dart';
 import '../../../application/reports/csv_exporter.dart';
 import '../../../application/reports/search_service.dart';
 import '../../../application/scan/scan_state.dart';
+import '../../../core/clock.dart';
 import '../../../data/sqlite/app_database.dart';
 import '../../../domain/services/balance_calculator.dart';
 import '../../theme/app_theme.dart';
@@ -80,19 +81,30 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
       return c.icon ?? (c.parentId == null ? null : catById[c.parentId]?.icon);
     }
 
+    // 交易列建構（手機卡片／桌面表格共用；日期由分日標題承載時 showFullDate=false）。
+    TxTile tileFor(TxRow r, {required bool tableLayout}) => TxTile(
+          tx: r,
+          accountName: accountById[r.accountId]?.name ?? '',
+          toAccount:
+              r.toAccountId == null ? null : accountById[r.toAccountId!],
+          categoryName: r.categoryId == null
+              ? '未分類'
+              : (db.categoryName(r.categoryId!) ?? '未分類'),
+          categoryId: r.categoryId,
+          categoryIcon: iconOf(r.categoryId),
+          note: r.note,
+          hasAttachment: attachmentTxIds.contains(r.id),
+          onDelete: () => _confirmDelete(context, ref, r),
+          tableLayout: tableLayout,
+          showFullDate: false,
+        );
+    // 桌面（≥900px）＝表格（08 雛型）；手機＝分日卡片（02 雛型）。
+    final isDesktop = MediaQuery.of(context).size.width >= 900;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('明細'),
         actions: [
-          // 待確認定期交易 badge（FR-T5 呈現面；F06-FE——0 亦顯示，S2 契約）。
-          TextButton(
-              key: const Key('recurring-badge'),
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                    builder: (_) => const RecurringQueuePage()),
-              ),
-              child: Text('待確認 $dueCount'),
-            ),
           // 掃描入口（FR-S6：獨立於快記大鈕；F03 S1）。
           IconButton(
             key: const Key('scan-entry'),
@@ -120,6 +132,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
         children: [
           // P2（雛型 02-ledger）：帳戶 chips 橫列＋收支性質篩選 chips。
           _accountChips(context, db),
+          _duePill(context, dueCount),
           _kindChips(context),
           _filterBar(context, db, months),
           const Divider(height: 1),
@@ -141,28 +154,176 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
                       ],
                     ),
                   )
-                : ListView.builder(
-                    itemCount: rows.length,
-                    itemBuilder: (_, i) => TxTile(
-                      tx: rows[i],
-                      accountName: accountById[rows[i].accountId]?.name ?? '',
-                      toAccount: rows[i].toAccountId == null
-                          ? null
-                          : accountById[rows[i].toAccountId!],
-                      categoryName: rows[i].categoryId == null
-                          ? '未分類'
-                          : (db.categoryName(rows[i].categoryId!) ?? '未分類'),
-                      categoryId: rows[i].categoryId,
-                      categoryIcon: iconOf(rows[i].categoryId),
-                      note: rows[i].note,
-                      hasAttachment: attachmentTxIds.contains(rows[i].id),
-                      onDelete: () => _confirmDelete(context, ref, rows[i]),
-                    ),
-                  ),
+                : isDesktop
+                    ? _desktopTable(context, rows, tileFor)
+                    : _dayGroupedList(context, rows, tileFor),
           ),
         ],
       ),
     );
+  }
+
+  /// 分日標籤（雛型 02）：今天／昨天／MM/DD（週）。
+  static const _dayWd = ['一', '二', '三', '四', '五', '六', '日'];
+
+  String _dayLabel(DateTime day) {
+    final now = Clock.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final diff = today.difference(day).inDays;
+    final md = '${day.month}/${day.day}';
+    if (diff == 0) return '今天 $md';
+    if (diff == 1) return '昨天 $md';
+    return '$md（${_dayWd[day.weekday - 1]}）';
+  }
+
+  /// 待確認 pill（FR-T5 呈現面；雛型 02 琥珀 pill）——定期交易提醒確認制入口。
+  /// 0 亦顯示（F06-FE S2 契約：key `recurring-badge` ＋文字「待確認 N」）。
+  Widget _duePill(BuildContext context, int dueCount) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 0, 8, 6),
+      child: InkWell(
+        key: const Key('recurring-badge'),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const RecurringQueuePage()),
+        ),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: dueCount > 0 ? const Color(0xFFFFF1D6) : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(children: [
+            const Text('⏳', style: TextStyle(fontSize: 12)),
+            const SizedBox(width: 6),
+            Text('待確認 $dueCount',
+                style: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFFB45309))),
+            const Text(' — 點擊處理',
+                style: TextStyle(fontSize: 11, color: Color(0xFFB45309))),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  /// 分日群組（雛型 02）：今天／昨天／MM/DD（週）＋當日**小計**（淨額；轉帳不計收支）。
+  Widget _dayGroupedList(BuildContext context, List<TxRow> rows,
+      TxTile Function(TxRow, {required bool tableLayout}) tileFor) {
+    final groups = <(DateTime, List<TxRow>)>[];
+    for (final r in rows) {
+      final d = DateTime.fromMillisecondsSinceEpoch(r.occurredAt);
+      final day = DateTime(d.year, d.month, d.day);
+      if (groups.isNotEmpty && groups.last.$1 == day) {
+        groups.last.$2.add(r);
+      } else {
+        groups.add((day, [r]));
+      }
+    }
+    final tokens = AppTokens.of(context);
+    final fmt = NumberFormat('#,###');
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(8, 4, 8, 24),
+      itemCount: groups.length,
+      itemBuilder: (_, i) {
+        final (day, dayRows) = groups[i];
+        // 小計＝當日淨額（expense 負、income 正；transfer/repayment 不計——AC-10）。
+        final subtotal = dayRows.fold<int>(
+            0,
+            (sum, r) =>
+                sum +
+                (r.kind == 'expense'
+                    ? -r.amountMinor
+                    : r.kind == 'income'
+                        ? r.amountMinor
+                        : 0));
+        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 10, 4, 6),
+            child: Row(children: [
+              Text(_dayLabel(day),
+                  key: Key('day-header-${day.millisecondsSinceEpoch}'),
+                  style: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w700)),
+              const Spacer(),
+              Text(
+                  '小計 ${subtotal < 0 ? '-' : ''}${fmt.format(subtotal.abs())}',
+                  style: TextStyle(fontSize: 12, color: tokens.subText)),
+            ]),
+          ),
+          Card(
+            margin: EdgeInsets.zero,
+            child: Column(
+                children: [
+                  for (final r in dayRows) tileFor(r, tableLayout: false)
+                ]),
+          ),
+        ]);
+      },
+    );
+  }
+
+  /// 桌面表格（雛型 08）：日期｜類型｜分類｜商家／對象｜帳戶｜金額。
+  Widget _desktopTable(BuildContext context, List<TxRow> rows,
+      TxTile Function(TxRow, {required bool tableLayout}) tileFor) {
+    final tokens = AppTokens.of(context);
+    const f = [13, 12, 11, 18, 13, 11];
+    Widget cell(String t, int i, {bool right = false}) => Expanded(
+          flex: f[i],
+          child: Text(t,
+              textAlign: right ? TextAlign.right : TextAlign.left,
+              style: TextStyle(
+                  fontSize: 11.5,
+                  color: tokens.subText,
+                  fontWeight: FontWeight.w600)),
+        );
+    return Column(children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text('交易明細',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w700)),
+        ),
+      ),
+      Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(vertical: 9),
+        decoration: BoxDecoration(
+          color: tokens.subText.withValues(alpha: 0.10),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+        ),
+        child: Row(children: [
+          const SizedBox(width: 14),
+          cell('日期', 0),
+          cell('類型', 1),
+          cell('分類', 2),
+          cell('商家／對象', 3),
+          cell('帳戶', 4),
+          cell('金額', 5, right: true),
+          const SizedBox(width: 14),
+        ]),
+      ),
+      Expanded(
+        child: Container(
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius:
+                const BorderRadius.vertical(bottom: Radius.circular(12)),
+          ),
+          child: ListView.builder(
+            itemCount: rows.length,
+            itemBuilder: (_, i) => tileFor(rows[i], tableLayout: true),
+          ),
+        ),
+      ),
+    ]);
   }
 
   /// 帳戶 chips 橫列（雛型 02-ledger）：名稱＋餘額（信用卡顯示「應付」）；
@@ -190,7 +351,15 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
                     : '${a.name} ${masked ? '●●●●' : fmt.format(calc.assetBalance(account: accountEntity(a), txs: txs))}',
               ),
               selected: _accountFilter == a.id,
-              selectedColor: tokens.success.withValues(alpha: 0.16),
+              selectedColor: tokens.success,
+              showCheckmark: false,
+              labelStyle: TextStyle(
+                  fontSize: 12,
+                  color: _accountFilter == a.id ? Colors.white : tokens.subText),
+              side: BorderSide(
+                  color: _accountFilter == a.id
+                      ? tokens.success
+                      : Theme.of(context).dividerColor),
               onSelected: (on) =>
                   setState(() => _accountFilter = on ? a.id : null),
             ),
@@ -423,8 +592,13 @@ class _CatCircle extends StatelessWidget {
 
 /// 交易列（BDD：明細頁即時顯示該 N 筆 → 金額文字計數）。
 ///
-/// 轉帳樣式（F02 S2.3-5）：swap 圖示（非支出圖示）＋「轉帳」標籤＋路由副標，
-/// 金額無正負號（轉帳不計收支）；目標為電子票證 → 顯示「儲值」（F02 S2.4）。
+/// 兩種版面（PM 2026-10-24：手機卡片／桌面表格；頁面依寬度選 `tableLayout`）：
+/// - 手機（false）＝02 雛型卡片列：分類圖示圓＋標題（商家／分類）＋副標
+///   `HH:mm · 帳戶 · 分類[ · 備註][ · 標籤]`（日期由**分日群組標題**承載）。
+/// - 桌面（true）＝08 雛型表格列：日期｜類型｜分類｜商家／對象｜帳戶｜金額（右對齊）。
+///
+/// 金額顏色：支出 `danger`（紅）／收入 `success`（teal）／轉帳中性；還款負號中性。
+/// 語意標籤：掃描入帳／預扣／定期／已繳（FR-S4、FR-T2、FR-C6）。
 class TxTile extends StatelessWidget {
   const TxTile({
     super.key,
@@ -437,26 +611,94 @@ class TxTile extends StatelessWidget {
     this.note,
     this.hasAttachment = false,
     this.onDelete,
+    this.tableLayout = false,
+    this.showFullDate = true,
   });
 
   final TxRow tx;
   final String accountName;
   final AccountRow? toAccount;
 
-  /// 分類名稱（拆分樣式副標用）。
+  /// 分類名稱（含子分類）。
   final String categoryName;
 
-  /// 分類 id／圖示（PM 2026-10-24：明細列顯示分類；圖示跟隨主類別）。
+  /// 分類 id／圖示（圖示跟隨主類別；子類別無自身圖示）。
   final String? categoryId;
   final String? categoryIcon;
 
-  /// 備註（PM 2026-10-24：明細列顯示）。
+  /// 備註。
   final String? note;
 
-  /// 掃描附件標記（FR-S4 呈現面：📷；F03-FE S3）。
+  /// 掃描附件標記（FR-S4 呈現面：📷）。
   final bool hasAttachment;
   final VoidCallback? onDelete;
 
+  /// 桌面表格版面（08 雛型）。
+  final bool tableLayout;
+
+  /// 副標是否含完整日期（手機＝false：日期由分日標題承載）。
+  final bool showFullDate;
+
+  bool get _isTransferLike => tx.kind == 'transfer' || tx.kind == 'repayment';
+
+  /// 類型標籤（表格「類型」欄）。
+  String get _kindLabel {
+    switch (tx.kind) {
+      case 'transfer':
+        return toAccount?.type == 'ewallet' ? '儲值' : '轉帳';
+      case 'repayment':
+        return '還款';
+      case 'income':
+        return '收入';
+      default:
+        return '支出';
+    }
+  }
+
+  /// 型別圖示（轉帳／還款；分類圖示另由 [categoryIcon] 顯示於分類欄）。
+  String get _kindEmoji {
+    switch (tx.kind) {
+      case 'transfer':
+        return toAccount?.type == 'ewallet' ? '📲' : '🏦';
+      case 'repayment':
+        return '💳';
+      default:
+        return '';
+    }
+  }
+
+  /// 語意標籤（雛型 02／08）。
+  List<String> get _tags => [
+        if (hasAttachment) '掃描入帳',
+        if (tx.settlementStatus == 'pending') '預扣',
+        if (tx.source == 'recurring') '定期',
+        if (tx.kind == 'repayment') '已繳',
+      ];
+
+  String get _timeLabel {
+    final t = DateTime.fromMillisecondsSinceEpoch(tx.occurredAt);
+    return showFullDate
+        ? DateFormat('yyyy/MM/dd HH:mm').format(t)
+        : DateFormat('HH:mm').format(t);
+  }
+
+  /// 金額文字與顏色（雛型 02／08：**千分位**；支出紅／收入綠／轉帳中性；還款負號中性）。
+  (String, Color?) _amountOf(BuildContext context) {
+    final tokens = AppTokens.of(context);
+    final n = NumberFormat('#,###').format(tx.amountMinor);
+    switch (tx.kind) {
+      case 'income':
+        return ('+$n', tokens.success);
+      case 'transfer':
+        return (n, null);
+      case 'repayment':
+        return ('-$n', null);
+      default:
+        return ('-$n', tokens.danger);
+    }
+  }
+
+  /// 標題（商家優先；無商家→分類名；轉帳＝轉帳／儲值）。
   String get _title {
     switch (tx.kind) {
       case 'transfer':
@@ -464,54 +706,52 @@ class TxTile extends StatelessWidget {
       case 'income':
         return tx.merchant ?? '收入';
       default:
-        return tx.merchant ?? '支出';
+        return tx.merchant ?? (tx.categoryId != null ? categoryName : '支出');
     }
   }
 
   @override
-  Widget build(BuildContext context) {
-    final time = DateTime.fromMillisecondsSinceEpoch(tx.occurredAt);
+  Widget build(BuildContext context) =>
+      tableLayout ? _buildTableRow(context) : _buildCardRow(context);
+
+  Widget _buildCardRow(BuildContext context) {
+    final (amount, color) = _amountOf(context);
+    final amountStyle =
+        Theme.of(context).textTheme.titleMedium?.copyWith(color: color);
     if (tx.splitGroupId != null) {
-      // 拆分樣式（FR-T6）：call_split 圖示＋「拆分 · {分類}」＋群組副標。
+      // 拆分樣式（FR-T6）：群組可辨識（「拆分 · 分類」）。
       return ListTile(
         onTap: onDelete,
         leading: _CatCircle(emoji: categoryIcon ?? '🔀'),
         title: Text('拆分 · $categoryName'),
-        subtitle: Text(
-          '群組 ${tx.splitGroupId!.substring(0, 8)}… · '
-          '${DateFormat('yyyy/MM/dd HH:mm').format(time)}',
-        ),
-        trailing: Text(
-          '-${tx.amountMinor}',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
+        subtitle: Text([_timeLabel, ..._tags].join(' · ')),
+        trailing: Text('-${NumberFormat('#,###').format(tx.amountMinor)}',
+            style: Theme.of(context)
+                .textTheme
+                .titleMedium
+                ?.copyWith(color: AppTokens.of(context).danger)),
       );
     }
     if (tx.kind == 'transfer') {
       return ListTile(
         onTap: onDelete,
-        // 轉帳樣式（非支出圖示）；電子票證目標 → 📲（儲值語意）。
-        leading:
-            _CatCircle(emoji: toAccount?.type == 'ewallet' ? '📲' : '🏦'),
+        leading: _CatCircle(
+            emoji: toAccount?.type == 'ewallet' ? '📲' : '🏦'),
         title: Text(_title),
         subtitle: Text([
-          DateFormat('yyyy/MM/dd HH:mm').format(time),
+          _timeLabel,
           if (accountName.isNotEmpty) '$accountName → ${toAccount?.name ?? ''}',
-          if ((note ?? '').isNotEmpty) note!,
+          ..._tags,
         ].join(' · ')),
-        trailing: Text(
-          '${tx.amountMinor}', // 轉帳不計收支：無正負號
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
+        trailing: Text(amount, style: amountStyle),
       );
     }
-    // 一般列（02-ledger 雛型）：分類圖示圓＋商家（無商家→分類）＋
-    // 副標「時間 · 帳戶 · 分類[ · 備註]」（PM 2026-10-24 補齊顯示）。
     final subtitle = [
-      DateFormat('yyyy/MM/dd HH:mm').format(time),
+      _timeLabel,
       if (accountName.isNotEmpty) accountName,
       if (tx.categoryId != null) categoryName,
       if ((note ?? '').isNotEmpty) note!,
+      ..._tags,
     ].join(' · ');
     return ListTile(
       onTap: onDelete,
@@ -519,11 +759,7 @@ class TxTile extends StatelessWidget {
       title: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Flexible(
-              child: Text(tx.merchant ??
-                  (tx.categoryId != null
-                      ? categoryName
-                      : (tx.kind == 'income' ? '收入' : '支出')))),
+          Flexible(child: Text(_title)),
           if (hasAttachment) ...[
             const SizedBox(width: 4),
             const Text('📷', key: Key('tx-attachment')),
@@ -531,10 +767,114 @@ class TxTile extends StatelessWidget {
         ],
       ),
       subtitle: Text(subtitle),
-      trailing: Text(
-        tx.kind == 'income' ? '+${tx.amountMinor}' : '-${tx.amountMinor}',
-        style: Theme.of(context).textTheme.titleMedium,
+      trailing: Text(amount, style: amountStyle),
+    );
+  }
+
+  Widget _buildTableRow(BuildContext context) {
+    final tokens = AppTokens.of(context);
+    final (amount, color) = _amountOf(context);
+    final t = DateTime.fromMillisecondsSinceEpoch(tx.occurredAt);
+    const flexes = [13, 12, 11, 18, 13, 11];
+    Widget cell(Widget child, int i) =>
+        Expanded(flex: flexes[i], child: child);
+    // 拆分＝「拆分」（分類另於分類欄）；轉帳/還款＝型別 emoji ＋ 標籤
+    // （emoji 與標籤分開為兩個 Text——利於精確比對，也符雛型視覺）。
+    final typeLabel = tx.splitGroupId != null ? '拆分' : _kindLabel;
+    final catText = _isTransferLike
+        ? '—'
+        : (categoryIcon != null ? '$categoryIcon $categoryName' : categoryName);
+    final objText = _isTransferLike
+        ? '$accountName → ${toAccount?.name ?? ''}'
+        : (tx.merchant ?? (tx.categoryId != null ? categoryName : '—'));
+    return InkWell(
+      key: Key('tx-row-${tx.id}'),
+      onTap: onDelete,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+            border: Border(
+                top: BorderSide(color: Theme.of(context).dividerColor))),
+        child: Row(children: [
+          cell(
+              Text(DateFormat('MM/dd HH:mm').format(t),
+                  style: const TextStyle(fontSize: 11.5)),
+              0),
+          cell(
+              Row(children: [
+                if (_kindEmoji.isNotEmpty) ...[
+                  Text(_kindEmoji, style: const TextStyle(fontSize: 11)),
+                  const SizedBox(width: 3),
+                ],
+                Flexible(
+                    child: Text(typeLabel,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 12))),
+                for (final tag in _tags) ...[
+                  const SizedBox(width: 4),
+                  _TxTag(label: tag),
+                ],
+              ]),
+              1),
+          cell(
+              Text(catText,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12)),
+              2),
+          cell(
+              Row(children: [
+                Flexible(
+                    child: Text(objText,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600))),
+                if (hasAttachment) ...[
+                  const SizedBox(width: 4),
+                  const Text('📷',
+                      key: Key('tx-attachment'),
+                      style: TextStyle(fontSize: 11)),
+                ],
+              ]),
+              3),
+          cell(
+              Text(accountName,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 11.5, color: tokens.subText)),
+              4),
+          cell(
+              Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(amount,
+                      style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12.5,
+                          color: color))),
+              5),
+        ]),
       ),
+    );
+  }
+}
+
+/// 語意標籤 chip（08 雛型：掃描入帳／預扣／定期·待確認）。
+class _TxTag extends StatelessWidget {
+  const _TxTag({required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final (bg, fg) = switch (label) {
+      '掃描入帳' => (const Color(0xFFE6F4F3), const Color(0xFF0B7A75)),
+      '預扣' => (const Color(0xFFEDE4FF), const Color(0xFF6D4FC4)),
+      _ => (const Color(0xFFFFF1D6), const Color(0xFFB45309)),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      decoration:
+          BoxDecoration(color: bg, borderRadius: BorderRadius.circular(8)),
+      child: Text(label,
+          style:
+              TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: fg)),
     );
   }
 }
