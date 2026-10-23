@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<title>10 新增資料（快記 v2）：金額輸入＋計算機鍵盤＋轉帳模式 — LedgerSync UI 雛型</title>
+<title>10 新增資料（快記 v2）：計算機浮動面板＋OK 儲存＋「.」小數點 — LedgerSync UI 雛型</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI","Noto Sans TC",system-ui,sans-serif}
 body{background:#e8ecef;display:flex;gap:300px;padding:40px;align-items:flex-start}
@@ -32,6 +32,14 @@ body{background:#e8ecef;display:flex;gap:300px;padding:40px;align-items:flex-sta
 .save{background:#F5C86B;color:#12312F;font-size:18px;font-weight:800;border-radius:16px;padding:14px;text-align:center;margin-top:10px}
 .save.off{background:rgba(255,255,255,.14);color:rgba(217,232,231,.5)}
 .time{color:#9fd4d0;text-align:center;font-size:13px;margin-top:8px}
+
+/* ── v2（PM 2026-10-23）：計算機浮動面板貼底＋OK 儲存在上方＋「.」── */
+.panel{position:absolute;left:10px;right:10px;bottom:10px;background:#1c3f3c;border-radius:20px;padding:10px 8px 8px;box-shadow:0 -4px 14px rgba(0,0,0,.35);z-index:4}
+.panel .save{margin-bottom:8px}
+.panel .numpad{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.panel .key{background:rgba(255,255,255,.07);color:#e7f2f1;border-radius:12px;text-align:center;padding:11px 0;font-size:17px}
+.panel .key.op{color:#F5C86B;font-weight:700}
+.panel .key.fn{color:#9fd4d0;font-size:16px}
 </style>
 </head>
 <body>
@@ -51,26 +59,22 @@ body{background:#e8ecef;display:flex;gap:300px;padding:40px;align-items:flex-sta
       <div class="expr">165<small>金額（TWD・整數元）</small></div>
       <div class="field"><div class="f"><small>帳戶</small><b>現金</b></div><div class="f"><small>分類</small><b>餐飲</b></div></div>
       <div class="field"><div class="f"><small>商家</small><b>晨光早餐店</b></div></div>
-      <div class="calc">
-        <div class="row">
+      <div class="field"><div class="f"><small>商家</small><b>晨光早餐店</b></div></div>
+      <div class="time" style="margin-top:2px">時間 2026/10/20 09:30（點擊修改，不離開頁）</div>
+      <div style="flex:1"></div>
+      <div class="panel">
+        <div class="save">OK 儲存</div>
+        <div class="numpad">
           <div class="key">7</div><div class="key">8</div><div class="key">9</div><div class="key op">÷</div>
-        </div>
-        <div class="row">
           <div class="key">4</div><div class="key">5</div><div class="key">6</div><div class="key op">×</div>
-        </div>
-        <div class="row">
           <div class="key">1</div><div class="key">2</div><div class="key">3</div><div class="key op">－</div>
+          <div class="key fn">C</div><div class="key">0</div><div class="key">.</div><div class="key fn">⌫</div>
+          <div class="key op">＋</div><div class="key op">＝</div>
         </div>
-        <div class="row">
-          <div class="key fn">C</div><div class="key">0</div><div class="key fn">⌫</div><div class="key op">＋</div>
-        </div>
-        <div class="row"><div class="key eq">＝</div></div>
       </div>
-      <div class="time">時間 2026/10/20 09:30（點擊修改，不離開頁）</div>
-      <div class="save">儲存</div>
     </div>
   </div>
-  <div class="note" style="top:60px"><b>S2.9 金額計算機鍵盤（2026-10-20 PM 增補）</b>常駐四則運算：0-9／＋－×÷／＝／C／⌫；＝ 左至右求值、四捨五入至整數元（TWD 無小數點，依幣別 exponent）；連按運算子＝取代；÷0 → ＝ 無效（保留原式，儲存禁用）。</div>
+  <div class="note" style="top:60px"><b>S2.9 v2（PM 2026-10-23）</b>計算機＝**浮動面板貼底**；**OK 儲存在計算機上方**；鍵面 0-9／**.**／＋－×÷／＝／C／⌫（PM 補小數點；結果仍四捨五入至整數元）；連按運算子＝取代；÷0 → ＝ 無效（保留原式，儲存禁用）。</div>
   <div class="note" style="top:300px"><b>金額欄（唯讀顯示）</b>系統鍵盤不彈出（TextInputType.none）——輸入一律經常駐鍵盤；運算式未完成（如 120＋）→ 儲存禁用；＝ 求值 165 → 儲存啟用（S2.1 金額必填＞0 即時切換）。</div>
   <div class="note" style="top:560px"><b>FR-Q1~Q5 既有語意不變</b>大金額鍵盤＋分類快捷格（見 03 雛型）；Sticky：繼續後金額清空、時間重設、帳戶/分類/商家保留。</div>
 </div>
@@ -91,7 +95,17 @@ body{background:#e8ecef;display:flex;gap:300px;padding:40px;align-items:flex-sta
       <div class="field"><div class="f"><small>來源帳戶</small><b>銀行</b></div><div class="f"><small>目標帳戶</small><b>票證卡</b></div></div>
       <div class="field"><div class="f" style="opacity:.55"><small>分類／商家</small><b>不適用（轉帳語意）</b></div></div>
       <div class="time">時間 2026/10/20 09:31</div>
-      <div class="save">儲存</div>
+      <div style="flex:1"></div>
+      <div class="panel">
+        <div class="save">OK 儲存</div>
+        <div class="numpad">
+          <div class="key">7</div><div class="key">8</div><div class="key">9</div><div class="key op">÷</div>
+          <div class="key">4</div><div class="key">5</div><div class="key">6</div><div class="key op">×</div>
+          <div class="key">1</div><div class="key">2</div><div class="key">3</div><div class="key op">－</div>
+          <div class="key fn">C</div><div class="key">0</div><div class="key">.</div><div class="key fn">⌫</div>
+          <div class="key op">＋</div><div class="key op">＝</div>
+        </div>
+      </div>
       <div style="margin-top:10px;color:#9fd4d0;font-size:11px;line-height:1.6">轉帳不計入收支統計（AC-10）；目標為電子票證 → 明細顯示「儲值」（FR-A5）；同帳戶轉帳 → UI 阻擋（目標選項排除來源）。</div>
     </div>
   </div>
