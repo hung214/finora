@@ -74,7 +74,7 @@ body{background:#e8ecef;display:flex;gap:80px;padding:40px;align-items:flex-star
     <div class="screen">
       <div class="top">
         <span>✕ 離開</span>
-        <span style="display:flex;gap:6px"><span class="t">🌙 暗色</span><span class="t">⏱ 10/18 09:12（可點改）</span></span>
+        <span class="t">🌙 暗色</span>
       </div>
       <div class="amount">1,240<small>帳戶：現金（Sticky）</small></div>
       <div class="count">本次已記 3 筆</div>
@@ -145,7 +145,7 @@ body{background:#e8ecef;display:flex;gap:80px;padding:40px;align-items:flex-star
   </div>
 
   <div class="note" style="top:60px"><b>v2（PM 2026-10-22/23 定稿）</b>分類＝**兩層式**：常用（最近使用 MRU）→ 主類別格 → 點主類別展開子分類格；**主/子層尾「＋」可直接新增**（即建即選）。<br>計算機＝**浮動面板貼底**；**OK 儲存在計算機上方**；補「.」小數點鍵（結果仍四捨五入整數元）。<br>右上角亮/暗主題切換（亮色=01/02 風格）。</div>
-<div class="note" style="top:320px"><b>FR-Q1 · SDD §5.1</b>從開啟到儲存 ≤3 次點擊（點主類別即選、點子分類即選；常用格一鍵）。<br><b>FR-Q4</b>智慧預設：帳戶=上一筆、分類=時段/商家規則。</div>
+<div class="note" style="top:320px"><b>日期（PM 2026-10-23）</b>日期在**金額下方**：◀▶ 快調 ±1 天；**點擊日期**才開日曆（跨月/年快速選）。<br><b>FR-Q1</b>從開啟到儲存 ≤3 次點擊。<br><b>FR-Q4</b>智慧預設：帳戶=上一筆、分類=時段/商家規則。</div>
 <div class="note" style="top:560px"><b>預算模式（PM 2026-10-23）</b>模式列新增「預算」：選「總預算」或分類 → 金額（同一計算機）→ OK → **存為預算內容**（非交易；細部編輯走預算頁表單）。</div>
   <div class="note" style="top:210px"><b>FR-Q4 · S1.1~S1.4</b>智慧預設：帳戶=上一筆、分類=時段/商家規則；可於設定改固定預設。</div>
   <div class="note" style="top:360px"><b>FR-Q8 · S1.5</b>時間可點擊修改（不離開頁面）；「繼續」後金額清空、時間重設為現在（FR-Q5 Sticky）。</div>
@@ -159,9 +159,14 @@ body{background:#e8ecef;display:flex;gap:80px;padding:40px;align-items:flex-star
       <div class="screen">
         <div class="top">
           <span>✕ 離開</span>
-          <span style="display:flex;gap:6px"><span class="t">☀️ 亮色</span><span class="t">⏱ 10/18 09:12（可點改）</span></span>
+          <span class="t">☀️ 亮色</span>
         </div>
         <div class="amount">1,240<small>帳戶：現金（Sticky）</small></div>
+        <div style="display:flex;justify-content:center;align-items:center;gap:6px;margin-bottom:8px">
+          <span class="key" style="padding:4px 8px;font-size:14px">◀</span>
+          <span class="t" style="font-size:13px">10/18（六）09:12</span>
+          <span class="key" style="padding:4px 8px;font-size:14px">▶</span>
+        </div>
         <div class="count">本次已記 3 筆</div>
 
         <div class="seclabel">常用（最近使用）</div>

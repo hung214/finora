@@ -24,10 +24,10 @@ class CategorySettingsPage extends ConsumerStatefulWidget {
 class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
   String _kind = 'expense'; // 支出 | income
   String? _message;
-  final Set<String> _expanded = {}; // 主類別折疊狀態（空集＝預設全展開）
+  final Set<String> _expanded = {}; // 主類別展開狀態（預設收合＝09 雛型摘要列）
   late final CategoryService _service = CategoryService(ref.read(dbProvider));
 
-  bool _isOpen(String id) => !_expanded.contains(id); // 預設展開
+  bool _isOpen(String id) => _expanded.contains(id); // 預設收合（09 雛型）
 
   void _refresh() => setState(() {});
 
@@ -238,14 +238,21 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
         .where((x) => x.deletedAt == null && x.parentId == c.id)
         .toList();
     final open = _isOpen(c.id);
+    final names = children.map((x) => x.name).toList();
+    final summary = children.isEmpty
+        ? '子分類 0'
+        : '子分類 ${children.length}：${names.join('、')}';
     return Column(
       key: Key('cat-row-${c.name}'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // 09 雛型卡片列：彩色圖示圓＋名稱＋子分類摘要＋操作。
         Container(
+          margin: const EdgeInsets.only(bottom: 6),
           decoration: BoxDecoration(
-            color: tokens.track.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(10),
+            color: Theme.of(context).colorScheme.surface,
+            border: Border.all(color: Theme.of(context).dividerColor),
+            borderRadius: BorderRadius.circular(14),
           ),
           child: Row(
             children: [
@@ -253,41 +260,91 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
                 key: Key('cat-drag-${c.name}'),
                 index: index,
                 child: Padding(
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.all(8),
                   child: Icon(Icons.drag_handle, color: tokens.subText),
                 ),
               ),
-              TextButton(
-                style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                onPressed: () => setState(
+              InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: () => setState(
                   () => _expanded.contains(c.id)
                       ? _expanded.remove(c.id)
                       : _expanded.add(c.id),
                 ),
-                child: Row(
-                  children: [
-                    Icon(_iconOf(c.icon), color: _colorOf(c.color)),
-                    const SizedBox(width: 8),
-                    Text(
-                      c.name,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Row(
+                    children: [
+                      // 彩色圖示圓（09 雛型）。
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: _colorOf(c.color).withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(
+                          _iconOf(c.icon),
+                          color: _colorOf(c.color),
+                          size: 20,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '子分類 ${children.length}',
-                      style: TextStyle(fontSize: 11, color: tokens.subText),
-                    ),
-                  ],
+                      const SizedBox(width: 10),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                c.name,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              if (c.isSystem)
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 6),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: tokens.track,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text('內建',
+                                        style: TextStyle(
+                                            fontSize: 10,
+                                            color: tokens.subText)),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            open && children.isNotEmpty
+                                ? '子分類 ${children.length}'
+                                : summary,
+                            style: TextStyle(
+                                fontSize: 11, color: tokens.subText),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
               const Spacer(),
               IconButton(
                 key: Key('cat-sub-${c.name}'),
                 tooltip: '新增子分類',
-                onPressed: () => _openForm(parentId: c.id),
+                onPressed: () {
+                  // 自動展開（新增後子列可見——f11 S7/S10 語意）。
+                  if (!_expanded.contains(c.id)) {
+                    setState(() => _expanded.add(c.id));
+                  }
+                  _openForm(parentId: c.id);
+                },
                 icon: const Icon(Icons.playlist_add),
               ),
               IconButton(
@@ -359,19 +416,6 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
               },
             ),
           ),
-        if (open)
-          Padding(
-            padding: const EdgeInsets.only(left: 40, top: 2),
-            child: TextButton.icon(
-              onPressed: () => _openForm(parentId: c.id),
-              icon: const Icon(Icons.add, size: 16),
-              label: Text(
-                '新增子分類',
-                style: TextStyle(fontSize: 12, color: tokens.subText),
-              ),
-            ),
-          ),
-        const Divider(height: 16),
       ],
     );
   }

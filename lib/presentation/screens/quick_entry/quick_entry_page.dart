@@ -114,33 +114,6 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                 children: [
-                  // 時間（FR-Q8 S1.5）：chip 樣式，點擊修改不離開頁。
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      key: const Key('quick-entry-time'),
-                      style: TextButton.styleFrom(
-                        backgroundColor:
-                            Theme.of(context).colorScheme.surfaceContainerHighest,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                      onPressed: () {
-                        showModalBottomSheet<void>(
-                          context: context,
-                          isScrollControlled: true,
-                          builder: (_) => QuickDateTimePicker(
-                            initial: state.occurredAt,
-                            onSelected: controller.setOccurredAt,
-                          ),
-                        );
-                      },
-                      child: Text(
-                        DateFormat('yyyy/MM/dd HH:mm').format(state.occurredAt),
-                        style: Theme.of(context).textTheme.labelLarge,
-                      ),
-                    ),
-                  ),
                   // 金額大顯示（03 雛型）。
                   TextField(
                     key: const Key('quick-entry-amount'),
@@ -155,6 +128,51 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
                     decoration: const InputDecoration(
                         hintText: '0', border: InputBorder.none),
                     onChanged: controller.setAmount,
+                  ),
+                  // 日期（PM 2026-10-23）：金額下方；◀▶ 快調 ±1 天；
+                    // 點擊日期開日曆（可跨月/年，FR-Q8 S1.5 不離開頁）。
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      IconButton(
+                        key: const Key('date-prev'),
+                        tooltip: '前一天',
+                        onPressed: () => controller.setOccurredAt(
+                            state.occurredAt.subtract(const Duration(days: 1))),
+                        icon: const Icon(Icons.chevron_left),
+                      ),
+                      TextButton(
+                        key: const Key('quick-entry-time'),
+                        style: TextButton.styleFrom(
+                          backgroundColor: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () {
+                          showModalBottomSheet<void>(
+                            context: context,
+                            isScrollControlled: true,
+                            builder: (_) => QuickDateTimePicker(
+                              initial: state.occurredAt,
+                              onSelected: controller.setOccurredAt,
+                            ),
+                          );
+                        },
+                        child: Text(
+                          _dateLabel(state.occurredAt),
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
+                      ),
+                      IconButton(
+                        key: const Key('date-next'),
+                        tooltip: '後一天',
+                        onPressed: () => controller.setOccurredAt(
+                            state.occurredAt.add(const Duration(days: 1))),
+                        icon: const Icon(Icons.chevron_right),
+                      ),
+                    ],
                   ),
                   // F02 S2.3：模式切換（支出/轉帳/拆分）。
                   SegmentedButton<QuickEntryMode>(
@@ -421,6 +439,14 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
       }
     }
   }
+
+  /// 日期顯示（中文星期；不依賴 intl locale 初始化——測試直接 pump 也安全）。
+  static const _weekdays = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
+
+  static String _dateLabel(DateTime t) =>
+      '${DateFormat('yyyy/MM/dd').format(t)}'
+      '（${_weekdays[t.weekday - 1]}） '
+      '${DateFormat('HH:mm').format(t)}';
 
   static String _splitTotal(QuickEntryState state) {
     final a0 = int.tryParse(state.splitAmount0) ?? 0;
