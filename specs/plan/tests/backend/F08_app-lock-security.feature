@@ -38,3 +38,12 @@ Feature: App 鎖判定邏輯（後端自動化）
     When 嘗試「忘記 PIN」
     Then 僅提供「重置 App」
     And 不存在繞過 PIN 且保留資料的路徑（斷言無此分支）
+
+  @P0 @FR-X1
+  Scenario: PIN 未設定判定（清空資料免 PIN 之前置）
+    Given 未設定 PIN 的裝置
+    Then hasPin 判定 = false
+
+  @P0 @FR-X1
+  Scenario: PIN 已設定判定
+    Then hasPin 判定 = true

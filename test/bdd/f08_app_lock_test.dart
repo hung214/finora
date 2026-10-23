@@ -8,8 +8,8 @@ import 'package:ledger_sync/data/sqlite/app_database.dart';
 import '../helpers/db_fixture.dart';
 import '../helpers/gherkin/gherkin.dart';
 
-/// F08-BE 情境執行器（@BE @M7 @FR-X，4 情境：門檻邊界判定/生物辨識退場/
-/// PIN 重設授權路徑/拒絕路徑）。
+/// F08-BE 情境執行器（@BE @M7 @FR-X，6 情境：門檻邊界判定/生物辨識退場/
+/// PIN 重設授權路徑/拒絕路徑/**PIN 未設定判定/PIN 已設定判定**）。
 ///
 /// 來源：specs/plan/tests/backend/F08_app-lock-security.feature（同步副本）。
 /// 句型登記簿：specs/plan/tests/dsl.md §2（v1.2）。
@@ -17,13 +17,13 @@ void main() {
   final source = File('test/bdd/F08_app-lock-security.feature').readAsStringSync();
   final doc = GherkinParser.parse(source);
 
-  test('F08-BE：App 鎖判定邏輯（4 情境）', () async {
+  test('F08-BE：App 鎖判定邏輯（6 情境）', () async {
     final w = _World();
     final runner = GherkinRunner();
     _bind(runner, w);
     try {
       final executed = await runner.run(doc, tagFilter: (tags) => tags.contains('@BE'));
-      expect(executed, 4, reason: 'F08-BE 應執行 4 個情境');
+      expect(executed, 6, reason: 'F08-BE 應執行 6 個情境');
       // ignore: avoid_print
       print(runner.log.join('\n'));
     } finally {
@@ -108,10 +108,22 @@ void _bind(GherkinRunner runner, _World w) {
     w.tokenValid = false; // 未連雲端——無 token 驗證路徑
   });
 
+  runner.on(r'未設定 PIN 的裝置$', (p) {
+    // DBG-008：裝置從未設定 PIN——清除 hash 並以無 pin 建構（hasPin=false）。
+    w.db.execute('DELETE FROM settings WHERE key = ?', ['lock.pin_hash']);
+    w.lock = AppLockController(w.db, thresholdSec: 30);
+  });
+
   // ── Then ─────────────────────────────────────────────────
   runner.on(r'鎖定需求 = {bool}$', (p) {
     expect(w.lock.shouldLockOnResume(), p['bool']! == 'true',
         reason: 'AC-09：門檻邊界判定（${p['bool']}）');
+  });
+
+  runner.on(r'hasPin 判定 = {bool}$', (p) {
+    // DBG-008：清空資料是否要求 PIN 之判定（無 PIN → 跳過 PIN 步驟）。
+    expect(w.lock.hasPin, p['bool']! == 'true',
+        reason: 'hasPin（pin_hash 存在與否）＝${p['bool']}');
   });
 
   runner.on(r'仍允許生物辨識重試$', (p) {

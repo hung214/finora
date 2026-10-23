@@ -26,6 +26,10 @@ body{background:#e8ecef;display:flex;gap:300px;padding:40px;align-items:flex-sta
 .cat .m span{display:block;font-size:11px;color:#98a5a4;margin-top:2px}
 .cat .sys{font-size:10px;background:#EDF1F2;color:#98a5a4;border-radius:8px;padding:1px 6px;margin-left:6px}
 .cat .op{color:#98a5a4;font-size:15px;margin-left:4px}
+.sub{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #eef1f2;border-radius:12px;padding:8px 12px;margin:-2px 16px 6px 34px}
+.sub .sname{flex:1;font-size:13px;color:#1c2b2a}
+.sub .emoji{font-size:15px}
+.sub .op{color:#98a5a4;font-size:14px}
 .card{background:#fff;border-radius:16px;padding:14px;margin:12px 16px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
 .card h3{font-size:12px;color:#7d8b8a;margin-bottom:8px}
 .card p{font-size:11px;color:#98a5a4;line-height:1.8}
@@ -41,6 +45,9 @@ body{background:#e8ecef;display:flex;gap:300px;padding:40px;align-items:flex-sta
       <div class="hint">☰ 拖曳排序 · 快記快捷格依使用頻率排序（FR-Q1）</div>
 
       <div class="cat"><div class="ic" style="background:#FFD8A8">🍜</div><div class="m"><b>餐飲</b><span>子分類 2：咖啡、手搖</span></div><span class="op">✏️</span><span class="op">☰</span></div>
+      <!-- v3（PM 2026-10-23）：點列本體展開＝子分類列；每列同享 ✏️ 編輯（改名/emoji/顏色）＋🗑 刪除＋☰ 子層拖曳 -->
+      <div class="sub"><span class="op">☰</span><span>↳</span><span class="emoji">☕</span><span class="sname">咖啡</span><span class="op">✏️</span><span class="op">🗑</span></div>
+      <div class="sub"><span class="op">☰</span><span>↳</span><span class="emoji">🧋</span><span class="sname">手搖</span><span class="op">✏️</span><span class="op">🗑</span></div>
       <div class="cat"><div class="ic" style="background:#B2F2BB">🛒</div><div class="m"><b>購物</b></div><span class="op">✏️</span><span class="op">☰</span></div>
       <div class="cat"><div class="ic" style="background:#A5D8FF">🚇</div><div class="m"><b>交通</b></div><span class="op">✏️</span><span class="op">☰</span></div>
       <div class="cat"><div class="ic" style="background:#FFC9C9">🏠</div><div class="m"><b>居住</b><span>子分類 1：房租</span></div><span class="op">✏️</span><span class="op">☰</span></div>
@@ -57,7 +64,7 @@ body{background:#e8ecef;display:flex;gap:300px;padding:40px;align-items:flex-sta
   </div>
 
   <div class="note" style="top:60px"><b>FR-B1 · S3.3/分類設定</b>分類管理：自訂圖示/顏色/排序（拖曳）、一層子分類；支出與收入分開。</div>
-  <div class="note" style="top:240px"><b>FR-Q1 · S1.1</b>快記快捷格 = 常用分類（依使用頻率排序），此處排序影響快記。<br><b>v2（PM 2026-10-23）</b>預設**收合**為摘要列（子分類 N：名稱…）；**點列本體展開**子分類列（可刪除/子層拖曳）；「＋子分類」自動展開。</div>
+  <div class="note" style="top:240px"><b>FR-Q1 · S1.1</b>快記快捷格 = 常用分類（依使用頻率排序），此處排序影響快記。<br><b>v2（PM 2026-10-23）</b>預設**收合**為摘要列（子分類 N：名稱…）；**點列本體展開**子分類列；「＋子分類」自動展開。<br><b>v3（PM 2026-10-23）</b>子分類列同享 <b>✏️ 編輯</b>（改名/emoji/顏色）＋🗑 刪除＋☰ 子層拖曳；分類異動<b>即時連動全 App</b>（DBG-009）。</div>
   <div class="note" style="top:430px"><b>FR-B1 規則</b>內建分類（is_system）可隱藏不可刪；有交易之分類刪除需轉移；異動寫 oplog 隨同步。</div>
 </div>
 </body>

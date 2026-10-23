@@ -492,6 +492,11 @@ sequenceDiagram
 （主題 `app.theme_mode`：system|light|dark → `MaterialApp.themeMode` 即時套用）。
 測試鍵前綴：`acct-*`／`cat-*`／`theme-*`（dsl §3 登記）。
 
+**跨頁連動（DBG-009；PM 2026-10-23）**：分類/帳戶 CRUD 完成後，除本頁 `setState` 外**必須使衍生快取失效**
+（FE `ref.invalidate(expenseCategoriesProvider／incomeCategoriesProvider／ledgerProvider)`）——
+否則快記分類格／預算頁／明細列停留舊名稱、舊圖示（Riverpod `Provider` 快取語意）。
+子分類列同享編輯入口（`cat-edit-{name}`：改名／圖示／顏色）。
+
 ---
 
 ## 6. 雲端儲存抽象層
@@ -544,10 +549,13 @@ abstract interface class CloudStorageAdapter {
 - `AppLockController`：監聽生命週期，背景逾時（預設 30s）→ 鎖定；`local_auth` 生物辨識，失敗三次退回 PIN。
 - Windows：DPAPI 保護 DB 金鑰 + Windows Hello。
 - 隱私遮蔽：總覽頁遮蔽開關；iOS 進入 app switcher 時畫面模糊（FR-X3）。
+- **`hasPin`／建構子可選 `pin`**（DBG-008）：裝置**從未設定 PIN** 時不寫 `lock.pin_hash`；
+  需 PIN 之關卡（清空資料）依 `hasPin` 決定是否要求——無 PIN → **跳過**（避免 `null` 比對恆 false 將使用者鎖死）。
 
 ### 7.3 資料清除
 
-- 「清空資料」：本地 DB 刪除 + 雲端 `LedgerSync/` 整資料夾刪除（需二次確認 + 輸入 PIN；已連結雲端者加驗「重新登入雲端帳號」，FR-O3）。
+- 「清空資料」：本地 DB 刪除 + 雲端 `LedgerSync/` 整資料夾刪除（需二次確認 + 輸入 PIN；
+  已連結雲端者加驗「重新登入雲端帳號」，FR-O3）。**未設定 PIN 之裝置跳過 PIN 步驟**（`hasPin`＝false；DBG-008）。
 
 ---
 

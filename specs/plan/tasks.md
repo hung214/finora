@@ -200,7 +200,9 @@ M8（**新增：UI 對照雛型整合＋設定群**）：
 | Feature | T-F03-BE（@BE @M4 @FR-S 7 情境 🔴→🟢：左 QR 77 碼切片解析／右 QR 明細合併（deflate+Base32 codec）＋解碼失敗留空邊界／非發票回退 null＋空白確認卡 TransactionDraft.blank／OCR 欄位抽取 heuristics（總額關鍵字 0.9·商家頂部 0.8·日期民國 0.5 西元 0.9·統編無候選留空）／附件壓縮內容定址（image 縮 1600px＋JPEG q70＋crypto sha256→blobs/{sha256}＋attachments 列 oplog 同 transaction）／離線全本機解析／NFR-02 抽取計時——InvoiceQrParser＋ReceiptFieldExtractor＋AttachmentStore；dsl v0.6 +19 句型；規格修正：acceptance/feature 測資字串 76→77 碼（總計段補 0，對齊欄位對照表與 T-H6 金測；acceptance 變更待 PM 複核）＋S7 效能句型「入庫耗時」→「OCR 欄位抽取耗時」；techstack v0.3.7（image 4.12.0＋crypto 3.0.7，PM 簽核 2026-10-21）；DBG-005 結案（save_split 順序依賴，斷言改順序無關，10 連綠） | 🟢（7/7；FE 待） |
 | Feature | 首次啟動播種（內建分類集＋預設現金帳戶；M1 過渡——帳戶/分類管理 UI 屬 F02；oplog 同交易契約） | ✅（8545bc5） |
 | 對齊 | §5 清單自動化（pubspec/schema ✓ 已上 CI）；PR review 項人工 | 🟢 |
-| 發佈 | v0.1.0、v0.2.0（自動標籤；**Release 產物從未成功**——流水線鏈式缺陷）；**v0.4.3（DBG-004）／v0.4.4（首次啟動播種＋發佈格式定案：版本化檔名＋Inno Setup per-user exe／DMG／未簽名 IPA／軟體內版本）** | ✅（v0.4.0~0.4.2 為修復迭代，v0.4.2/v0.4.0 壞包待刪） |
+| 發佈 | v0.1.0、v0.2.0（自動標籤；**Release 產物從未成功**——流水線鏈式缺陷）；**v0.4.3（DBG-004）／v0.4.4（首次啟動播種＋發佈格式定案：版本化檔名＋Inno Setup per-user exe／DMG／未簽名 IPA／軟體內版本）**；v0.4.5~v0.4.20（UI 對照雛型＋emoji 圖示制＋桌面三欄殼＋分類體系 v2） | ✅（v0.4.0~0.4.2 為修復迭代，v0.4.2/v0.4.0 壞包待刪） |
+| Fix | **DBG-008 清空資料無 PIN 鎖死**（PM 實機回報）：`AppLockController` 建構子 `pin` 可選＋`hasPin`；清空流程無 PIN 跳過 PIN 步驟；widget 護欄＋F08-BE 回歸 2 情境；同步 SPEC FR-O3／SDD §7.2/§7.3／BDD F9／dsl v1.8／acceptance F09／debug.md | ✅（v0.4.20） |
+| Fix | **DBG-009 分類設定變更不連動＋子分類無法編輯**（PM 實機回報）：`_refresh` 失效衍生快取（expense/income/ledger）＋新增 `incomeCategoriesProvider`；子列 `cat-edit-{name}`（改名/emoji/顏色）；emoji 庫 33；同步 SPEC FR-B1／SDD §5.6/§7.2／BDD F11／acceptance F11 S11.2／ui 09／debug.md | ✅（待 v0.4.21 發佈） |
 
 - 狀態更新規則：🔴/🟢 由 CI 與 PR 自動可推導；🔵 與 ✅ 由開發者於 PR 描述更新；每 Sprint 結束回寫本表（對應 research §2.2 出口條件）。
 

@@ -2,7 +2,7 @@
 
 | 項目 | 內容 |
 |---|---|
-| 文件版本 | v1.5（F09-FE：§3 Given 4＋When 3＋Then 6 句型登記——資料管理三重防護/加驗身分/已清空；v1.4 F09-BE：Given 3＋When 3＋Then 9 句型登記——WipeService 清空/雲端刪除/不復活；v1.3 F08-FE：§3 Given 3＋When 8＋Then 8 句型登記——鎖定畫面/Face ID seam/PIN 重設/隱私遮蔽；v1.2 F08-BE：§2 Given 6＋When 6＋Then 8 句型登記——AppLockController 門檻邊界/生物辨識退場/PIN 重設授權與拒絕路徑；v1.1 F06-FE：§3 Given 2＋When 3＋Then 4 句型登記——待確認 badge/清單/下期提醒/暫停標示；v1.0 F06-BE：Given 3＋When 4＋Then 12 句型登記——RecurringService 提醒確認制；v0.9 F07-FE：§3 Given 6＋When 6＋Then 12 句型登記；「同步中…」回饋斷言法（tap 後 pump 未 settle）；v0.8 F07-BE：§2.1 Given 8＋§2.2 When 7＋§2.3 Then 14 句型登記——SyncCoordinator/BundleApplier/BackupService；Outline 匯入結果分列綁定） |
+| 文件版本 | v1.8（F08-BE：§2 Given 1＋Then 1 句型登記——`未設定 PIN 的裝置`／`hasPin 判定`；DBG-008 清空資料免 PIN 前置。v1.7 分類體系 v2：常用類別區/同層重名；v1.6 F11：帳戶/分類 CRUD 句型。v1.5 F09-FE：§3 Given 4＋When 3＋Then 6 句型登記——資料管理三重防護/加驗身分/已清空；v1.4 F09-BE：Given 3＋When 3＋Then 9 句型登記——WipeService 清空/雲端刪除/不復活；v1.3 F08-FE：§3 Given 3＋When 8＋Then 8 句型登記——鎖定畫面/Face ID seam/PIN 重設/隱私遮蔽；v1.2 F08-BE：§2 Given 6＋When 6＋Then 8 句型登記——AppLockController 門檻邊界/生物辨識退場/PIN 重設授權與拒絕路徑；v1.1 F06-FE：§3 Given 2＋When 3＋Then 4 句型登記——待確認 badge/清單/下期提醒/暫停標示；v1.0 F06-BE：Given 3＋When 4＋Then 12 句型登記——RecurringService 提醒確認制；v0.9 F07-FE：§3 Given 6＋When 6＋Then 12 句型登記；「同步中…」回饋斷言法（tap 後 pump 未 settle）；v0.8 F07-BE：§2.1 Given 8＋§2.2 When 7＋§2.3 Then 14 句型登記——SyncCoordinator/BundleApplier/BackupService；Outline 匯入結果分列綁定） |
 | 用途 | 前端／後端 `.feature` 檔的**步驟句型唯一登記處**。新步驟必須先登記於本檔再實作綁定；未登記句型視為違規 |
 | 綁定 | 前端：自製 Gherkin runner + integration_test（TR-9 過渡；同 T-H7）｜後端：自製 Gherkin runner + flutter_test |
 
@@ -90,6 +90,7 @@
 | `Given 生物辨識失敗計數 = {n}` | AppLockController 失敗計數預置（F08 S2） |
 | `Given 已連結雲端` | settings sync.account 有值（PIN 重設授權前提；F08 S3） |
 | `Given 未連結雲端` | settings sync.account 空（F08 S4） |
+| `Given 未設定 PIN 的裝置` | 清除 settings lock.pin_hash＋AppLockController 以無 pin 建構（`hasPin`＝false；DBG-008 清空資料免 PIN 前置） |
 | `Given 帳本含 {n} 筆交易與 {m} 張附件` | fixture 直寫（交易×n＋附件×m＋blobs 檔；F09 Background） |
 | `Given 已連結雲端（雲端含 vault/ops/backups）` | 預置雲端佈局（同步+備份各一次；F09 S2） |
 | `Given 已連結雲端且裝置B 存在` | 裝置B 建立（同帳號空間；F09 S3） |
@@ -230,6 +231,7 @@
 | `Then 通知 spy 收到 N-{n} 恰 {k} 次（第 {m} 次不發）` | 既有 spy 斷言之語意註記變體（逾期暫停） |
 | `Then 鎖定需求 = {bool}` | shouldLockOnResume 判定（≥門檻鎖定；AC-09 邊界） |
 | `Then 仍允許生物辨識重試` | biometricFailures < 3（F08 S2） |
+| `Then hasPin 判定 = {bool}` | AppLockController.hasPin（清空資料是否要求 PIN 之判定；DBG-008；F08 S5/S6） |
 | `Then 鎖定策略 = 僅 PIN（停用生物辨識本次解鎖）` | biometricFailures ≥ 3 → biometricAllowed=false（FR-X1 退場） |
 | `Then 允許設定新 PIN` | canResetPin=true（雲端 token 驗證通過；FR-X5） |
 | `And 本地資料未清空（交易筆數不變）` | 重設前後交易計數一致（資料零損失） |
