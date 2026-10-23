@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 /// 金額計算機鍵盤（F02 S2.9：常駐四則運算；PM 2026-10-20 增補）。
 ///
-/// - 鍵面：0-9／＋－×÷／＝／C／⌫；TWD 無小數點（依幣別 exponent，S2.1 邊界；
+/// - 鍵面：0-9／.／＋－×÷／＝／C／⌫（PM 2026-10-22 補小數點；結果仍四捨五入至整數元——
 ///   多幣別隨 M2 S2.8 擴充）。
 /// - 常駐輸入（金額欄 `TextInputType.none` 不彈系統鍵盤）。
 /// - [onExprChanged]：運算式狀態變更（含 ＝ 求值結果）；呼叫端同步顯示與
@@ -31,6 +31,16 @@ class AmountKeypad extends StatelessWidget {
         final result = AmountKeypadEvaluator.evaluate(expr);
         if (result != null) onExprChanged('$result'); // 無效：保留原式
         return;
+      case '.':
+        // 小數點（PM 2026-10-22）：運算子後自動補 0.；同數字 token 內限一個。
+        if (expr.isEmpty || _operators.contains(expr[expr.length - 1])) {
+          onExprChanged('${expr}0.');
+          return;
+        }
+        final lastNum = expr.split(RegExp(r'[＋－×÷]')).last;
+        if (lastNum.contains('.')) return; // 一數一點
+        onExprChanged('$expr.');
+        return;
       case '＋' || '－' || '×' || '÷':
         if (expr.isEmpty) return; // 首鍵運算子：忽略
         final last = expr[expr.length - 1];
@@ -51,8 +61,9 @@ class AmountKeypad extends StatelessWidget {
       ['7', '8', '9', '÷'],
       ['4', '5', '6', '×'],
       ['1', '2', '3', '－'],
-      ['C', '0', '⌫', '＋'],
+      ['C', '0', '.', '⌫'],
     ];
+    const lastRow = ['＋', '＝'];
     return Container(
       key: const Key('amount-keypad'),
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -76,16 +87,21 @@ class AmountKeypad extends StatelessWidget {
                   ),
               ],
             ),
-          Padding(
-            padding: const EdgeInsets.all(4),
-            child: SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                key: const Key('keypad-＝'),
-                onPressed: () => _tap('＝'),
-                child: const Text('＝', style: TextStyle(fontSize: 20)),
-              ),
-            ),
+          Row(
+            children: [
+              for (final label in lastRow)
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: FilledButton(
+                      key: Key('keypad-$label'),
+                      onPressed: () => _tap(label),
+                      child: Text(label,
+                          style: const TextStyle(fontSize: 20)),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ],
       ),
@@ -101,7 +117,7 @@ class AmountKeypad extends StatelessWidget {
 class AmountKeypadEvaluator {
   AmountKeypadEvaluator._();
 
-  static final _tokenRegex = RegExp(r'\d+|[＋－×÷]');
+  static final _tokenRegex = RegExp(r'\d+(?:\.\d+)?|\.\d+|[＋－×÷]');
 
   static int? evaluate(String expr) {
     if (expr.isEmpty) return null;

@@ -14,7 +14,7 @@ enum QuickEntryPhase {
 }
 
 /// 快記模式（F02：支出／轉帳／拆分；收入/還款模式隨 M2+ 情境擴充）。
-enum QuickEntryMode { expense, transfer, split }
+enum QuickEntryMode { expense, transfer, split, budget }
 
 /// 快記狀態（SDD §5.1；Sticky 欄位＝帳戶/分類/商家，金額/時間每筆重設）。
 class QuickEntryState {

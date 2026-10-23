@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../application/appearance/theme_mode_state.dart';
+import '../../../application/budgets/budget_service.dart';
+import '../../../application/categories/category_service.dart';
 import '../../../application/providers.dart';
 import 'amount_keypad.dart';
 import 'quick_date_time_picker.dart';
@@ -30,6 +33,15 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
 
   /// 計算機運算式（F02 S2.9；受控——顯示於金額欄，＝ 求值後為純數字）。
   String _expr = '';
+
+  /// 兩層式分類（PM 2026-10-22）：展開之子類別所屬主類別。
+  String? _selectedMainId;
+
+  /// 預算模式目標＝總預算（PM 2026-10-22）。
+  bool _budgetIsTotal = false;
+
+  /// 分類即時新增後的刷新（providers 讀 db 快取，需 invalidate）。
+  void _refreshCategories() => ref.invalidate(expenseCategoriesProvider);
 
   @override
   void dispose() {
@@ -78,170 +90,336 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
       (prev, next) => _onPhaseChange(prev, next),
     );
 
+    final themeMode = ref.watch(themeModeProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('快速記帳')),
+      appBar: AppBar(
+        title: const Text('快速記帳'),
+        actions: [
+          // 主題切換（PM 2026-10-22：亮/暗按鈕——亮色以 01/02 白卡風格為準）。
+          IconButton(
+            key: const Key('qe-theme-toggle'),
+            tooltip: themeMode == ThemeMode.dark ? '切換淺色' : '切換深色',
+            onPressed: () => ref.read(themeModeProvider.notifier).set(
+                themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark),
+            icon: Icon(themeMode == ThemeMode.dark
+                ? Icons.light_mode_outlined
+                : Icons.dark_mode_outlined),
+          ),
+        ],
+      ),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(16),
+        child: Column(
           children: [
-            // F02 S2.3：模式切換（支出/轉帳）——轉帳不適用分類/商家（UI 隱藏）。
-            SegmentedButton<QuickEntryMode>(
-              key: const Key('quick-entry-mode'),
-              segments: const [
-                ButtonSegment(value: QuickEntryMode.expense, label: Text('支出')),
-                ButtonSegment(value: QuickEntryMode.transfer, label: Text('轉帳')),
-                ButtonSegment(value: QuickEntryMode.split, label: Text('拆分')),
-              ],
-              selected: {state.mode},
-              onSelectionChanged: (modes) => controller.setMode(modes.first),
-            ),
-            const SizedBox(height: 12),
-            _pickerField(
-              key: const Key('quick-entry-account'),
-              label: state.mode == QuickEntryMode.transfer ? '來源帳戶' : '帳戶',
-              text: state.account?.name ?? '選擇帳戶',
-              entries: accounts.map((a) => (a.id, a.name, false)).toList(),
-              recent: const [],
-              onSelected: controller.selectAccountById,
-            ),
-            const SizedBox(height: 12),
-            if (state.mode == QuickEntryMode.transfer) ...[
-              _pickerField(
-                key: const Key('quick-entry-target'),
-                label: '目標帳戶',
-                text: state.toAccount?.name ?? '選擇目標帳戶',
-                // 同帳戶轉帳 UI 阻擋（S2.3 邊界）：目標選項排除來源帳戶。
-                entries: accounts
-                    .where((a) => a.id != state.account?.id)
-                    .map((a) => (a.id, a.name, false))
-                    .toList(),
-                recent: const [],
-                onSelected: controller.selectToAccountById,
-              ),
-              const SizedBox(height: 12),
-            ] else if (state.mode == QuickEntryMode.split) ...[
-              // 拆分子項 ×2（FR-T6；M2 固定兩項；總額守恆由 BE 驗證）。
-              Row(
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                 children: [
-                  Expanded(
-                    child: _pickerField(
-                      key: const Key('split-item-0-cat'),
-                      label: '子項 1 分類',
-                      text: state.splitCat0?.name ?? '選擇分類',
-                      entries: _hierarchicalEntries(categories),
-                      recent: recent,
-                      addCategoryAction: () => Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                              builder: (_) => const CategorySettingsPage())),
-                      onSelected: (id) => controller.selectSplitCategoryById(0, id),
+                  // 時間（FR-Q8 S1.5）：chip 樣式，點擊修改不離開頁。
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      key: const Key('quick-entry-time'),
+                      style: TextButton.styleFrom(
+                        backgroundColor:
+                            Theme.of(context).colorScheme.surfaceContainerHighest,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () {
+                        showModalBottomSheet<void>(
+                          context: context,
+                          isScrollControlled: true,
+                          builder: (_) => QuickDateTimePicker(
+                            initial: state.occurredAt,
+                            onSelected: controller.setOccurredAt,
+                          ),
+                        );
+                      },
+                      child: Text(
+                        DateFormat('yyyy/MM/dd HH:mm').format(state.occurredAt),
+                        style: Theme.of(context).textTheme.labelLarge,
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextField(
-                      key: const Key('split-item-0-amount'),
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: '子項 1 金額'),
-                      onChanged: (v) => controller.setSplitItemAmount(0, v),
+                  // 金額大顯示（03 雛型）。
+                  TextField(
+                    key: const Key('quick-entry-amount'),
+                    controller: _amountCtrl,
+                    autofocus: true, // S1.1-5
+                    keyboardType: TextInputType.none, // 常駐鍵盤（F02 S2.9）
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context)
+                        .textTheme
+                        .displaySmall
+                        ?.copyWith(fontWeight: FontWeight.w800),
+                    decoration: const InputDecoration(
+                        hintText: '0', border: InputBorder.none),
+                    onChanged: controller.setAmount,
+                  ),
+                  // F02 S2.3：模式切換（支出/轉帳/拆分）。
+                  SegmentedButton<QuickEntryMode>(
+                    key: const Key('quick-entry-mode'),
+                    segments: const [
+                      ButtonSegment(
+                          value: QuickEntryMode.expense, label: Text('支出')),
+                      ButtonSegment(
+                          value: QuickEntryMode.transfer, label: Text('轉帳')),
+                      ButtonSegment(
+                          value: QuickEntryMode.split, label: Text('拆分')),
+                      ButtonSegment(
+                          value: QuickEntryMode.budget, label: Text('預算')),
+                    ],
+                    selected: {state.mode},
+                    onSelectionChanged: (modes) => controller.setMode(modes.first),
+                  ),
+                  const SizedBox(height: 12),
+                  _pickerField(
+                    key: const Key('quick-entry-account'),
+                    label: state.mode == QuickEntryMode.transfer ? '來源帳戶' : '帳戶',
+                    text: state.account?.name ?? '選擇帳戶',
+                    entries: accounts.map((a) => (a.id, a.name, false)).toList(),
+                    recent: const [],
+                    onSelected: controller.selectAccountById,
+                  ),
+                  const SizedBox(height: 12),
+                  if (state.mode == QuickEntryMode.transfer) ...[
+                    _pickerField(
+                      key: const Key('quick-entry-target'),
+                      label: '目標帳戶',
+                      text: state.toAccount?.name ?? '選擇目標帳戶',
+                      // 同帳戶轉帳 UI 阻擋（S2.3 邊界）：目標選項排除來源帳戶。
+                      entries: accounts
+                          .where((a) => a.id != state.account?.id)
+                          .map((a) => (a.id, a.name, false))
+                          .toList(),
+                      recent: const [],
+                      onSelected: controller.selectToAccountById,
                     ),
+                  ] else if (state.mode == QuickEntryMode.split) ...[
+                    // 拆分子項 ×2（FR-T6；M2 固定兩項；總額守恆由 BE 驗證）。
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _pickerField(
+                            key: const Key('split-item-0-cat'),
+                            label: '子項 1 分類',
+                            text: state.splitCat0?.name ?? '選擇分類',
+                            entries: _hierarchicalEntries(categories),
+                            recent: recent,
+                            addCategoryAction: () => Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                    builder: (_) =>
+                                        const CategorySettingsPage())),
+                            onSelected: (id) =>
+                                controller.selectSplitCategoryById(0, id),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            key: const Key('split-item-0-amount'),
+                            keyboardType: TextInputType.number,
+                            decoration:
+                                const InputDecoration(labelText: '子項 1 金額'),
+                            onChanged: (v) => controller.setSplitItemAmount(0, v),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _pickerField(
+                            key: const Key('split-item-1-cat'),
+                            label: '子項 2 分類',
+                            text: state.splitCat1?.name ?? '選擇分類',
+                            entries: _hierarchicalEntries(categories),
+                            recent: recent,
+                            addCategoryAction: () => Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                    builder: (_) =>
+                                        const CategorySettingsPage())),
+                            onSelected: (id) =>
+                                controller.selectSplitCategoryById(1, id),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            key: const Key('split-item-1-amount'),
+                            keyboardType: TextInputType.number,
+                            decoration:
+                                const InputDecoration(labelText: '子項 2 金額'),
+                            onChanged: (v) => controller.setSplitItemAmount(1, v),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text('總額 ${_splitTotal(state)} 元',
+                        style: Theme.of(context).textTheme.titleMedium),
+                  ] else if (state.mode == QuickEntryMode.budget) ...[
+                    // 預算模式（PM 2026-10-22）：預算設定併入快記——
+                    // 「總預算」或選定分類 → 金額（計算機）→ OK → 存為預算。
+                    _BudgetTargetGrid(
+                      categories: categories,
+                      isTotal: _budgetIsTotal,
+                      selectedCategory: state.category,
+                      selectedMainId: _selectedMainId,
+                      onSelect: (id, mainId) {
+                        controller.selectCategoryById(id);
+                        setState(() {
+                          _selectedMainId = mainId;
+                          _budgetIsTotal = false;
+                        });
+                      },
+                      onSelectTotal: () =>
+                          setState(() => _budgetIsTotal = true),
+                      onQuickAdd: _quickAddCategory,
+                    ),
+                  ] else ...[
+                    // 兩層式分類（PM 2026-10-22）：常用 → 主類別 → 子類別，
+                    // 各層尾部可直接新增。
+                    _CategoryGridSection(
+                      recent: recent,
+                      categories: categories,
+                      selectedCategory: state.category,
+                      selectedMainId: _selectedMainId,
+                      onSelect: (id, mainId) {
+                        controller.selectCategoryById(id);
+                        setState(() => _selectedMainId = mainId);
+                      },
+                      onQuickAdd: _quickAddCategory,
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      key: const Key('quick-entry-merchant'),
+                      decoration: const InputDecoration(labelText: '商家'),
+                      onChanged: controller.setMerchant,
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                ],
+              ),
+            ),
+            // 浮動底部面板（PM 2026-10-22）：OK 儲存鈕在計算機**上方**，
+            // 計算機貼底常駐（不隨內容捲動）。
+            Container(
+              margin: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .shadow
+                        .withValues(alpha: 0.18),
+                    blurRadius: 14,
+                    offset: const Offset(0, -3),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              Row(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Expanded(
-                    child: _pickerField(
-                      key: const Key('split-item-1-cat'),
-                      label: '子項 2 分類',
-                      text: state.splitCat1?.name ?? '選擇分類',
-                      entries: _hierarchicalEntries(categories),
-                      recent: recent,
-                      addCategoryAction: () => Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                              builder: (_) => const CategorySettingsPage())),
-                      onSelected: (id) => controller.selectSplitCategoryById(1, id),
-                    ),
+                  FilledButton(
+                    key: const Key('quick-entry-save'),
+                    // F02 S2.1：金額必填且大於 0；轉帳另需目標帳戶；拆分另需雙子項；
+                    // 預算模式（PM 2026-10-22）→ 存為預算內容（非交易）。
+                    onPressed: _saveEnabled(state)
+                        ? (state.mode == QuickEntryMode.budget
+                            ? _saveBudget
+                            : controller.save)
+                        : null,
+                    style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48)),
+                    child: Text(_saveEnabled(state) ? 'OK 儲存' : 'OK',
+                        style: const TextStyle(
+                            fontSize: 17, fontWeight: FontWeight.w800)),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextField(
-                      key: const Key('split-item-1-amount'),
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: '子項 2 金額'),
-                      onChanged: (v) => controller.setSplitItemAmount(1, v),
-                    ),
-                  ),
+                  AmountKeypad(expr: _expr, onExprChanged: _onKeypadExpr),
                 ],
               ),
-              const SizedBox(height: 8),
-              Text(
-                '總額 ${_splitTotal(state)} 元',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 12),
-            ] else ...[
-              _pickerField(
-                key: const Key('quick-entry-category'),
-                label: '分類',
-                text: state.category?.name ?? '選擇分類',
-                entries: _hierarchicalEntries(categories),
-                      recent: recent,
-                      addCategoryAction: () => Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                              builder: (_) => const CategorySettingsPage())),
-                onSelected: controller.selectCategoryById,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                key: const Key('quick-entry-merchant'),
-                decoration: const InputDecoration(labelText: '商家'),
-                onChanged: controller.setMerchant,
-              ),
-              const SizedBox(height: 12),
-            ],
-            TextField(
-              key: const Key('quick-entry-amount'),
-              controller: _amountCtrl,
-              autofocus: true, // S1.1-5：金額欄自動聚焦（≤3 次點擊目標）
-              // F02 S2.9：常駐計算機鍵盤輸入——none 不彈系統鍵盤（行動端）。
-              keyboardType: TextInputType.none,
-              decoration: const InputDecoration(labelText: '金額'),
-              onChanged: controller.setAmount,
-            ),
-            // 常駐計算機鍵盤（F02 S2.9）：金額欄下方，＝ 求值即時入欄。
-            AmountKeypad(expr: _expr, onExprChanged: _onKeypadExpr),
-            const SizedBox(height: 12),
-            TextButton(
-              key: const Key('quick-entry-time'),
-              onPressed: () {
-                // FR-Q8（S1.5）：bottom sheet 選擇器，不離開快記頁。
-                showModalBottomSheet<void>(
-                  context: context,
-                  isScrollControlled: true, // 內容高於半屏時可捲動（桌面小視窗）
-                  builder: (_) => QuickDateTimePicker(
-                    initial: state.occurredAt,
-                    onSelected: controller.setOccurredAt,
-                  ),
-                );
-              },
-              child: Text(
-                DateFormat('yyyy/MM/dd HH:mm').format(state.occurredAt),
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-            ),
-            const SizedBox(height: 24),
-            FilledButton(
-              key: const Key('quick-entry-save'),
-              // F02 S2.1：金額必填且大於 0（空值/0 皆禁用）；轉帳另需目標帳戶；
-              // 拆分另需雙子項完成（FR-T6 總額守恆由 BE 驗證）。
-              onPressed: _saveEnabled(state) ? controller.save : null,
-              child: const Text('儲存'),
             ),
           ],
         ),
       ),
     );
+  }
+
+  /// 預算模式儲存（PM 2026-10-22）：輸入完成 → 變成預算內容
+  /// （總預算或選定分類；週期起始日＝1，進階編輯走預算頁表單）。
+  void _saveBudget() {
+    final state = ref.read(quickEntryControllerProvider);
+    final amount = int.tryParse(state.amount) ?? 0;
+    if (amount <= 0) return;
+    final service = BudgetService(ref.read(dbProvider));
+    if (_budgetIsTotal) {
+      service.setTotalBudget(amountMinor: amount, periodStartDay: 1);
+    } else {
+      final cat = state.category;
+      if (cat == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('請先選擇分類（或「總預算」）')));
+        return;
+      }
+      service.setCategoryBudget(
+          categoryId: cat.id, amountMinor: amount, periodStartDay: 1);
+    }
+    // Sticky 慣例：金額清空；成功提示（預算非交易——不彈每筆確認）。
+    setState(() {
+      _expr = '';
+      _amountCtrl.clear();
+    });
+    ref.read(quickEntryControllerProvider.notifier).setAmount('');
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('預算已設定（見預算頁）')));
+  }
+
+  /// 分類即時新增（PM 2026-10-22：主類別/子類別層尾「＋」）：名稱即建，
+  /// 重名走 CategoryService 拒絕提示；建立後立即選取。
+  Future<void> _quickAddCategory({required bool asSub}) async {
+    final parentId = asSub ? _selectedMainId : null;
+    if (asSub && parentId == null) return; // 無選中主類別不可加子分類
+    final ctrl = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: Text(asSub ? '新增子分類' : '新增主類別'),
+        content: TextField(
+          key: const Key('quick-add-category-name'),
+          controller: ctrl,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: '分類名稱'),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(dialogCtx).pop(),
+              child: const Text('取消')),
+          FilledButton(
+              key: const Key('quick-add-category-save'),
+              onPressed: () =>
+                  Navigator.of(dialogCtx).pop(ctrl.text.trim()),
+              child: const Text('建立')),
+        ],
+      ),
+    );
+    if (name == null || name.isEmpty) return;
+    try {
+      final row = CategoryService(ref.read(dbProvider)).create(
+          kind: 'expense', name: name, parentId: parentId);
+      _refreshCategories();
+      ref.read(quickEntryControllerProvider.notifier).selectCategoryById(row.id);
+      if (!asSub) setState(() => _selectedMainId = row.id);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$e')));
+      }
+    }
   }
 
   static String _splitTotal(QuickEntryState state) {
@@ -253,6 +431,8 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
   static bool _saveEnabled(QuickEntryState state) {
     final amountOk = (int.tryParse(state.amount) ?? 0) > 0;
     switch (state.mode) {
+      case QuickEntryMode.budget:
+        return amountOk; // 分類未選 → OK 停留（_saveBudget 提示）
       case QuickEntryMode.transfer:
         return amountOk && state.toAccount != null;
       case QuickEntryMode.split:
@@ -348,6 +528,261 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
         ),
         child: Text(text),
       ),
+    );
+  }
+}
+
+/// 兩層式分類格（PM 2026-10-22）：**常用 → 主類別 →（展開）子類別**；
+/// 主類別格尾「＋主類別」、子分類列尾「＋子分類」皆可直接新增
+/// （快速對話框即建即選；重名由 CategoryService 拒絕）。
+class _CategoryGridSection extends StatelessWidget {
+  const _CategoryGridSection({
+    required this.recent,
+    required this.categories,
+    required this.selectedCategory,
+    required this.selectedMainId,
+    required this.onSelect,
+    required this.onQuickAdd,
+  });
+
+  final List<(String, String)> recent;
+  final List<dynamic> categories;
+  final dynamic selectedCategory; // CategoryRow?
+  final String? selectedMainId;
+  final void Function(String id, String? mainId) onSelect;
+  final Future<void> Function({required bool asSub}) onQuickAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    final mains = categories.where((c) => c.parentId == null).toList();
+    final subs = selectedMainId == null
+        ? const <dynamic>[]
+        : categories.where((c) => c.parentId == selectedMainId).toList();
+    final selectedId = selectedCategory?.id as String?;
+    final scheme = Theme.of(context).colorScheme;
+
+    Widget label(String text) => Padding(
+          padding: const EdgeInsets.only(top: 10, bottom: 6),
+          child: Text(text,
+              style: Theme.of(context)
+                  .textTheme
+                  .labelMedium
+                  ?.copyWith(color: scheme.outline)),
+        );
+
+    Widget chip({
+      required String label,
+      required bool selected,
+      Key? key,
+      VoidCallback? onTap,
+      IconData? icon,
+    }) =>
+        InkWell(
+          key: key,
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            decoration: BoxDecoration(
+              color: selected ? scheme.primary : scheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                  color: selected ? scheme.primary : scheme.outlineVariant),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (icon != null) ...[
+                  Icon(icon,
+                      size: 15,
+                      color: selected ? scheme.onPrimary : scheme.outline),
+                  const SizedBox(width: 4),
+                ],
+                Text(label,
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: selected ? FontWeight.w700 : null,
+                        color: selected ? scheme.onPrimary : null)),
+              ],
+            ),
+          ),
+        );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (recent.isNotEmpty) ...[
+          label('常用'),
+          Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final (id, name) in recent)
+                  chip(
+                      label: name,
+                      selected: selectedId == id,
+                      key: Key('recent-chip-$name'),
+                      icon: Icons.history,
+                      onTap: () => onSelect(id, selectedMainId)),
+              ]),
+        ],
+        label('主類別'),
+        Wrap(spacing: 6, runSpacing: 6, children: [
+          for (final m in mains)
+            chip(
+                label: m.name as String,
+                selected: selectedId == m.id || selectedMainId == m.id,
+                key: Key('cat-chip-${m.name}'),
+                onTap: () => onSelect(m.id as String, m.id as String)),
+          chip(
+              label: '主類別',
+              selected: false,
+              key: const Key('cat-add-main'),
+              icon: Icons.add,
+              onTap: () => onQuickAdd(asSub: false)),
+        ]),
+        if (selectedMainId != null) ...[
+          label('子分類'),
+          Wrap(spacing: 6, runSpacing: 6, children: [
+            for (final s in subs)
+              chip(
+                  label: s.name as String,
+                  selected: selectedId == s.id,
+                  key: Key('cat-chip-${s.name}'),
+                  onTap: () => onSelect(s.id as String, selectedMainId)),
+            chip(
+                label: '子分類',
+                selected: false,
+                key: const Key('cat-add-sub'),
+                icon: Icons.add,
+                onTap: () => onQuickAdd(asSub: true)),
+          ]),
+        ],
+      ],
+    );
+  }
+}
+
+
+/// 預算模式目標格（PM 2026-10-22）：**總預算 或 分類**（兩層格同快記）；
+/// 選定後金額（計算機）→ OK → 存為預算內容。
+class _BudgetTargetGrid extends StatelessWidget {
+  const _BudgetTargetGrid({
+    required this.categories,
+    required this.isTotal,
+    required this.selectedCategory,
+    required this.selectedMainId,
+    required this.onSelect,
+    required this.onSelectTotal,
+    required this.onQuickAdd,
+  });
+
+  final List<dynamic> categories;
+  final bool isTotal;
+  final dynamic selectedCategory; // CategoryRow?
+  final String? selectedMainId;
+  final void Function(String id, String? mainId) onSelect;
+  final VoidCallback onSelectTotal;
+  final Future<void> Function({required bool asSub}) onQuickAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    final mains = categories.where((c) => c.parentId == null).toList();
+    final subs = selectedMainId == null
+        ? const <dynamic>[]
+        : categories.where((c) => c.parentId == selectedMainId).toList();
+    final selectedId = selectedCategory?.id as String?;
+    final scheme = Theme.of(context).colorScheme;
+
+    Widget label(String text) => Padding(
+          padding: const EdgeInsets.only(top: 10, bottom: 6),
+          child: Text(text,
+              style: Theme.of(context)
+                  .textTheme
+                  .labelMedium
+                  ?.copyWith(color: scheme.outline)),
+        );
+
+    Widget chip({
+      required String label,
+      required bool selected,
+      Key? key,
+      VoidCallback? onTap,
+      IconData? icon,
+    }) =>
+        InkWell(
+          key: key,
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            decoration: BoxDecoration(
+              color: selected ? scheme.primary : scheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                  color: selected ? scheme.primary : scheme.outlineVariant),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (icon != null) ...[
+                  Icon(icon,
+                      size: 15,
+                      color: selected ? scheme.onPrimary : scheme.outline),
+                  const SizedBox(width: 4),
+                ],
+                Text(label,
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: selected ? FontWeight.w700 : null,
+                        color: selected ? scheme.onPrimary : null)),
+              ],
+            ),
+          ),
+        );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        label('預算目標'),
+        Wrap(spacing: 6, runSpacing: 6, children: [
+          chip(
+              label: '總預算',
+              selected: isTotal,
+              key: const Key('budget-chip-total'),
+              icon: Icons.savings_outlined,
+              onTap: onSelectTotal),
+          for (final m in mains)
+            chip(
+                label: m.name as String,
+                selected: !isTotal && selectedId == m.id,
+                key: Key('budget-chip-${m.name}'),
+                onTap: () => onSelect(m.id as String, m.id as String)),
+          chip(
+              label: '主類別',
+              selected: false,
+              key: const Key('cat-add-main'),
+              icon: Icons.add,
+              onTap: () => onQuickAdd(asSub: false)),
+        ]),
+        if (selectedMainId != null && !isTotal) ...[
+          label('子分類'),
+          Wrap(spacing: 6, runSpacing: 6, children: [
+            for (final s in subs)
+              chip(
+                  label: s.name as String,
+                  selected: selectedId == s.id,
+                  key: Key('budget-chip-${s.name}'),
+                  onTap: () => onSelect(s.id as String, selectedMainId)),
+            chip(
+                label: '子分類',
+                selected: false,
+                key: const Key('cat-add-sub'),
+                icon: Icons.add,
+                onTap: () => onQuickAdd(asSub: true)),
+          ]),
+        ],
+      ],
     );
   }
 }

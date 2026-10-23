@@ -33,6 +33,13 @@ void main() {
       expect(AmountKeypadEvaluator.evaluate('120'), 120);
       expect(AmountKeypadEvaluator.evaluate('0'), 0);
     });
+
+    test('小數點（PM 2026-10-22）：.5 簡寫／結果四捨五入至整數元', () {
+      expect(AmountKeypadEvaluator.evaluate('.5'), 1); // 0.5 → 1（round）
+      expect(AmountKeypadEvaluator.evaluate('99.5＋0.5'), 100);
+      expect(AmountKeypadEvaluator.evaluate('1.2×3'), 4); // 3.6 → 4
+      expect(AmountKeypadEvaluator.evaluate('1.2.3'), isNull); // 非法
+    });
   });
 
   testWidgets('鍵盤互動：數字／連按運算子取代／⌫／C／＝求值', (tester) async {
