@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <title>03 快速記帳（v3：分類選擇彈窗＋備註欄＋記住上次金額） — LedgerSync UI 雛型</title>
-<style>
+  .panel .key.ok{background:#F5C86B;color:#12312F;font-weight:800;font-size:17px}
+</style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI","Noto Sans TC",system-ui,sans-serif}
 body{background:#e8ecef;display:flex;gap:80px;padding:40px;align-items:flex-start;flex-wrap:wrap}
 .frame{position:relative;flex:none}
@@ -91,8 +92,7 @@ body{background:#e8ecef;display:flex;gap:80px;padding:40px;align-items:flex-star
     <div class="screen">
       <div class="top"><span>✕ 離開</span><span class="t">🌙 暗色</span></div>
       <div class="modes">
-        <div class="mode on">支出</div><div class="mode">轉帳</div><div class="mode">收入</div>
-        <div class="mode">還款</div><div class="mode">預算</div>
+        <div class="mode on">支出</div><div class="mode">收入</div><div class="mode">轉帳</div>
       </div>
       <div class="amount" style="color:#fff;text-align:center;font-size:64px;font-weight:800;letter-spacing:2px;margin:6px 0 4px">1,240
         <small style="font-size:20px;color:#9fd4d0;display:block;font-weight:400">帳戶：現金（Sticky）</small>
@@ -118,18 +118,17 @@ body{background:#e8ecef;display:flex;gap:80px;padding:40px;align-items:flex-star
     </div>
 
     <div class="panel">
-      <div class="save">OK 儲存</div>
       <div class="numpad">
+        <div class="key fn">C</div><div class="key fn">⌫</div><div class="key ok" style="grid-column:span 2">OK</div>
         <div class="key">7</div><div class="key">8</div><div class="key">9</div><div class="key op">÷</div>
         <div class="key">4</div><div class="key">5</div><div class="key">6</div><div class="key op">×</div>
         <div class="key">1</div><div class="key">2</div><div class="key">3</div><div class="key op">－</div>
-        <div class="key">C</div><div class="key">0</div><div class="key">.</div><div class="key">⌫</div>
-        <div class="key op">＋</div><div class="key op">＝</div>
+        <div class="key" style="grid-column:span 2">0</div><div class="key">.</div><div class="key op">＋</div>
       </div>
     </div>
   </div>
 
-  <div class="note" style="top:60px"><b>v3（PM 2026-10-24 定稿）</b>分類**不再平鋪**：點「分類」欄 → **彈窗**（見第 ③ 機）：上方**常用**、下方**左主類別／右子類別**。<br>欄位順序：模式 → 金額 → 日期 → 帳戶/分類 → 商家 → <b>備註</b>（新增）→ 計算機/OK。</div>
+  <div class="note" style="top:60px"><b>v4（PM 2026-10-24 定稿）</b>模式列＝**支出／收入／轉帳**（無拆分/預算）。分類**不再平鋪**：點「分類」欄 → **彈窗**：上方**常用**、下方**左主類別／右子類別**。<br>欄位順序：模式 → 金額 → 日期 → 帳戶/分類 → 商家 → <b>備註</b>（新增）→ 計算機/OK。</div>
   <div class="note" style="top:300px"><b>記住上次（PM 2026-10-24）</b>點選**子分類**時帶入該子分類**上次的金額＋帳戶＋商家**（日期仍預設「現在」）；方便微調後直接存。<br>無紀錄 → 沿用 Sticky（上一筆）值。</div>
   <div class="note" style="top:520px"><b>日期（PM 2026-10-23）</b>金額下方：◀▶ 快調 ±1 天；點日期才開日曆。<br><b>OK 儲存</b>在計算機上方；計算機貼底常駐（含「.」小數鍵）。</div>
 </div>
@@ -141,8 +140,7 @@ body{background:#e8ecef;display:flex;gap:80px;padding:40px;align-items:flex-star
     <div class="screen">
       <div class="top"><span>✕ 離開</span><span class="t">☀️ 亮色</span></div>
       <div class="modes">
-        <div class="mode on">支出</div><div class="mode">轉帳</div><div class="mode">收入</div>
-        <div class="mode">還款</div><div class="mode">預算</div>
+        <div class="mode on">支出</div><div class="mode">收入</div><div class="mode">轉帳</div>
       </div>
       <div style="text-align:center;font-size:64px;font-weight:800;letter-spacing:2px;color:#1c2b2a;margin:6px 0 4px">1,240
         <small style="font-size:20px;color:#98a5a4;display:block;font-weight:400">帳戶：現金（Sticky）</small>
@@ -166,13 +164,12 @@ body{background:#e8ecef;display:flex;gap:80px;padding:40px;align-items:flex-star
     </div>
 
     <div class="panel">
-      <div class="save">OK 儲存</div>
       <div class="numpad">
+        <div class="key fn">C</div><div class="key fn">⌫</div><div class="key ok" style="grid-column:span 2">OK</div>
         <div class="key">7</div><div class="key">8</div><div class="key">9</div><div class="key op">÷</div>
         <div class="key">4</div><div class="key">5</div><div class="key">6</div><div class="key op">×</div>
         <div class="key">1</div><div class="key">2</div><div class="key">3</div><div class="key op">－</div>
-        <div class="key">C</div><div class="key">0</div><div class="key">.</div><div class="key">⌫</div>
-        <div class="key op">＋</div><div class="key op">＝</div>
+        <div class="key" style="grid-column:span 2">0</div><div class="key">.</div><div class="key op">＋</div>
       </div>
     </div>
   </div>
@@ -187,8 +184,7 @@ body{background:#e8ecef;display:flex;gap:80px;padding:40px;align-items:flex-star
     <div class="screen">
       <div class="top"><span>✕ 離開</span><span class="t">🌙 暗色</span></div>
       <div class="modes">
-        <div class="mode on">支出</div><div class="mode">轉帳</div><div class="mode">收入</div>
-        <div class="mode">還款</div><div class="mode">預算</div>
+        <div class="mode on">支出</div><div class="mode">收入</div><div class="mode">轉帳</div>
       </div>
       <div style="text-align:center;font-size:64px;font-weight:800;color:#fff;margin:6px 0 14px">1,240</div>
       <div class="field">
