@@ -68,6 +68,17 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
     // 附件索引（📷 標記；掃描儲存附件後 refresh——F03-FE S3）。
     final attachmentTxIds = ref.watch(attachmentTxIdsProvider);
     final months = _availableMonths(db);
+    // 分類索引（明細列顯示 分類＋圖示；PM 2026-10-24）。
+    // 圖示規則：子類別無自身圖示 → 取**主類別**圖示。
+    final catById = {
+      for (final c in db.categoriesByKind('expense')) c.id: c,
+      for (final c in db.categoriesByKind('income')) c.id: c,
+    };
+    String? iconOf(String? categoryId) {
+      final c = categoryId == null ? null : catById[categoryId];
+      if (c == null) return null;
+      return c.icon ?? (c.parentId == null ? null : catById[c.parentId]?.icon);
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -141,6 +152,9 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
                       categoryName: rows[i].categoryId == null
                           ? '未分類'
                           : (db.categoryName(rows[i].categoryId!) ?? '未分類'),
+                      categoryId: rows[i].categoryId,
+                      categoryIcon: iconOf(rows[i].categoryId),
+                      note: rows[i].note,
                       hasAttachment: attachmentTxIds.contains(rows[i].id),
                       onDelete: () => _confirmDelete(context, ref, rows[i]),
                     ),
@@ -386,6 +400,27 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
   }
 }
 
+/// 交易列左側分類圖示圓（02-ledger 雛型；PM 2026-10-24）。
+/// emoji 為分類圖示（**子類別 → 取主類別圖示**）或型別圖示（🏦/📲/🔀/🧾）。
+class _CatCircle extends StatelessWidget {
+  const _CatCircle({required this.emoji});
+  final String emoji;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 38,
+      height: 38,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(emoji, style: const TextStyle(fontSize: 17)),
+    );
+  }
+}
+
 /// 交易列（BDD：明細頁即時顯示該 N 筆 → 金額文字計數）。
 ///
 /// 轉帳樣式（F02 S2.3-5）：swap 圖示（非支出圖示）＋「轉帳」標籤＋路由副標，
@@ -397,6 +432,9 @@ class TxTile extends StatelessWidget {
     required this.accountName,
     this.toAccount,
     this.categoryName = '未分類',
+    this.categoryId,
+    this.categoryIcon,
+    this.note,
     this.hasAttachment = false,
     this.onDelete,
   });
@@ -407,6 +445,13 @@ class TxTile extends StatelessWidget {
 
   /// 分類名稱（拆分樣式副標用）。
   final String categoryName;
+
+  /// 分類 id／圖示（PM 2026-10-24：明細列顯示分類；圖示跟隨主類別）。
+  final String? categoryId;
+  final String? categoryIcon;
+
+  /// 備註（PM 2026-10-24：明細列顯示）。
+  final String? note;
 
   /// 掃描附件標記（FR-S4 呈現面：📷；F03-FE S3）。
   final bool hasAttachment;
@@ -430,7 +475,7 @@ class TxTile extends StatelessWidget {
       // 拆分樣式（FR-T6）：call_split 圖示＋「拆分 · {分類}」＋群組副標。
       return ListTile(
         onTap: onDelete,
-        leading: const Icon(Icons.call_split),
+        leading: _CatCircle(emoji: categoryIcon ?? '🔀'),
         title: Text('拆分 · $categoryName'),
         subtitle: Text(
           '群組 ${tx.splitGroupId!.substring(0, 8)}… · '
@@ -445,31 +490,47 @@ class TxTile extends StatelessWidget {
     if (tx.kind == 'transfer') {
       return ListTile(
         onTap: onDelete,
-        leading: const Icon(Icons.swap_horiz), // 轉帳樣式（非支出圖示）
+        // 轉帳樣式（非支出圖示）；電子票證目標 → 📲（儲值語意）。
+        leading:
+            _CatCircle(emoji: toAccount?.type == 'ewallet' ? '📲' : '🏦'),
         title: Text(_title),
-        subtitle: Text(
-          '$accountName → ${toAccount?.name ?? ''} · '
-          '${DateFormat('yyyy/MM/dd HH:mm').format(time)}',
-        ),
+        subtitle: Text([
+          DateFormat('yyyy/MM/dd HH:mm').format(time),
+          if (accountName.isNotEmpty) '$accountName → ${toAccount?.name ?? ''}',
+          if ((note ?? '').isNotEmpty) note!,
+        ].join(' · ')),
         trailing: Text(
           '${tx.amountMinor}', // 轉帳不計收支：無正負號
           style: Theme.of(context).textTheme.titleMedium,
         ),
       );
     }
+    // 一般列（02-ledger 雛型）：分類圖示圓＋商家（無商家→分類）＋
+    // 副標「時間 · 帳戶 · 分類[ · 備註]」（PM 2026-10-24 補齊顯示）。
+    final subtitle = [
+      DateFormat('yyyy/MM/dd HH:mm').format(time),
+      if (accountName.isNotEmpty) accountName,
+      if (tx.categoryId != null) categoryName,
+      if ((note ?? '').isNotEmpty) note!,
+    ].join(' · ');
     return ListTile(
       onTap: onDelete,
+      leading: _CatCircle(emoji: categoryIcon ?? '🧾'),
       title: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Flexible(child: Text(tx.merchant ?? (tx.kind == 'income' ? '收入' : '支出'))),
+          Flexible(
+              child: Text(tx.merchant ??
+                  (tx.categoryId != null
+                      ? categoryName
+                      : (tx.kind == 'income' ? '收入' : '支出')))),
           if (hasAttachment) ...[
             const SizedBox(width: 4),
             const Text('📷', key: Key('tx-attachment')),
           ],
         ],
       ),
-      subtitle: Text(DateFormat('yyyy/MM/dd HH:mm').format(time)),
+      subtitle: Text(subtitle),
       trailing: Text(
         tx.kind == 'income' ? '+${tx.amountMinor}' : '-${tx.amountMinor}',
         style: Theme.of(context).textTheme.titleMedium,

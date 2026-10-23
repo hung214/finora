@@ -389,6 +389,17 @@ class _DesktopQuickPanelState extends ConsumerState<_DesktopQuickPanel> {
     final mains = categories.where((c) => c.parentId == null).toList();
     // 分類圖示/選取跟隨主類別（PM 2026-10-24）：子類別無自身圖示——高亮其所屬主類別。
     final selMainId = state.category?.parentId ?? state.category?.id;
+    // 分類欄顯示（PM 2026-10-24：與手機一致——顯示所選分類，含**子類別名稱**；
+    // 圖示跟隨主類別）。
+    final catById = {for (final c in categories) c.id: c};
+    final selCat = state.category;
+    final selCatIcon = selCat == null
+        ? null
+        : (selCat.icon ??
+            (selCat.parentId == null ? null : catById[selCat.parentId]?.icon));
+    final selCatLabel = selCat == null
+        ? '選擇分類'
+        : (selCatIcon != null ? '$selCatIcon ${selCat.name}' : selCat.name);
     // 欄位 ↔ state 同步（PM 2026-10-24）：記住上次帶入金額/商家時反映。
     ref.listen(
       quickEntryControllerProvider
@@ -473,18 +484,6 @@ class _DesktopQuickPanelState extends ConsumerState<_DesktopQuickPanel> {
                 ),
             ],
           ),
-          InkWell(
-            key: const Key('desktop-quick-more-categories'),
-            onTap: _openCategoryPicker,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 2),
-              child: Text('⋯ 更多分類／展開子類別',
-                  style: TextStyle(
-                      fontSize: 11,
-                      color: Theme.of(context).colorScheme.primary)),
-            ),
-          ),
-          const SizedBox(height: 6),
           // 日期列（PM 2026-10-24）：◀▶ 快調 ±1 天；點日期開日曆。
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -543,6 +542,20 @@ class _DesktopQuickPanelState extends ConsumerState<_DesktopQuickPanel> {
                 DropdownMenuItem(value: a.id, child: Text(a.name)),
             ],
             onChanged: (v) => v == null ? null : controller.selectAccountById(v),
+          ),
+          const SizedBox(height: 8),
+          // 分類欄（PM 2026-10-24）：與手機一致——點選開彈窗（上常用／左主／右子），
+          // 選取後顯示所選分類（含子類別名稱）。
+          InkWell(
+            key: const Key('desktop-quick-category'),
+            onTap: _openCategoryPicker,
+            child: InputDecorator(
+              decoration: const InputDecoration(
+                  labelText: '分類',
+                  isDense: true,
+                  border: OutlineInputBorder()),
+              child: Text(selCatLabel),
+            ),
           ),
           const SizedBox(height: 8),
           TextField(
