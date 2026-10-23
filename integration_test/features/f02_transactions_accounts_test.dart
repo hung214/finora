@@ -186,10 +186,17 @@ void _bind(GherkinRunner runner, _World w) {
       isTrue,
       reason: '應顯示「${p['label']}」樣式',
     );
+    // 轉帳列以**類型圖示圓**表達（🏦；電子票證目標→📲 儲值）——非支出圖示
+    // （PM 2026-10-24：交易列改為分類/類型圖示圓，取代原 swap_horiz icon）。
+    final rows = find.byType(TxTile, skipOffstage: false);
     expect(
-      w.tester.any(find.byIcon(Icons.swap_horiz, skipOffstage: false)),
-      isTrue,
-      reason: '轉帳圖示（非支出圖示）',
+      find.descendant(
+          of: rows,
+          matching: find.byWidgetPredicate(
+              (wd) => wd is Text && (wd.data == '🏦' || wd.data == '📲'),
+              skipOffstage: false)),
+      findsWidgets,
+      reason: '轉帳類型圖示（🏦／📲；非支出圖示）',
     );
   });
 
@@ -200,10 +207,14 @@ void _bind(GherkinRunner runner, _World w) {
     expect(splitTiles, hasLength(2), reason: '拆分應有 2 筆子交易');
     expect(splitTiles[0].tx.splitGroupId, splitTiles[1].tx.splitGroupId,
         reason: '兩筆共享同一 split_group_id（FR-T6）');
+    // 拆分列標示「拆分 · {分類}」（PM 2026-10-24：圖示改為分類圖示圓，
+    // 原 call_split icon 退場）——語意＝拆分群組可辨識。
     expect(
-      w.tester.any(find.byIcon(Icons.call_split, skipOffstage: false)),
-      isTrue,
-      reason: '拆分圖示（call_split）',
+      find.descendant(
+          of: find.byType(TxTile, skipOffstage: false),
+          matching: find.textContaining('拆分 · ', skipOffstage: false)),
+      findsWidgets,
+      reason: '拆分樣式標示（拆分 · 分類）',
     );
   });
 
