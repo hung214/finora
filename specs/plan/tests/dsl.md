@@ -2,7 +2,7 @@
 
 | 項目 | 內容 |
 |---|---|
-| 文件版本 | v1.8（F08-BE：§2 Given 1＋Then 1 句型登記——`未設定 PIN 的裝置`／`hasPin 判定`；DBG-008 清空資料免 PIN 前置。v1.7 分類體系 v2：常用類別區/同層重名；v1.6 F11：帳戶/分類 CRUD 句型。v1.5 F09-FE：§3 Given 4＋When 3＋Then 6 句型登記——資料管理三重防護/加驗身分/已清空；v1.4 F09-BE：Given 3＋When 3＋Then 9 句型登記——WipeService 清空/雲端刪除/不復活；v1.3 F08-FE：§3 Given 3＋When 8＋Then 8 句型登記——鎖定畫面/Face ID seam/PIN 重設/隱私遮蔽；v1.2 F08-BE：§2 Given 6＋When 6＋Then 8 句型登記——AppLockController 門檻邊界/生物辨識退場/PIN 重設授權與拒絕路徑；v1.1 F06-FE：§3 Given 2＋When 3＋Then 4 句型登記——待確認 badge/清單/下期提醒/暫停標示；v1.0 F06-BE：Given 3＋When 4＋Then 12 句型登記——RecurringService 提醒確認制；v0.9 F07-FE：§3 Given 6＋When 6＋Then 12 句型登記；「同步中…」回饋斷言法（tap 後 pump 未 settle）；v0.8 F07-BE：§2.1 Given 8＋§2.2 When 7＋§2.3 Then 14 句型登記——SyncCoordinator/BundleApplier/BackupService；Outline 匯入結果分列綁定） |
+| 文件版本 | v1.9（F09-FE：§3 Given 1＋When 1＋Then 2 句型登記——`App 未設定 PIN`／`點「下一步」`／`顯示「確認文字輸入框」（不經 PIN 關卡）`／`不顯示 PIN 輸入框`（DBG-008）；§4.5 F11-FE 2 句型——子分類編輯＋快記連動（DBG-009）。v1.8 F08-BE：§2 Given 1＋Then 1 句型登記——`未設定 PIN 的裝置`／`hasPin 判定`；DBG-008 清空資料免 PIN 前置。v1.7 分類體系 v2：常用類別區/同層重名；v1.6 F11：帳戶/分類 CRUD 句型。v1.5 F09-FE：§3 Given 4＋When 3＋Then 6 句型登記——資料管理三重防護/加驗身分/已清空；v1.4 F09-BE：Given 3＋When 3＋Then 9 句型登記——WipeService 清空/雲端刪除/不復活；v1.3 F08-FE：§3 Given 3＋When 8＋Then 8 句型登記——鎖定畫面/Face ID seam/PIN 重設/隱私遮蔽；v1.2 F08-BE：§2 Given 6＋When 6＋Then 8 句型登記——AppLockController 門檻邊界/生物辨識退場/PIN 重設授權與拒絕路徑；v1.1 F06-FE：§3 Given 2＋When 3＋Then 4 句型登記——待確認 badge/清單/下期提醒/暫停標示；v1.0 F06-BE：Given 3＋When 4＋Then 12 句型登記——RecurringService 提醒確認制；v0.9 F07-FE：§3 Given 6＋When 6＋Then 12 句型登記；「同步中…」回饋斷言法（tap 後 pump 未 settle）；v0.8 F07-BE：§2.1 Given 8＋§2.2 When 7＋§2.3 Then 14 句型登記——SyncCoordinator/BundleApplier/BackupService；Outline 匯入結果分列綁定） |
 | 用途 | 前端／後端 `.feature` 檔的**步驟句型唯一登記處**。新步驟必須先登記於本檔再實作綁定；未登記句型視為違規 |
 | 綁定 | 前端：自製 Gherkin runner + integration_test（TR-9 過渡；同 T-H7）｜後端：自製 Gherkin runner + flutter_test |
 
@@ -323,6 +323,7 @@
 | `Given 帳本含 {n} 筆交易` | fixture 直寫帳戶＋交易×n（F09-FE） |
 | `Given App 未連結雲端` | settings sync.account=''（清空警告語意分流；F09-FE S1） |
 | `Given App 已連結雲端` | settings sync.account=email（清空加驗身分語意；F09-FE S2） |
+| `Given App 未設定 PIN`（v1.9） | DBG-008：覆寫 Background 之 PIN＋`_ensureApp` 以無 pin 建構 AppLockController（`hasPin`＝false；F09-FE S3） |
 
 ### 3.2 When（動作）
 
@@ -373,6 +374,7 @@
 | `When 設定→資料管理→按下「清空資料」並輸入 PIN 與確認文字` | 同上全流程（警告→PIN→確認文字；**先於短句型註冊**；F09-FE S2） |
 | `When 輸入錯誤文字「{text}」` | 確認文字欄輸入不符文字＋送出（key wipe-confirm-input/submit；F09-FE S1） |
 | `When 重新登入完成` | fake OAuth seam 完成（key wipe-oauth-button；F09-FE S2） |
+| `When 點「下一步」`（v1.9） | 警告層→下一步（key wipe-warning-continue；未設定 PIN 時直達確認文字；F09-FE S3） |
 
 ### 3.3 Then（斷言）
 
@@ -435,6 +437,8 @@
 | `Then 顯示「確認文字不符」且無法繼續` | 錯誤回饋＋停留確認層＋資料未清（F09-FE S1） |
 | `Then 顯示「重新登入雲端帳號」要求` | 加驗身分層（key wipe-oauth-button；S9.2 #1；F09-FE S2） |
 | `Then 顯示「已清空」並回到首次啟動引導` | 完成回饋＋pop 主殼空帳本（獨立引導頁屬上架前 UI 統整；F09-FE S2） |
+| `Then 顯示「確認文字輸入框」（不經 PIN 關卡）`（v1.9） | DBG-008：確認文字層存在**且**無 PIN 輸入框；**先於** `顯示「確認文字輸入框」` 註冊（前綴吻合） |
+| `Then 不顯示 PIN 輸入框`（v1.9） | key `wipe-pin-input` 不存在（DBG-008） |
 | `When 篩選 期間={period}、分類={cat}` | 明細頁篩選列：期間/分類選擇器（F10-FE S2） |
 | `When 關鍵字輸入「{kw}」` | 篩選關鍵字欄輸入（FTS 即時套用） |
 | `Then 僅顯示 {n} 筆（三條件交集）` | TxTile 計數（AND 交集） |
@@ -532,6 +536,8 @@
 | `Given 已有 {n} 筆支出分別使用「{a}」與「{b}」`（v1.7） | fixture 直寫交易（最新一筆用 {b}；寫後 invalidate ledgerProvider） |
 | `When 開啟快記並展開分類選擇器`（v1.7） | popUntil 回根→fab-quick-entry→quick-entry-category |
 | `Then 選單最上方為「{label}」且「{name}」出現於常用區（在完整清單之前）`（v1.7） | 常用區標題（text）＋常用項 key `recent-cat-{name}`（find.text 全樹會誤中主殼交易列） |
+| `When 設定→分類管理→編輯子分類「{name}」改名「{to}」圖示 {icon}`（v1.9） | 子列編輯入口（key `cat-edit-{name}`）→表單（標題「編輯子分類」）改名＋emoji chip（key `cat-icon-{emoji}`；**捲動區須 ensureVisible**）→`cat-save`（DBG-009） |
+| `Then 快記分類選擇器展開「{parent}」後「{name}」格顯示新圖示 {icon}`（v1.9） | 展開 `cat-chip-{parent}`→子格 `cat-chip-{name}` 之 label＝「{icon} {name}」（`_chipLabel`）——**證明 provider 快取已失效、跨頁連動**（DBG-009） |
 
 ---
 

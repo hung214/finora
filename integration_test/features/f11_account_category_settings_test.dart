@@ -15,7 +15,8 @@ import 'package:ledger_sync/presentation/theme/app_theme.dart';
 import '../../test/helpers/db_fixture.dart';
 import '../../test/helpers/gherkin/gherkin.dart';
 
-/// F11-FE 情境執行器（@FE @M8 @FR-A7/@FR-B1/@FR-O1，8 情境）。
+/// F11-FE 情境執行器（@FE @M8 @FR-A7/@FR-B1/@FR-O1，12 情境——
+/// 含 v1.9 子分類編輯即時連動快記）。
 ///
 /// 來源：specs/plan/tests/frontend/F11_account-category-settings.feature。
 /// 句型登記簿：specs/plan/tests/dsl.md §4.5（v1.6）。
@@ -27,14 +28,14 @@ Future<void> main() async {
   final doc = GherkinParser.parse(await rootBundle
       .loadString('integration_test/features/F11_account-category-settings.feature'));
 
-  testWidgets('F11-FE：帳戶/分類設定與外觀（11 情境）', (tester) async {
+  testWidgets('F11-FE：帳戶/分類設定與外觀（12 情境）', (tester) async {
     final w = _World(tester);
     final runner = GherkinRunner();
     _bind(runner, w);
     try {
       final executed =
           await runner.run(doc, tagFilter: (tags) => tags.contains('@FE'));
-      expect(executed, 11, reason: 'F11-FE 應執行 11 個情境');
+      expect(executed, 12, reason: 'F11-FE 應執行 12 個情境');
       // ignore: avoid_print
       print(runner.log.join('\n'));
     } finally {
@@ -371,6 +372,45 @@ void _bind(GherkinRunner runner, _World w) {
     await w.tester.enterText(find.byKey(const Key('cat-name')), p['name']!);
     await w.tester.tap(find.byKey(const Key('cat-save')));
     await w.tester.pumpAndSettle();
+  });
+
+  // DBG-009：編輯子分類（改名/圖示）——即時連動快記。
+  runner.on(r'設定→分類管理→編輯子分類「{name}」改名「{to}」圖示 {icon}$', (p) async {
+    await w.tester.tap(find.byKey(Key('cat-edit-${p['name']}')));
+    await w.tester.pumpAndSettle();
+    expect(w.tester.any(find.text('編輯子分類')), isTrue, reason: '編輯模式標題');
+    await w.tester.enterText(find.byKey(const Key('cat-name')), p['to']!);
+    await w.tester.pump();
+    final iconChip = find.byKey(Key('cat-icon-${p['icon']}'));
+    await w.tester.ensureVisible(iconChip); // emoji 庫位於捲動區——須先捲入
+    await w.tester.pumpAndSettle();
+    await w.tester.tap(iconChip);
+    await w.tester.pumpAndSettle();
+    await w.tester.tap(find.byKey(const Key('cat-save')));
+    await w.tester.pumpAndSettle();
+  });
+
+  runner.on(
+      r'快記分類選擇器展開「{parent}」後「{name}」格顯示新圖示 {icon}$', (p) async {
+    await _ensureApp(w);
+    final navigator =
+        w.tester.state<NavigatorState>(find.byType(Navigator).first);
+    navigator.popUntil((r) => r.isFirst);
+    await w.tester.pumpAndSettle();
+    await w.tester.tap(find.byKey(const Key('fab-quick-entry')));
+    await w.tester.pumpAndSettle();
+    await w.tester.tap(find.byKey(const Key('quick-entry-category')));
+    await w.tester.pumpAndSettle();
+    // 展開主類別 → 子分類格（key cat-chip-{name}；DBG-009 快取失效連動）。
+    await w.tester.tap(find.byKey(Key('cat-chip-${p['parent']}')));
+    await w.tester.pumpAndSettle();
+    final chip = find.byKey(Key('cat-chip-${p['name']}'));
+    expect(w.tester.any(chip), isTrue, reason: '子分類格存在（改名已連動）');
+    expect(
+        find.descendant(
+            of: chip, matching: find.text('${p['icon']} ${p['name']}')),
+        findsOneWidget,
+        reason: 'DBG-009：改名/換圖示即時連動快記（無需重啟）');
   });
 
   runner.on(r'分類列表「{parent}」展開顯示子分類「{name}」$', (p) {

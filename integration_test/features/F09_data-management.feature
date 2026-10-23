@@ -25,3 +25,13 @@ Feature: 資料清除 UI（前端自動化）
     Then 顯示「重新登入雲端帳號」要求
     When 重新登入完成
     Then 顯示「已清空」並回到首次啟動引導
+
+  @P1 @FR-O3
+  Scenario: 未設定 PIN 直接進入確認文字（PM 2026-10-23）
+    Given App 未連結雲端
+    And App 未設定 PIN
+    When 設定→資料管理→按下「清空資料」
+    Then 顯示「將刪除所有資料且無雲端可還原」警告
+    When 點「下一步」
+    Then 顯示「確認文字輸入框」（不經 PIN 關卡）
+    And 不顯示 PIN 輸入框

@@ -166,3 +166,20 @@
 | **實機安裝**（Releases → INSTALL.md） | 真機走查 | Android APK 最快；macOS DMG 次之 |
 
 - 現況：v0.4.18 已先發佈未預覽（流程違規，已認）——**請以 Releases v0.4.18 實機安裝作為本次預覽**，意見回饋後我改完再發 v0.4.19。
+
+---
+
+## 11. 本機建置／實機驗證前置（PM 2026-10-23；Xcode 已重裝）
+
+> **現況：Xcode 27.1 已安裝，但 Apple 授權尚未同意——`flutter` 任何指令（analyze/test/build/integration_test）目前全部被擋**。需您用管理員權限同意一次（約 10 秒）。
+
+| # | 動作（請您在 Terminal 執行） | 用途 |
+|---|---|---|
+| 1 | `sudo xcodebuild -license accept` | 同意 Xcode/Apple SDK 授權（**目前唯一阻擋本機驗證的關卡**） |
+| 2 | （可選）`flutter doctor` | 確認 macOS toolchain 全綠 |
+| 3 | 回報「已同意」 | 我立刻接續：逐檔跑 f09/f11 integration test＋`flutter build macos --release` 本地部署驗證 |
+
+**磁碟空間提醒**：目前根磁碟僅剩 **約 14 GiB**（`df -h /`）——macOS 建置約需 2~4 GiB、多平台建置更吃緊。若建置中出現空間不足，請先清 `~/Library/Developer/Xcode/DerivedData` 或告知我協助清理（`flutter clean`／刪 build/）。
+
+**注意**：Xcode 未安裝時 `flutter analyze`／`flutter test` 可正常跑；**安裝後未同意授權反而全面擋住**——這是 Flutter 的行為，非專案問題。
+

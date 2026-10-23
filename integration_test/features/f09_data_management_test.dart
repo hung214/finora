@@ -19,8 +19,9 @@ import '../../test/helpers/db_fixture.dart';
 import '../../test/helpers/in_memory_cloud_adapter.dart';
 import '../../test/helpers/gherkin/gherkin.dart';
 
-/// F09-FE 情境執行器（@FE @M7 @FR-O3，2 情境：三重防護對話順序/已連雲端
-/// 加驗身分）。清除執行契約由 F09-BE 驗證——FE 驗呈現面與流程閘。
+/// F09-FE 情境執行器（@FE @M7 @FR-O3，3 情境：三重防護對話順序/已連雲端
+/// 加驗身分/**未設定 PIN 跳過 PIN 關卡**）。清除執行契約由 F09-BE 驗證——
+/// FE 驗呈現面與流程閘。
 ///
 /// 來源：specs/plan/tests/frontend/F09_data-management.feature（rootBundle）。
 /// 句型登記簿：specs/plan/tests/dsl.md §3（v1.5）。
@@ -31,13 +32,13 @@ Future<void> main() async {
   final doc = GherkinParser.parse(await rootBundle
       .loadString('integration_test/features/F09_data-management.feature'));
 
-  testWidgets('F09-FE：資料清除 UI（2 情境）', (tester) async {
+  testWidgets('F09-FE：資料清除 UI（3 情境）', (tester) async {
     final w = _World(tester);
     final runner = GherkinRunner();
     _bind(runner, w);
     try {
       final executed = await runner.run(doc, tagFilter: (tags) => tags.contains('@FE'));
-      expect(executed, 2, reason: 'F09-FE 應執行 2 個情境');
+      expect(executed, 3, reason: 'F09-FE 應執行 3 個情境');
       // ignore: avoid_print
       print(runner.log.join('\n'));
     } finally {
@@ -68,6 +69,9 @@ class _World {
   /// Background 記錄之 PIN（_ensureApp 建構 controller 用）。
   String pin = '';
 
+  /// DBG-008：裝置從未設定 PIN（Given 覆寫；_ensureApp 以無 pin 建構）。
+  bool noPin = false;
+
   /// fake OAuth 回傳 email（S2：重新登入完成）。
   String oauthEmail = 'ming@example.com';
 }
@@ -79,8 +83,10 @@ Future<void> _ensureApp(_World w) async {
   w.tempDirs.add(blobs);
   final container = ProviderContainer(overrides: [
     dbProvider.overrideWithValue(db),
-    appLockControllerProvider.overrideWithValue(
-        AppLockController(db, pin: w.pin, thresholdSec: 30)),
+    // DBG-008：未設定 PIN 之裝置→不寫 pin_hash（hasPin=false）。
+    appLockControllerProvider.overrideWithValue(w.noPin
+        ? AppLockController(db, thresholdSec: 30)
+        : AppLockController(db, pin: w.pin, thresholdSec: 30)),
     oauthProvider.overrideWithValue(() async => w.oauthEmail),
     cloudAdapterProvider.overrideWithValue(InMemoryCloudAdapter()),
     blobsDirProvider.overrideWithValue(blobs),
@@ -121,6 +127,7 @@ void _bind(GherkinRunner runner, _World w) {
 
   runner.on(r'App 鎖已啟用（PIN {pin}）$', (p) {
     w.pin = p['pin']!; // controller 於 _ensureApp override 建構（寫入 pin_hash）
+    w.noPin = false;
   });
 
   runner.on(r'帳本含 {n} 筆交易$', (p) async {
@@ -146,6 +153,12 @@ void _bind(GherkinRunner runner, _World w) {
     w.db!.setSetting('sync.account', '');
   });
 
+  // DBG-008：從未設定 PIN——覆寫 Background 的 PIN（_ensureApp 以無 pin 建構）。
+  runner.on(r'App 未設定 PIN$', (p) {
+    w.noPin = true;
+    w.pin = '';
+  });
+
   // ── When（長句型先登記——lazy 前綴碰撞） ──────────────────
   runner.on(r'設定→資料管理→按下「清空資料」並輸入 PIN 與確認文字$', (p) async {
     await _openDataManagement(w);
@@ -167,6 +180,12 @@ void _bind(GherkinRunner runner, _World w) {
   runner.on(r'設定→資料管理→按下「清空資料」$', (p) async {
     await _openDataManagement(w);
     await w.tester.tap(find.byKey(const Key('wipe-start')));
+    await w.tester.pumpAndSettle();
+  });
+
+  // 警告層 →「下一步」（DBG-008：未設定 PIN 時直接進確認文字）。
+  runner.on(r'點「下一步」$', (p) async {
+    await w.tester.tap(find.byKey(const Key('wipe-warning-continue')));
     await w.tester.pumpAndSettle();
   });
 
@@ -201,6 +220,19 @@ void _bind(GherkinRunner runner, _World w) {
   runner.on(r'顯示「可先匯出備份檔」入口$', (p) {
     expect(w.tester.any(find.byKey(const Key('wipe-backup-entry'))), isTrue,
         reason: 'FR-O3 防呆：清空前備份入口（驗收 S9.2 邊界）');
+  });
+
+  // 長句型先註冊（DBG-008：未設定 PIN → 不經 PIN 關卡直達確認文字）。
+  runner.on(r'顯示「確認文字輸入框」（不經 PIN 關卡）$', (p) {
+    expect(w.tester.any(find.byKey(const Key('wipe-confirm-input'))), isTrue,
+        reason: 'DBG-008：未設定 PIN → 直接進入確認文字層');
+    expect(w.tester.any(find.byKey(const Key('wipe-pin-input'))), isFalse,
+        reason: 'DBG-008：不應出現 PIN 輸入框');
+  });
+
+  runner.on(r'不顯示 PIN 輸入框$', (p) {
+    expect(w.tester.any(find.byKey(const Key('wipe-pin-input'))), isFalse,
+        reason: 'DBG-008：無 PIN 關卡');
   });
 
   runner.on(r'顯示「確認文字輸入框」$', (p) {
