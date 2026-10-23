@@ -171,15 +171,63 @@
 
 ## 11. 本機建置／實機驗證前置（PM 2026-10-23；Xcode 已重裝）
 
-> **現況：Xcode 27.1 已安裝，但 Apple 授權尚未同意——`flutter` 任何指令（analyze/test/build/integration_test）目前全部被擋**。需您用管理員權限同意一次（約 10 秒）。
+> **根因只有一個**：**Xcode／Apple SDK 授權未同意** → macOS 的 `xcrun` 被鎖 → 連帶
+> `git`、`flutter`、`cocoapods` 全部不能用（連 `flutter analyze`／`flutter test` 都被擋，錯誤訊息就是那行 license）。
+> 同意後**一次全解**。
 
-| # | 動作（請您在 Terminal 執行） | 用途 |
+### 11.1 必做：一行解鎖（請在 Terminal 執行，需管理員密碼）
+
+```bash
+sudo xcodebuild -license accept
+```
+
+> 若 `accept` 不接受，改用互動式：`sudo xcodebuild -license` → 捲到最後輸入 `agree`。
+
+**驗證（兩條都應正常，不再出現 license 警告）**
+
+```bash
+xcrun --find git      # 應印出 /usr/bin/git 之類路徑
+flutter doctor        # Xcode 區塊應為 [✓]
+```
+
+### 11.2 若 Xcode 首次啟動要求「安裝元件」
+
+開啟 Xcode.app 若跳 **Installing components** → 按 Install（需密碼）；或用命令列：
+
+```bash
+sudo xcodebuild -runFirstLaunch
+```
+
+（本機 `xcodebuild -checkFirstLaunchStatus` 已 exit 0 → 這步**可能已完成**。）
+
+### 11.3 授權完成後我會執行（FE integration **逐檔**跑，不與其他 build 並行）
+
+| 指令 | 用途 |
+|---|---|
+| `flutter test integration_test/features/f09_data_management_test.dart -d macos` | F09-FE **3 情境**（含新「未設定 PIN 跳過 PIN」） |
+| `flutter test integration_test/features/f11_account_category_settings_test.dart -d macos` | F11-FE **12 情境**（含新「子分類編輯即時連動快記」） |
+| `flutter build macos --release` | 本地部署驗證（產出 `.app`／DMG） |
+
+### 11.4 macOS「隱私權與安全性」要允許的項目（首次執行時系統跳窗，請按允許）
+
+| 項目 | 時機 | 怎麼允許 |
 |---|---|---|
-| 1 | `sudo xcodebuild -license accept` | 同意 Xcode/Apple SDK 授權（**目前唯一阻擋本機驗證的關卡**） |
-| 2 | （可選）`flutter doctor` | 確認 macOS toolchain 全綠 |
-| 3 | 回報「已同意」 | 我立刻接續：逐檔跑 f09/f11 integration test＋`flutter build macos --release` 本地部署驗證 |
+| **Gatekeeper：未簽章 App** | 首次開啟**建置產物**或下載的 DMG | **右鍵 → 打開**（或 系統設定 → 隱私權與安全性 → 「仍要打開」）；未簽章必然遇到，非錯誤 |
+| **通知** | F05 預算警示首次觸發 | 允許「LedgerSync」傳送通知 |
+| **本機網路／連線**（若跳窗） | 雲端同步、integration test | 允許 |
+| **Xcode 元件安裝** | 首次開 Xcode | 允許（需管理員密碼） |
 
-**磁碟空間提醒**：目前根磁碟僅剩 **約 14 GiB**（`df -h /`）——macOS 建置約需 2~4 GiB、多平台建置更吃緊。若建置中出現空間不足，請先清 `~/Library/Developer/Xcode/DerivedData` 或告知我協助清理（`flutter clean`／刪 build/）。
+**不需要授權**：Google OAuth 憑證（你已決定先不接雲端登入）、Apple／Google 商店帳號（改直接下載發佈）。
 
-**注意**：Xcode 未安裝時 `flutter analyze`／`flutter test` 可正常跑；**安裝後未同意授權反而全面擋住**——這是 Flutter 的行為，非專案問題。
+### 11.5 其他環境備註
 
+- **CocoaPods**：目前 `pod --version` 的錯誤**全部源自上面的授權**（它會呼叫 `git --version`）。
+  授權後若仍出現 `ffi` 警告 → `gem pristine ffi --version 1.17.2`；再不行 → `brew reinstall cocoapods`。
+- **磁碟**：根磁碟僅剩約 **14 GiB**；macOS 建置約需 2~4 GiB，若不足請先清 `~/Library/Developer/Xcode/DerivedData`。
+- **暫時繞道**（僅供開發端跑 `analyze`／unit、widget test，**不能** build macOS／跑 integration test）：
+
+  ```bash
+  DEVELOPER_DIR=/Library/Developer/CommandLineTools flutter test
+  ```
+
+  （已用此法驗證：`dart analyze` 0 issues、**121 unit 全綠**。）
