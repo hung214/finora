@@ -65,29 +65,39 @@ class AmountKeypad extends StatelessWidget {
     }
   }
 
-  Widget _key(String label, {bool primary = false, VoidCallback? onTap, int flex = 1}) {
-    final child = Text(label, style: const TextStyle(fontSize: 20));
+  Widget _key(BuildContext context, String label,
+      {bool primary = false, VoidCallback? onTap, int flex = 1}) {
+    final scheme = Theme.of(context).colorScheme;
     return Expanded(
       flex: flex,
       child: Padding(
         padding: const EdgeInsets.all(4),
-        child: primary
-            ? FilledButton(
-                key: Key('keypad-$label'),
-                onPressed: onTap,
-                child: child,
-              )
-            : FilledButton.tonal(
-                key: Key('keypad-$label'),
-                onPressed: onTap ?? () => _tap(label),
-                child: child,
+        child: Material(
+          // 圓角矩形（10 雛型；PM 2026-10-24：非膠囊）。
+          color: primary ? scheme.primary : scheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+          child: InkWell(
+            key: Key('keypad-$label'),
+            borderRadius: BorderRadius.circular(12),
+            onTap: onTap ?? () => _tap(label),
+            child: SizedBox(
+              height: 46,
+              child: Center(
+                child: Text(label,
+                    style: TextStyle(
+                        fontSize: 19,
+                        color: primary ? scheme.onPrimary : scheme.onSurface)),
               ),
+            ),
+          ),
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       key: const Key('amount-keypad'),
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -97,20 +107,34 @@ class AmountKeypad extends StatelessWidget {
           // 第一排：C／⌫／OK（OK 取代「＝」；key 沿用 quick-entry-save）。
           Row(
             children: [
-              _key('C'),
-              _key('⌫'),
+              _key(context, 'C'),
+              _key(context, '⌫'),
               Expanded(
                 flex: 1,
                 child: Padding(
                   padding: const EdgeInsets.all(4),
-                  child: FilledButton(
-                    key: const Key('quick-entry-save'),
-                    onPressed: okEnabled ? onOk : null,
-                    style: FilledButton.styleFrom(
-                        minimumSize: const Size.fromHeight(40)),
-                    child: const Text('OK',
-                        style: TextStyle(
-                            fontSize: 17, fontWeight: FontWeight.w800)),
+                  child: Material(
+                    color: okEnabled
+                        ? scheme.primary
+                        : scheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      key: const Key('quick-entry-save'),
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: okEnabled ? onOk : null,
+                      child: SizedBox(
+                        height: 46,
+                        child: Center(
+                          child: Text('OK',
+                              style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w800,
+                                  color: okEnabled
+                                      ? scheme.onPrimary
+                                      : scheme.outline)),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -121,12 +145,12 @@ class AmountKeypad extends StatelessWidget {
             ['4', '5', '6', '×'],
             ['1', '2', '3', '－'],
           ])
-            Row(children: [for (final label in row) _key(label)]),
+            Row(children: [for (final label in row) _key(context, label)]),
           // 末排：0 跨兩格、小數點、＋（＋ 移至原 ⌫ 位置；＝ 已移除）。
           Row(children: [
-            _key('0', flex: 2),
-            _key('.'),
-            _key('＋'),
+            _key(context, '0', flex: 2),
+            _key(context, '.'),
+            _key(context, '＋'),
           ]),
         ],
       ),

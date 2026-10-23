@@ -40,6 +40,7 @@ body{background:#e8ecef;display:flex;gap:300px;padding:40px;align-items:flex-sta
 .panel .key{background:rgba(255,255,255,.07);color:#e7f2f1;border-radius:12px;text-align:center;padding:11px 0;font-size:17px}
 .panel .key.op{color:#F5C86B;font-weight:700}
 .panel .key.fn{color:#9fd4d0;font-size:16px}
+.panel .key.ok{background:#F5C86B;color:#12312F;font-weight:800}
 </style>
 </head>
 <body>
@@ -52,9 +53,8 @@ body{background:#e8ecef;display:flex;gap:300px;padding:40px;align-items:flex-sta
       <div class="top"><span class="t">快速記帳</span><span class="t">2026/10/20 09:30</span></div>
       <div class="modes">
         <div class="mode on">支出</div>
-        <div class="mode">轉帳</div>
         <div class="mode">收入</div>
-        <div class="mode">還款</div>
+        <div class="mode">轉帳</div>
       </div>
       <div class="expr">165<small>金額（TWD・整數元）</small></div>
       <div style="display:flex;justify-content:center;align-items:center;gap:6px;margin-bottom:8px">
@@ -67,18 +67,18 @@ body{background:#e8ecef;display:flex;gap:300px;padding:40px;align-items:flex-sta
       <div class="field"><div class="f"><small>備註（選填）</small>早餐</div></div>
       <div style="flex:1"></div>
       <div class="panel">
-        <div class="save">OK 儲存</div>
         <div class="numpad">
+          <div class="key fn">C</div><div class="key fn">⌫</div><div class="key ok" style="grid-column:span 2">OK</div>
           <div class="key">7</div><div class="key">8</div><div class="key">9</div><div class="key op">÷</div>
           <div class="key">4</div><div class="key">5</div><div class="key">6</div><div class="key op">×</div>
           <div class="key">1</div><div class="key">2</div><div class="key">3</div><div class="key op">－</div>
-          <div class="key fn">C</div><div class="key">0</div><div class="key">.</div><div class="key fn">⌫</div>
-          <div class="key op">＋</div><div class="key op">＝</div>
+          <div class="key" style="grid-column:span 2">0</div><div class="key">.</div><div class="key op">＋</div>
         </div>
       </div>
     </div>
   </div>
-  <div class="note" style="top:60px"><b>S2.9 v2（PM 2026-10-23）</b>計算機＝**浮動面板貼底**；**OK 儲存在計算機上方**；鍵面 0-9／**.**／＋－×÷／＝／C／⌫（PM 補小數點；結果仍四捨五入至整數元）；連按運算子＝取代；÷0 → ＝ 無效（保留原式，儲存禁用）。</div>
+  <div class="note" style="top:60px"><b>S2.9 v4（PM 2026-10-24）</b>鍵盤＝<b>第一排 C／⌫／OK</b>（OK 取代「＝」）；末排 <b>0 跨兩格</b>／.／<b>＋（移至原 ⌫ 位）</b>；<b>無「＝」鍵——運算式即時求值</b>（未完成／÷0 → OK 禁用）；模式列＝支出／收入／轉帳。</div>
+  <div class="note" style="top:170px"><b>S2.9 v2（PM 2026-10-23）</b>計算機＝浮動面板貼底；鍵面 0-9／.／＋－×÷／C／⌫（小數點；結果四捨五入至整數元）；連按運算子＝取代。</div>
   <div class="note" style="top:300px"><b>金額欄（唯讀顯示）</b>系統鍵盤不彈出（TextInputType.none）——輸入一律經常駐鍵盤；運算式未完成（如 120＋）→ 儲存禁用；＝ 求值 165 → 儲存啟用（S2.1 金額必填＞0 即時切換）。</div>
   <div class="note" style="top:400px"><b>v3（PM 2026-10-24）</b>新增<b>備註欄位</b>（商家下方；手機／PC 皆有）。<br>「分類」欄點選→ <b>分類選擇彈窗</b>（上方常用／左下主類別／右下子類別）——同 03 雛型同一元件；選子類別會<b>帶入上次金額＋帳戶＋商家</b>。</div>
   <div class="note" style="top:560px"><b>日期（PM 2026-10-23）</b>日期在**金額下方**：◀▶ 快調 ±1 天；點擊日期開日曆（同 03 雛型）。<br><b>FR-Q1~Q5 既有語意不變</b>大金額鍵盤＋分類快捷格（見 03 雛型）；Sticky：繼續後金額清空、時間重設、帳戶/分類/商家保留。</div>
@@ -94,7 +94,6 @@ body{background:#e8ecef;display:flex;gap:300px;padding:40px;align-items:flex-sta
         <div class="mode">支出</div>
         <div class="mode on">轉帳</div>
         <div class="mode">收入</div>
-        <div class="mode">還款</div>
       </div>
       <div class="expr">500<small>金額（TWD・整數元）</small></div>
       <div style="display:flex;justify-content:center;align-items:center;gap:6px;margin-bottom:8px">
@@ -107,13 +106,12 @@ body{background:#e8ecef;display:flex;gap:300px;padding:40px;align-items:flex-sta
       <div class="field"><div class="f"><small>備註（選填）</small>房租轉帳</div></div>
       <div style="flex:1"></div>
       <div class="panel">
-        <div class="save">OK 儲存</div>
         <div class="numpad">
+          <div class="key fn">C</div><div class="key fn">⌫</div><div class="key ok" style="grid-column:span 2">OK</div>
           <div class="key">7</div><div class="key">8</div><div class="key">9</div><div class="key op">÷</div>
           <div class="key">4</div><div class="key">5</div><div class="key">6</div><div class="key op">×</div>
           <div class="key">1</div><div class="key">2</div><div class="key">3</div><div class="key op">－</div>
-          <div class="key fn">C</div><div class="key">0</div><div class="key">.</div><div class="key fn">⌫</div>
-          <div class="key op">＋</div><div class="key op">＝</div>
+          <div class="key" style="grid-column:span 2">0</div><div class="key">.</div><div class="key op">＋</div>
         </div>
       </div>
       <div style="margin-top:10px;color:#9fd4d0;font-size:11px;line-height:1.6">轉帳不計入收支統計（AC-10）；目標為電子票證 → 明細顯示「儲值」（FR-A5）；同帳戶轉帳 → UI 阻擋（目標選項排除來源）。</div>

@@ -184,9 +184,12 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
                     const SizedBox(height: 10),
                   ],
                   // 日期（PM 2026-10-23）：◀▶ 快調 ±1 天；點擊開日曆（不離開頁）。
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
+                  // FittedBox：窄幅自動縮放（永不溢出；2026-10-24 修 55px 溢出）。
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
                       IconButton(
                         key: const Key('date-prev'),
                         iconSize: 30,
@@ -232,7 +235,8 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
                             state.occurredAt.add(const Duration(days: 1))),
                         icon: const Icon(Icons.chevron_right),
                       ),
-                    ],
+                      ],
+                    ),
                   ),
                   _pickerField(
                     key: const Key('quick-entry-account'),
@@ -405,9 +409,10 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
   /// 日期顯示（中文星期；不依賴 intl locale 初始化——測試直接 pump 也安全）。
   static const _weekdays = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
 
+  // PM 2026-10-24：手機日期標籤去年份（03 雛型）——亦解決窄幅 Row 溢出。
   static String _dateLabel(DateTime t) =>
-      '${DateFormat('yyyy/MM/dd').format(t)}'
-      '（${_weekdays[t.weekday - 1]}） '
+      '${DateFormat('MM/dd').format(t)}'
+      '（${_weekdays[t.weekday - 1]}）'
       '${DateFormat('HH:mm').format(t)}';
 
   static bool _saveEnabled(QuickEntryState state) {
