@@ -29,17 +29,20 @@ class CategoryAddRequested extends CategoryPick {
 Future<CategoryPick?> showCategoryPicker(
   BuildContext context,
   WidgetRef ref, {
+  String kind = 'expense',
   String? selectedId,
 }) {
   return showDialog<CategoryPick>(
     context: context,
-    builder: (_) => _CategoryPickerDialog(selectedId: selectedId),
+    builder: (_) =>
+        _CategoryPickerDialog(kind: kind, selectedId: selectedId),
   );
 }
 
 class _CategoryPickerDialog extends ConsumerStatefulWidget {
-  const _CategoryPickerDialog({this.selectedId});
+  const _CategoryPickerDialog({this.kind = 'expense', this.selectedId});
 
+  final String kind;
   final String? selectedId;
 
   @override
@@ -53,7 +56,7 @@ class _CategoryPickerDialogState extends ConsumerState<_CategoryPickerDialog> {
   @override
   void initState() {
     super.initState();
-    final cats = ref.read(expenseCategoriesProvider);
+    final cats = ref.read(dbProvider).categoriesByKind(widget.kind);
     final sel = widget.selectedId;
     CategoryRow? selected;
     for (final c in cats) {
@@ -78,7 +81,7 @@ class _CategoryPickerDialogState extends ConsumerState<_CategoryPickerDialog> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
-    final cats = ref.watch(expenseCategoriesProvider);
+    final cats = ref.watch(dbProvider).categoriesByKind(widget.kind);
     final mains = [for (final c in cats) if (c.parentId == null) c];
     final subs = [for (final c in cats) if (c.parentId == _mainId) c];
     final byId = {for (final c in cats) c.id: c};

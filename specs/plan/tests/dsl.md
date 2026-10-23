@@ -2,7 +2,7 @@
 
 | 項目 | 內容 |
 |---|---|
-| 文件版本 | v1.14（明細：手機分日＋小計／桌面表格／金額千分位與顏色／語意標籤；平台對照（BDD §2.1）。v1.13（明細交易列顯示 分類/帳戶/商家/備註＋PC 分類欄同手機；子類別無圖示。v1.12（子類別**無圖示**——圖示跟隨主類別：功能頁/UI_DEMO/雛型/harness/dsl 同步。v1.11（快記 v3：分類選擇**彈窗**／備註欄／記住上次——keys 見 §4.6；綁定更新見 §4.5。v1.10 f11 harness 對齊 UI-P4。v1.9（F09-FE：§3 Given 1＋When 1＋Then 2 句型登記——`App 未設定 PIN`／`點「下一步」`／`顯示「確認文字輸入框」（不經 PIN 關卡）`／`不顯示 PIN 輸入框`（DBG-008）；§4.5 F11-FE 2 句型——子分類編輯＋快記連動（DBG-009）。v1.8 F08-BE：§2 Given 1＋Then 1 句型登記——`未設定 PIN 的裝置`／`hasPin 判定`；DBG-008 清空資料免 PIN 前置。v1.7 分類體系 v2：常用類別區/同層重名；v1.6 F11：帳戶/分類 CRUD 句型。v1.5 F09-FE：§3 Given 4＋When 3＋Then 6 句型登記——資料管理三重防護/加驗身分/已清空；v1.4 F09-BE：Given 3＋When 3＋Then 9 句型登記——WipeService 清空/雲端刪除/不復活；v1.3 F08-FE：§3 Given 3＋When 8＋Then 8 句型登記——鎖定畫面/Face ID seam/PIN 重設/隱私遮蔽；v1.2 F08-BE：§2 Given 6＋When 6＋Then 8 句型登記——AppLockController 門檻邊界/生物辨識退場/PIN 重設授權與拒絕路徑；v1.1 F06-FE：§3 Given 2＋When 3＋Then 4 句型登記——待確認 badge/清單/下期提醒/暫停標示；v1.0 F06-BE：Given 3＋When 4＋Then 12 句型登記——RecurringService 提醒確認制；v0.9 F07-FE：§3 Given 6＋When 6＋Then 12 句型登記；「同步中…」回饋斷言法（tap 後 pump 未 settle）；v0.8 F07-BE：§2.1 Given 8＋§2.2 When 7＋§2.3 Then 14 句型登記——SyncCoordinator/BundleApplier/BackupService；Outline 匯入結果分列綁定） |
+| 文件版本 | v1.15（快記：模式列僅 3 項（類別依模式獨立）／兩平台同版面／鍵盤 C·⌫·OK＋無＝＋0 跨兩格／＋新增分類可用；資料管理範圍勾選。v1.14（明細：手機分日＋小計／桌面表格／金額千分位與顏色／語意標籤；平台對照（BDD §2.1）。v1.13（明細交易列顯示 分類/帳戶/商家/備註＋PC 分類欄同手機；子類別無圖示。v1.12（子類別**無圖示**——圖示跟隨主類別：功能頁/UI_DEMO/雛型/harness/dsl 同步。v1.11（快記 v3：分類選擇**彈窗**／備註欄／記住上次——keys 見 §4.6；綁定更新見 §4.5。v1.10 f11 harness 對齊 UI-P4。v1.9（F09-FE：§3 Given 1＋When 1＋Then 2 句型登記——`App 未設定 PIN`／`點「下一步」`／`顯示「確認文字輸入框」（不經 PIN 關卡）`／`不顯示 PIN 輸入框`（DBG-008）；§4.5 F11-FE 2 句型——子分類編輯＋快記連動（DBG-009）。v1.8 F08-BE：§2 Given 1＋Then 1 句型登記——`未設定 PIN 的裝置`／`hasPin 判定`；DBG-008 清空資料免 PIN 前置。v1.7 分類體系 v2：常用類別區/同層重名；v1.6 F11：帳戶/分類 CRUD 句型。v1.5 F09-FE：§3 Given 4＋When 3＋Then 6 句型登記——資料管理三重防護/加驗身分/已清空；v1.4 F09-BE：Given 3＋When 3＋Then 9 句型登記——WipeService 清空/雲端刪除/不復活；v1.3 F08-FE：§3 Given 3＋When 8＋Then 8 句型登記——鎖定畫面/Face ID seam/PIN 重設/隱私遮蔽；v1.2 F08-BE：§2 Given 6＋When 6＋Then 8 句型登記——AppLockController 門檻邊界/生物辨識退場/PIN 重設授權與拒絕路徑；v1.1 F06-FE：§3 Given 2＋When 3＋Then 4 句型登記——待確認 badge/清單/下期提醒/暫停標示；v1.0 F06-BE：Given 3＋When 4＋Then 12 句型登記——RecurringService 提醒確認制；v0.9 F07-FE：§3 Given 6＋When 6＋Then 12 句型登記；「同步中…」回饋斷言法（tap 後 pump 未 settle）；v0.8 F07-BE：§2.1 Given 8＋§2.2 When 7＋§2.3 Then 14 句型登記——SyncCoordinator/BundleApplier/BackupService；Outline 匯入結果分列綁定） |
 | 用途 | 前端／後端 `.feature` 檔的**步驟句型唯一登記處**。新步驟必須先登記於本檔再實作綁定；未登記句型視為違規 |
 | 綁定 | 前端：自製 Gherkin runner + integration_test（TR-9 過渡；同 T-H7）｜後端：自製 Gherkin runner + flutter_test |
 
@@ -561,6 +561,19 @@
 > `test/presentation/quick_entry_ui_test.dart`（彈窗／備註／記住上次 3 情境）。
 > FE `.feature` 僅更新既有步驟之 keys 對映（`記帳分類選擇器可選`／`於選擇器點「＋ 新增分類」`／
 > `選單最上方為「常用」…`／`回到快記其分類快捷格…`／`快記分類選擇器展開…`）。
+
+## 4.7 快記 v4／資料管理句型登記（PM 2026-10-24；v1.15）
+
+| 目標 | key／綁定 |
+|---|---|
+| 模式列 | `quick-entry-mode`（手機）／`desktop-quick-mode`（桌面）：**支出／收入／轉帳** |
+| 三欄主類別格 | `cat-grid-{name}`（`MainCategoryGrid`；手機與桌面共用） |
+| 計算機 | `amount-keypad`；第一排 `keypad-C`／`keypad-⌫`／`quick-entry-save`（OK）；末排 `keypad-0`（跨兩格）／`keypad-.`／`keypad-＋`；**無 `keypad-＝`** |
+| 分類彈窗新增 | `picker-add-main`／`picker-add-sub` → `quick-add-category-name`／`quick-add-category-save`（兩平台皆建立並選取） |
+| 刪除範圍 | `wipe-start` → `wipe-scope-全部`／`wipe-scope-{label}`／`wipe-scope-factory` → `wipe-scope-next` |
+
+> 回歸護欄：`test/presentation/amount_keypad_test.dart`（版面＋即時求值）、
+> `quick_entry_ui_test.dart`、`ledger_tile_test.dart`、`data_management_wipe_test.dart`。
 
 ## 5. 禁例
 

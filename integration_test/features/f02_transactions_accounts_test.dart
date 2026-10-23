@@ -18,7 +18,7 @@ import '../../test/helpers/in_memory_cloud_adapter.dart';
 import '../../test/helpers/db_fixture.dart';
 import '../../test/helpers/gherkin/gherkin.dart';
 
-/// F02-FE 情境執行器（@FE @M1 @FR-T @FR-A @P0，4 情境；拆分 @P1 @M2 過濾）。
+/// F02-FE 情境執行器（@FE @M1 @FR-T @FR-A @P0，5 情境；拆分移至明細編輯）。
 ///
 /// 來源：specs/plan/tests/frontend/F02_transactions-accounts.feature（sync_features.ps1
 /// 同步副本，pubspec 資產入包——桌面 App 行程 CWD 非專案根，須 rootBundle 讀）。
@@ -36,10 +36,10 @@ Future<void> main() async {
     _bind(runner, w);
     try {
       final executed = await runner.run(doc, tagFilter: (tags) {
-        // M2 遺留完成（拆分 @P1 @M2 已實作）——全部情境執行。
+        // 拆分已移至「明細→編輯交易」（PM 2026-10-24）——不在此檔。
         return tags.contains('@FE');
       });
-      expect(executed, 6, reason: 'F02-FE 應執行 6 個情境（@FE 全部：P0 5＋拆分 @P1 @M2）');
+      expect(executed, 5, reason: 'F02-FE 應執行 5 個情境（拆分移至明細編輯，PM 2026-10-24）');
       // ignore: avoid_print
       print(runner.log.join('\n'));
     } finally {
@@ -216,25 +216,6 @@ void _bind(GherkinRunner runner, _World w) {
       findsWidgets,
       reason: '拆分樣式標示（拆分 · 分類）',
     );
-  });
-
-  runner.on(r'建立拆分交易 總額 {total}（{cat1} {a1} \+ {cat2} {a2}）$', (p) async {
-    await _ensureQuickEntry(w);
-    final ctrl = w.container!.read(quickEntryControllerProvider.notifier);
-    ctrl.setMode(QuickEntryMode.split);
-    await w.tester.pumpAndSettle(); // 拆分欄位建構
-    ctrl.selectSplitCategory(0, p['cat1']!);
-    ctrl.selectSplitCategory(1, p['cat2']!);
-    await w.tester.enterText(
-        find.byKey(const Key('split-item-0-amount')), p['a1']!);
-    await w.tester.enterText(
-        find.byKey(const Key('split-item-1-amount')), p['a2']!);
-    await w.tester.pump();
-    ctrl.save();
-    w.sessionExpenses.addAll([_amount(p['a1']!), _amount(p['a2']!)]);
-    await w.tester.pumpAndSettle(); // SavedDialog
-    await w.tester.tap(find.text('完成'));
-    await w.tester.pumpAndSettle(); // 返回主殼
   });
 
   runner.on(r'顯示「{text}」（不顯示「{other}」）$', (p) async {

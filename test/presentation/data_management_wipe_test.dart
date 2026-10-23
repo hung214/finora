@@ -35,6 +35,8 @@ void main() {
       expect(find.byKey(const Key('wipe-start')), findsOneWidget);
       await tester.tap(find.byKey(const Key('wipe-start')));
       await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('wipe-scope-next')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('wipe-warning-continue')));
       await tester.pumpAndSettle();
 
@@ -69,6 +71,8 @@ void main() {
       ));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('wipe-start')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('wipe-scope-next')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('wipe-warning-continue')));
       await tester.pumpAndSettle();

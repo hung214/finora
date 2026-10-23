@@ -3,12 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../application/appearance/theme_mode_state.dart';
-import '../../../application/budgets/budget_service.dart';
 import '../../../application/categories/category_service.dart';
 import '../../../application/providers.dart';
 import '../../../data/sqlite/app_database.dart';
 import 'amount_keypad.dart';
 import 'category_picker_dialog.dart';
+import 'main_category_grid.dart';
 import 'quick_date_time_picker.dart';
 import '../settings/category_settings_page.dart';
 import 'quick_entry_controller.dart';
@@ -45,11 +45,11 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
   /// 兩層式分類（PM 2026-10-22）：展開之子類別所屬主類別。
   String? _selectedMainId;
 
-  /// 預算模式目標＝總預算（PM 2026-10-22）。
-  bool _budgetIsTotal = false;
-
-  /// 分類即時新增後的刷新（providers 讀 db 快取，需 invalidate）。
-  void _refreshCategories() => ref.invalidate(expenseCategoriesProvider);
+  /// 分類即時新增後的刷新（providers 讀 db 快取，需 invalidate 兩分類集）。
+  void _refreshCategories() {
+    ref.invalidate(expenseCategoriesProvider);
+    ref.invalidate(incomeCategoriesProvider);
+  }
 
   @override
   void dispose() {
@@ -88,20 +88,16 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
     final state = ref.watch(quickEntryControllerProvider);
     final controller = ref.read(quickEntryControllerProvider.notifier);
     final accounts = ref.watch(activeAccountsProvider);
-    final categories = ref.watch(expenseCategoriesProvider);
+    // 分類集依模式（支出／收入；PM 2026-10-24）。
+    final categories = ref.watch(state.mode == QuickEntryMode.income
+        ? incomeCategoriesProvider
+        : expenseCategoriesProvider);
     // 分類圖示解析（PM 2026-10-24）：子類別無自身圖示——取**主類別**圖示。
     final catById = {for (final c in categories) c.id: c};
     String? iconOfCategory(CategoryRow? c) => c == null
         ? null
         : (c.icon ??
             (c.parentId == null ? null : catById[c.parentId]?.icon));
-    // 常用類別（FR-B1 常用區）：拆分模式分類欄（_pickerField）用——最近使用 10 個。
-    final nameById = {for (final c in categories) c.id: c.name};
-    final emojiById = {for (final c in categories) c.id: c.icon};
-    final recent = [
-      for (final id in ref.watch(recentCategoryIdsProvider))
-        if (nameById[id] != null) (id, nameById[id]!, emojiById[id]),
-    ];
     ref.listen(
       quickEntryControllerProvider.select((s) => s.phase),
       (prev, next) => _onPhaseChange(prev, next),
@@ -145,21 +141,21 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                 children: [
-                  // F02 S2.3：模式切換（支出/轉帳/拆分）。
+                  // 模式列（PM 2026-10-24 定稿）：**僅 支出／收入／轉帳**。
+                  // 「拆分」移至明細→編輯交易；「預算」設定走預算頁表單。
                   SegmentedButton<QuickEntryMode>(
                     key: const Key('quick-entry-mode'),
                     segments: const [
                       ButtonSegment(
                           value: QuickEntryMode.expense, label: Text('支出')),
                       ButtonSegment(
+                          value: QuickEntryMode.income, label: Text('收入')),
+                      ButtonSegment(
                           value: QuickEntryMode.transfer, label: Text('轉帳')),
-                      ButtonSegment(
-                          value: QuickEntryMode.split, label: Text('拆分')),
-                      ButtonSegment(
-                          value: QuickEntryMode.budget, label: Text('預算')),
                     ],
                     selected: {state.mode},
-                    onSelectionChanged: (modes) => controller.setMode(modes.first),
+                    onSelectionChanged: (modes) =>
+                        controller.setMode(modes.first),
                   ),
                   const SizedBox(height: 12),
                   // 金額大顯示（03 雛型）。
@@ -177,8 +173,17 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
                         hintText: '0', border: InputBorder.none),
                     onChanged: controller.setAmount,
                   ),
-                  // 日期（PM 2026-10-23）：金額下方；◀▶ 快調 ±1 天；
-                    // 點擊日期開日曆（可跨月/年，FR-Q8 S1.5 不離開頁）。
+                  // 三欄主類別快捷格（PM 2026-10-24：**手機與桌面同一版面**；轉帳不適用）。
+                  if (state.mode != QuickEntryMode.transfer) ...[
+                    MainCategoryGrid(
+                      categories: categories,
+                      selectedMainId:
+                          state.category?.parentId ?? state.category?.id,
+                      onSelect: (m) => controller.selectCategoryById(m.id),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                  // 日期（PM 2026-10-23）：◀▶ 快調 ±1 天；點擊開日曆（不離開頁）。
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -211,7 +216,7 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
                         },
                         child: Text(
                           _dateLabel(state.occurredAt),
-                          // PM 2026-10-23：日期放大（labelLarge 1.5×）。
+                          // PM 2026-10-23：日期放大（1.5×）。
                           style: Theme.of(context)
                               .textTheme
                               .titleMedium
@@ -231,9 +236,12 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
                   ),
                   _pickerField(
                     key: const Key('quick-entry-account'),
-                    label: state.mode == QuickEntryMode.transfer ? '來源帳戶' : '帳戶',
+                    label: state.mode == QuickEntryMode.transfer
+                        ? '來源帳戶'
+                        : '帳戶',
                     text: state.account?.name ?? '選擇帳戶',
-                    entries: accounts.map((a) => (a.id, a.name, false)).toList(),
+                    entries:
+                        accounts.map((a) => (a.id, a.name, false)).toList(),
                     recent: const [],
                     onSelected: controller.selectAccountById,
                   ),
@@ -243,7 +251,7 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
                       key: const Key('quick-entry-target'),
                       label: '目標帳戶',
                       text: state.toAccount?.name ?? '選擇目標帳戶',
-                      // 同帳戶轉帳 UI 阻擋（S2.3 邊界）：目標選項排除來源帳戶。
+                      // 同帳戶轉帳 UI 阻擋（S2.3 邊界）：目標排除來源帳戶。
                       entries: accounts
                           .where((a) => a.id != state.account?.id)
                           .map((a) => (a.id, a.name, false))
@@ -251,92 +259,9 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
                       recent: const [],
                       onSelected: controller.selectToAccountById,
                     ),
-                  ] else if (state.mode == QuickEntryMode.split) ...[
-                    // 拆分子項 ×2（FR-T6；M2 固定兩項；總額守恆由 BE 驗證）。
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _pickerField(
-                            key: const Key('split-item-0-cat'),
-                            label: '子項 1 分類',
-                            text: state.splitCat0?.name ?? '選擇分類',
-                            entries: _hierarchicalEntries(categories),
-                            recent: recent,
-                            addCategoryAction: () => Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                    builder: (_) =>
-                                        const CategorySettingsPage())),
-                            onSelected: (id) =>
-                                controller.selectSplitCategoryById(0, id),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextField(
-                            key: const Key('split-item-0-amount'),
-                            keyboardType: TextInputType.number,
-                            decoration:
-                                const InputDecoration(labelText: '子項 1 金額'),
-                            onChanged: (v) => controller.setSplitItemAmount(0, v),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _pickerField(
-                            key: const Key('split-item-1-cat'),
-                            label: '子項 2 分類',
-                            text: state.splitCat1?.name ?? '選擇分類',
-                            entries: _hierarchicalEntries(categories),
-                            recent: recent,
-                            addCategoryAction: () => Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                    builder: (_) =>
-                                        const CategorySettingsPage())),
-                            onSelected: (id) =>
-                                controller.selectSplitCategoryById(1, id),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextField(
-                            key: const Key('split-item-1-amount'),
-                            keyboardType: TextInputType.number,
-                            decoration:
-                                const InputDecoration(labelText: '子項 2 金額'),
-                            onChanged: (v) => controller.setSplitItemAmount(1, v),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text('總額 ${_splitTotal(state)} 元',
-                        style: Theme.of(context).textTheme.titleMedium),
-                  ] else if (state.mode == QuickEntryMode.budget) ...[
-                    // 預算模式（PM 2026-10-22）：預算設定併入快記——
-                    // 「總預算」或選定分類 → 金額（計算機）→ OK → 存為預算。
-                    _BudgetTargetGrid(
-                      categories: categories,
-                      isTotal: _budgetIsTotal,
-                      selectedCategory: state.category,
-                      selectedMainId: _selectedMainId,
-                      onSelect: (id, mainId) {
-                        controller.selectCategoryById(id);
-                        setState(() {
-                          _selectedMainId = mainId;
-                          _budgetIsTotal = false;
-                        });
-                      },
-                      onSelectTotal: () =>
-                          setState(() => _budgetIsTotal = true),
-                      onQuickAdd: _quickAddCategory,
-                    ),
                   ] else ...[
-                    // 分類欄（PM 2026-10-24）：點選 → **分類選擇彈窗**
-                    // （上方常用／左主類別／右子類別）。
+                    // 分類欄（PM 2026-10-24）：點選 → 彈窗（上常用／左主／右子）；
+                    // 顯示「主類別 emoji ＋ 類別名」（子類別＝主類別 emoji＋子名）。
                     InkWell(
                       key: const Key('quick-entry-category'),
                       onTap: _openCategoryPicker,
@@ -358,17 +283,15 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
                       decoration: const InputDecoration(labelText: '商家'),
                       onChanged: controller.setMerchant,
                     ),
-                    const SizedBox(height: 12),
-                    // 備註（PM 2026-10-24；選填）。
-                    TextField(
-                      key: const Key('quick-entry-note'),
-                      controller: _noteCtrl,
-                      decoration:
-                          const InputDecoration(labelText: '備註（選填）'),
-                      onChanged: controller.setNote,
-                    ),
                   ],
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
+                  // 備註（PM 2026-10-24；選填；轉帳亦適用）。
+                  TextField(
+                    key: const Key('quick-entry-note'),
+                    controller: _noteCtrl,
+                    decoration: const InputDecoration(labelText: '備註（選填）'),
+                    onChanged: controller.setNote,
+                  ),
                 ],
               ),
             ),
@@ -394,22 +317,13 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  FilledButton(
-                    key: const Key('quick-entry-save'),
-                    // F02 S2.1：金額必填且大於 0；轉帳另需目標帳戶；拆分另需雙子項；
-                    // 預算模式（PM 2026-10-22）→ 存為預算內容（非交易）。
-                    onPressed: _saveEnabled(state)
-                        ? (state.mode == QuickEntryMode.budget
-                            ? _saveBudget
-                            : controller.save)
-                        : null,
-                    style: FilledButton.styleFrom(
-                        minimumSize: const Size.fromHeight(48)),
-                    child: Text(_saveEnabled(state) ? 'OK 儲存' : 'OK',
-                        style: const TextStyle(
-                            fontSize: 17, fontWeight: FontWeight.w800)),
+                  // OK 已移入鍵盤第一排（PM 2026-10-24：C／⌫／OK；移除「＝」）。
+                  AmountKeypad(
+                    expr: _expr,
+                    onExprChanged: _onKeypadExpr,
+                    onOk: controller.save,
+                    okEnabled: _saveEnabled(state),
                   ),
-                  AmountKeypad(expr: _expr, onExprChanged: _onKeypadExpr),
                 ],
               ),
             ),
@@ -419,42 +333,15 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
     );
   }
 
-  /// 預算模式儲存（PM 2026-10-22）：輸入完成 → 變成預算內容
-  /// （總預算或選定分類；週期起始日＝1，進階編輯走預算頁表單）。
-  void _saveBudget() {
-    final state = ref.read(quickEntryControllerProvider);
-    final amount = int.tryParse(state.amount) ?? 0;
-    if (amount <= 0) return;
-    final service = BudgetService(ref.read(dbProvider));
-    if (_budgetIsTotal) {
-      service.setTotalBudget(amountMinor: amount, periodStartDay: 1);
-    } else {
-      final cat = state.category;
-      if (cat == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('請先選擇分類（或「總預算」）')));
-        return;
-      }
-      service.setCategoryBudget(
-          categoryId: cat.id, amountMinor: amount, periodStartDay: 1);
-    }
-    // Sticky 慣例：金額清空；成功提示（預算非交易——不彈每筆確認）。
-    setState(() {
-      _expr = '';
-      _amountCtrl.clear();
-    });
-    ref.read(quickEntryControllerProvider.notifier).setAmount('');
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('預算已設定（見預算頁）')));
-  }
-
   /// 分類選擇彈窗（PM 2026-10-24）：上方常用／左主類別／右子類別；
   /// 回傳結果 → 選定（帶入上次金額/帳戶/商家）或「＋即建即選」。
   Future<void> _openCategoryPicker() async {
+    final st = ref.read(quickEntryControllerProvider);
     final pick = await showCategoryPicker(
       context,
       ref,
-      selectedId: ref.read(quickEntryControllerProvider).category?.id,
+      kind: st.mode == QuickEntryMode.income ? 'income' : 'expense',
+      selectedId: st.category?.id,
     );
     if (!mounted || pick == null) return;
     switch (pick) {
@@ -498,7 +385,12 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
     if (name == null || name.isEmpty) return;
     try {
       final row = CategoryService(ref.read(dbProvider)).create(
-          kind: 'expense', name: name, parentId: parentId);
+          kind: ref.read(quickEntryControllerProvider).mode ==
+                  QuickEntryMode.income
+              ? 'income'
+              : 'expense',
+          name: name,
+          parentId: parentId);
       _refreshCategories();
       ref.read(quickEntryControllerProvider.notifier).selectCategoryById(row.id);
       if (!asSub) setState(() => _selectedMainId = row.id);
@@ -518,41 +410,20 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
       '（${_weekdays[t.weekday - 1]}） '
       '${DateFormat('HH:mm').format(t)}';
 
-  static String _splitTotal(QuickEntryState state) {
-    final a0 = int.tryParse(state.splitAmount0) ?? 0;
-    final a1 = int.tryParse(state.splitAmount1) ?? 0;
-    return '${a0 + a1}';
-  }
-
   static bool _saveEnabled(QuickEntryState state) {
-    final amountOk = (int.tryParse(state.amount) ?? 0) > 0;
+    // 即時求值（PM 2026-10-24：移除 ＝ 鍵）——未完成／無效 → 金額未定 → 禁用。
+    final amountOk = (AmountKeypadEvaluator.evaluate(state.amount) ?? 0) > 0;
     switch (state.mode) {
-      case QuickEntryMode.budget:
-        return amountOk; // 分類未選 → OK 停留（_saveBudget 提示）
       case QuickEntryMode.transfer:
         return amountOk && state.toAccount != null;
-      case QuickEntryMode.split:
-        final a0 = int.tryParse(state.splitAmount0) ?? 0;
-        final a1 = int.tryParse(state.splitAmount1) ?? 0;
-        return a0 > 0 && a1 > 0 && state.splitCat0 != null && state.splitCat1 != null;
       case QuickEntryMode.expense:
+      case QuickEntryMode.income:
         return amountOk;
     }
   }
 
   /// 分類選單項（主類別→子分類縮排；FR-B1 階層）。
   /// 第三元素＝是否子分類（結構化縮排渲染——文字保持原樣供精確比對）。
-  List<(String, String, bool)> _hierarchicalEntries(List<dynamic> categories) {
-    final mains = categories.where((c) => c.parentId == null);
-    return [
-      for (final m in mains) ...[
-        (m.id as String, m.name as String, false),
-        for (final s in categories.where((c) => c.parentId == m.id))
-          (s.id as String, s.name as String, true),
-      ],
-    ];
-  }
-
   Widget _pickerField({
     required Key key,
     required String label,
@@ -632,131 +503,6 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
 String _chipLabel(String? icon, String name) =>
     (icon != null && categoryEmojis.contains(icon)) ? '$icon $name' : name;
 
-/// 預算模式目標格（PM 2026-10-22）：**總預算 或 分類**（兩層格同快記）；
-/// 選定後金額（計算機）→ OK → 存為預算內容。
-class _BudgetTargetGrid extends StatelessWidget {
-  const _BudgetTargetGrid({
-    required this.categories,
-    required this.isTotal,
-    required this.selectedCategory,
-    required this.selectedMainId,
-    required this.onSelect,
-    required this.onSelectTotal,
-    required this.onQuickAdd,
-  });
-
-  final List<dynamic> categories;
-  final bool isTotal;
-  final dynamic selectedCategory; // CategoryRow?
-  final String? selectedMainId;
-  final void Function(String id, String? mainId) onSelect;
-  final VoidCallback onSelectTotal;
-  final Future<void> Function({required bool asSub}) onQuickAdd;
-
-  @override
-  Widget build(BuildContext context) {
-    final mains = categories.where((c) => c.parentId == null).toList();
-    final subs = selectedMainId == null
-        ? const <dynamic>[]
-        : categories.where((c) => c.parentId == selectedMainId).toList();
-    final selectedId = selectedCategory?.id as String?;
-    final scheme = Theme.of(context).colorScheme;
-
-    Widget label(String text) => Padding(
-          padding: const EdgeInsets.only(top: 10, bottom: 6),
-          child: Text(text,
-              style: Theme.of(context)
-                  .textTheme
-                  .labelMedium
-                  ?.copyWith(color: scheme.outline)),
-        );
-
-    Widget chip({
-      required String label,
-      required bool selected,
-      Key? key,
-      VoidCallback? onTap,
-      IconData? icon,
-    }) =>
-        InkWell(
-          key: key,
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(14),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-            decoration: BoxDecoration(
-              color: selected ? scheme.primary : scheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                  color: selected ? scheme.primary : scheme.outlineVariant),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (icon != null) ...[
-                  Icon(icon,
-                      size: 15,
-                      color: selected ? scheme.onPrimary : scheme.outline),
-                  const SizedBox(width: 4),
-                ],
-                Text(label,
-                    style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: selected ? FontWeight.w700 : null,
-                        color: selected ? scheme.onPrimary : null)),
-              ],
-            ),
-          ),
-        );
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        label('預算目標'),
-        Wrap(spacing: 6, runSpacing: 6, children: [
-          chip(
-              label: '總預算',
-              selected: isTotal,
-              key: const Key('budget-chip-total'),
-              icon: Icons.savings_outlined,
-              onTap: onSelectTotal),
-          for (final m in mains)
-            chip(
-                label: _chipLabel(m.icon as String?, m.name as String),
-                selected: !isTotal && selectedId == m.id,
-                key: Key('budget-chip-${m.name}'),
-                onTap: () => onSelect(m.id as String, m.id as String)),
-          chip(
-              label: '主類別',
-              selected: false,
-              key: const Key('cat-add-main'),
-              icon: Icons.add,
-              onTap: () => onQuickAdd(asSub: false)),
-        ]),
-        if (selectedMainId != null && !isTotal) ...[
-          label('子分類'),
-          Wrap(spacing: 6, runSpacing: 6, children: [
-            for (final s in subs)
-              chip(
-                  // 子類別無圖示（PM 2026-10-24）。
-                  label: s.name as String,
-                  selected: selectedId == s.id,
-                  key: Key('budget-chip-${s.name}'),
-                  onTap: () => onSelect(s.id as String, selectedMainId)),
-            chip(
-                label: '子分類',
-                selected: false,
-                key: const Key('cat-add-sub'),
-                icon: Icons.add,
-                onTap: () => onQuickAdd(asSub: true)),
-          ]),
-        ],
-      ],
-    );
-  }
-}
-
-/// 每筆確認對話框（FR-Q2）：繼續／復原上一筆／完成。
 class SavedDialog extends ConsumerWidget {
   const SavedDialog({super.key, required this.onFinish});
 

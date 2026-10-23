@@ -85,8 +85,10 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    expect(find.text('交通運輸'), findsWidgets,
-        reason: '無商家 → 標題退回分類名（PM 2026-10-24）');
+    expect(find.text('—'), findsOneWidget,
+        reason: '商家欄為空 → 標題「—」（PM 2026-10-24：商家欄對應商家，不退回分類）');
+    expect(find.textContaining('交通運輸'), findsWidgets,
+        reason: '分類仍顯示（副標／分類欄）');
     expect(find.text('🚇'), findsOneWidget);
     expect(find.textContaining('現金'), findsWidgets, reason: '副標含帳戶');
     expect(tester.takeException(), isNull);

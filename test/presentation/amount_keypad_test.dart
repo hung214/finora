@@ -42,7 +42,7 @@ void main() {
     });
   });
 
-  testWidgets('鍵盤互動：數字／連按運算子取代／⌫／C／＝求值', (tester) async {
+  testWidgets('鍵盤互動：數字／連按運算子取代／⌫／C（無＝鍵；PM 2026-10-24）', (tester) async {
     var expr = '';
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(
@@ -72,11 +72,40 @@ void main() {
     expect(expr, '120×', reason: '連按運算子 → 取代前一運算子');
     await tap('4');
     expect(expr, '120×4');
-    await tap('＝');
-    expect(expr, '480');
+    // 無「＝」鍵（PM 2026-10-24）：運算式由呼叫端**即時求值**——
+    // 完整式（不尾運算子／非 ÷0）→ 求值得值；未完成 → null（OK 禁用）。
+    expect(AmountKeypadEvaluator.evaluate(expr), 480);
     await tap('⌫');
-    expect(expr, '48');
+    expect(expr, '120×');
+    expect(AmountKeypadEvaluator.evaluate(expr), isNull, reason: '尾運算子→未定');
     await tap('C');
     expect(expr, isEmpty);
+  });
+
+  testWidgets('鍵盤版面（PM 2026-10-24）：第一排 C／⌫／OK；0 跨兩格；無＝鍵', (tester) async {
+    var expr = '';
+    var okTaps = 0;
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: StatefulBuilder(
+          builder: (context, setState) => AmountKeypad(
+            expr: expr,
+            okEnabled: true,
+            onOk: () => okTaps++,
+            onExprChanged: (e) => setState(() => expr = e),
+          ),
+        ),
+      ),
+    ));
+    expect(find.byKey(const Key('keypad-＝')), findsNothing, reason: '＝ 已移除');
+    expect(find.byKey(const Key('quick-entry-save')), findsOneWidget,
+        reason: 'OK 於鍵盤第一排（key 沿用）');
+    expect(find.text('C'), findsOneWidget);
+    expect(find.text('⌫'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('keypad-0')));
+    await tester.pump();
+    expect(expr, '0');
+    await tester.tap(find.byKey(const Key('quick-entry-save')));
+    expect(okTaps, 1, reason: 'OK 觸發儲存回呼');
   });
 }

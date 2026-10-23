@@ -5,6 +5,7 @@ import '../../../core/clock.dart';
 import '../../../data/sqlite/app_database.dart';
 import '../../../domain/entities/transaction.dart';
 import '../../../application/quick_entry/quick_entry_memory.dart';
+import 'amount_keypad.dart';
 
 /// 快記狀態機階段（SDD §5.1）。
 enum QuickEntryPhase {
@@ -14,8 +15,11 @@ enum QuickEntryPhase {
   savedDialog,
 }
 
-/// 快記模式（F02：支出／轉帳／拆分；收入/還款模式隨 M2+ 情境擴充）。
-enum QuickEntryMode { expense, transfer, split, budget }
+/// 快記模式（PM 2026-10-24 定稿：**僅 支出／收入／轉帳**）。
+///
+/// 「拆分」移至**明細→編輯交易**（FR-T6；入口另開任務）；「預算」設定回**預算頁**表單
+/// （預算頁本有新增/編輯表單，快記不再兼作預算輸入）。
+enum QuickEntryMode { expense, income, transfer }
 
 /// 快記狀態（SDD §5.1；Sticky 欄位＝帳戶/分類/商家，金額/時間每筆重設）。
 class QuickEntryState {
@@ -24,10 +28,6 @@ class QuickEntryState {
     this.mode = QuickEntryMode.expense,
     this.account,
     this.toAccount,
-    this.splitCat0,
-    this.splitCat1,
-    this.splitAmount0 = '',
-    this.splitAmount1 = '',
     this.category,
     this.merchant = '',
     this.note = '',
@@ -46,11 +46,6 @@ class QuickEntryState {
   /// 轉帳目標帳戶（transfer 專用；BE 驗證須相異）。
   final AccountRow? toAccount;
 
-  /// 拆分子項（split 專用，M2 固定兩項；FR-T6）。
-  final CategoryRow? splitCat0;
-  final CategoryRow? splitCat1;
-  final String splitAmount0;
-  final String splitAmount1;
   final CategoryRow? category;
   final String merchant;
 
@@ -73,12 +68,8 @@ class QuickEntryState {
     AccountRow? account,
     AccountRow? toAccount,
     bool clearToAccount = false,
-    CategoryRow? splitCat0,
-    CategoryRow? splitCat1,
-    bool clearSplitItems = false,
-    String splitAmount0 = '',
-    String splitAmount1 = '',
     CategoryRow? category,
+    bool clearCategory = false,
     String? merchant,
     String? note,
     String? amount,
@@ -91,11 +82,7 @@ class QuickEntryState {
         mode: mode ?? this.mode,
         account: account ?? this.account,
         toAccount: clearToAccount ? null : (toAccount ?? this.toAccount),
-        splitCat0: clearSplitItems ? null : (splitCat0 ?? this.splitCat0),
-        splitCat1: clearSplitItems ? null : (splitCat1 ?? this.splitCat1),
-        splitAmount0: clearSplitItems ? '' : splitAmount0,
-        splitAmount1: clearSplitItems ? '' : splitAmount1,
-        category: category ?? this.category,
+        category: clearCategory ? null : (category ?? this.category),
         merchant: merchant ?? this.merchant,
         note: note ?? this.note,
         amount: amount ?? this.amount,
@@ -121,6 +108,14 @@ class QuickEntryController extends AutoDisposeNotifier<QuickEntryState> {
       occurredAt: preset.time,
     );
   }
+
+  /// 目前模式之分類種類（支出／收入；轉帳不適用分類）。
+  String get _catKind =>
+      state.mode == QuickEntryMode.income ? 'income' : 'expense';
+
+  /// 目前模式之分類清單。
+  List<CategoryRow> get _categories =>
+      ref.read(dbProvider).categoriesByKind(_catKind);
 
   // ── 欄位輸入（Inputting） ─────────────────────────────────
 
@@ -149,7 +144,7 @@ class QuickEntryController extends AutoDisposeNotifier<QuickEntryState> {
 
   void selectCategoryById(String? id) {
     if (id == null) return;
-    for (final c in ref.read(expenseCategoriesProvider)) {
+    for (final c in _categories) {
       if (c.id == id) {
         var next =
             state.copyWith(category: c, phase: QuickEntryPhase.inputting);
@@ -200,48 +195,17 @@ class QuickEntryController extends AutoDisposeNotifier<QuickEntryState> {
 
   // ── 模式與目標帳戶（F02 S2.3 轉帳） ──────────────────────
 
-  /// 切換模式（支出/轉帳）：轉帳不適用分類/商家（BE 強制 null），UI 隱藏之；
-  /// 目標帳戶隨模式重選（來源帳戶保留）。
+  /// 切換模式（支出／收入／轉帳；PM 2026-10-24）。
+  /// 轉帳不適用分類/商家（BE 強制 null，UI 隱藏）；收入↔支出之分類集不同
+  /// → 切換時重選該類別集首項（無則清空）。
   void setMode(QuickEntryMode mode) {
     if (mode == state.mode) return;
-    state = state.copyWith(mode: mode, clearToAccount: true, clearSplitItems: true);
-  }
-
-  // ── 拆分子項（F02 S2.7：M2 固定兩項） ────────────────────
-
-  void selectSplitCategory(int index, String name) {
-    for (final c in ref.read(expenseCategoriesProvider)) {
-      if (c.name == name) {
-        state = index == 0
-            ? state.copyWith(splitCat0: c, phase: QuickEntryPhase.inputting)
-            : state.copyWith(splitCat1: c, phase: QuickEntryPhase.inputting);
-        return;
-      }
-    }
-    throw StateError('拆分子項分類不存在：$name');
-  }
-
-  /// 依 id 選拆分子項分類（UI dropdown 用）。
-  void selectSplitCategoryById(int index, String? id) {
-    if (id == null) return;
-    for (final c in ref.read(expenseCategoriesProvider)) {
-      if (c.id == id) {
-        state = index == 0
-            ? state.copyWith(splitCat0: c, phase: QuickEntryPhase.inputting)
-            : state.copyWith(splitCat1: c, phase: QuickEntryPhase.inputting);
-        return;
-      }
-    }
-  }
-
-  void setSplitItemAmount(int index, String text) {
-    final amount0 = index == 0 ? text : state.splitAmount0;
-    final amount1 = index == 1 ? text : state.splitAmount1;
     state = state.copyWith(
-      splitAmount0: amount0,
-      splitAmount1: amount1,
-      phase: QuickEntryPhase.inputting,
-    );
+        mode: mode, clearToAccount: true, clearCategory: true);
+    if (mode != QuickEntryMode.transfer) {
+      final cats = _categories;
+      if (cats.isNotEmpty) state = state.copyWith(category: cats.first);
+    }
   }
 
   void selectToAccountById(String? id) {
@@ -271,36 +235,10 @@ class QuickEntryController extends AutoDisposeNotifier<QuickEntryState> {
   /// 失敗回 Inputting 保留輸入＋錯誤提示（SDD §5.1）。
   void save() {
     if (state.account == null) return;
-    // 拆分（FR-T6）：不走 state.amount（雙子項金額）；守恆由 executeSplit 驗證。
-    if (state.mode == QuickEntryMode.split) {
-      final a0 = int.tryParse(state.splitAmount0) ?? 0;
-      final a1 = int.tryParse(state.splitAmount1) ?? 0;
-      if (a0 <= 0 || a1 <= 0 || state.splitCat0 == null || state.splitCat1 == null) {
-        return; // 拆分子項未完成：停留輸入態
-      }
-      state = state.copyWith(phase: QuickEntryPhase.committing);
-      final swSplit = Stopwatch()..start();
-      ref.read(saveTransactionProvider).executeSplit(
-            accountId: state.account!.id,
-            totalMinor: a0 + a1,
-            items: [
-              (categoryId: state.splitCat0!.id, amountMinor: a0),
-              (categoryId: state.splitCat1!.id, amountMinor: a1),
-            ],
-            occurredAt: state.occurredAt,
-            note: state.note.isEmpty ? null : state.note,
-          );
-      state = state.copyWith(
-        phase: QuickEntryPhase.savedDialog,
-        sessionCount: state.sessionCount + 1,
-        lastSaveMs: swSplit.elapsedMilliseconds,
-      );
-      ref.invalidate(ledgerProvider);
-      return;
-    }
     if (state.amount.isEmpty) return;
-    final amountMinor = int.tryParse(state.amount);
-    if (amountMinor == null || amountMinor <= 0) return; // 非法輸入：停留輸入態
+    // 即時求值（PM 2026-10-24：移除 ＝ 鍵 → 運算式直接求值；未完成／÷0 → 停留輸入態）。
+    final amountMinor = AmountKeypadEvaluator.evaluate(state.amount);
+    if (amountMinor == null || amountMinor <= 0) return;
     if (state.mode == QuickEntryMode.transfer && state.toAccount == null) return;
     state = state.copyWith(phase: QuickEntryPhase.committing);
     final sw = Stopwatch()..start();
@@ -322,6 +260,10 @@ class QuickEntryController extends AutoDisposeNotifier<QuickEntryState> {
             occurredAt: state.occurredAt,
             merchant: state.merchant.isEmpty ? null : state.merchant,
             note: state.note.isEmpty ? null : state.note,
+            // 收入模式（PM 2026-10-24）＝kind income；支出＝expense。
+            kind: state.mode == QuickEntryMode.income
+                ? TxKind.income
+                : TxKind.expense,
           );
     }
     // 「記住上次」（PM 2026-10-24）：以分類為單位記住金額/帳戶/商家。
@@ -329,7 +271,7 @@ class QuickEntryController extends AutoDisposeNotifier<QuickEntryState> {
     if (catId != null) {
       ref.read(quickEntryMemoryProvider).remember(
             categoryId: catId,
-            amount: state.amount,
+            amount: '$amountMinor', // 存求值後金額（非運算式）
             accountId: state.account?.id,
             merchant: state.merchant,
           );

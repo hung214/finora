@@ -19,6 +19,28 @@ class FirstRunBootstrap {
 
   static const _device = 'device-local';
 
+  /// 內建**主**類別 id（支出 14＋收入 2；PM 2026-10-22 定稿）。
+  static const builtInMainIds = {
+    'c-food', 'c-beauty', 'c-home', 'c-transport', 'c-edu', 'c-fun', 'c-3c',
+    'c-books', 'c-vehicle', 'c-health', 'c-social', 'c-invest', 'c-other',
+    'c-fee', 'c-income-general', 'c-income-invest',
+  };
+
+  /// 內建子類別數量（id＝`{parent}-s{i}`，i=0..n-1；PM 2026-10-22 簽核 61 項）。
+  static const builtInSubCounts = {
+    'c-food': 7, 'c-beauty': 4, 'c-home': 5, 'c-transport': 5, 'c-edu': 4,
+    'c-fun': 5, 'c-3c': 4, 'c-books': 3, 'c-vehicle': 5, 'c-health': 5,
+    'c-social': 4, 'c-invest': 3, 'c-other': 2, 'c-fee': 2,
+    'c-income-general': 4, 'c-income-invest': 3,
+  };
+
+  /// 內建分類 id 全集（「預設以外類別」＝不在此集合者；PM 2026-10-24）。
+  static Set<String> get builtInCategoryIds => {
+        ...builtInMainIds,
+        for (final e in builtInSubCounts.entries)
+          for (var i = 0; i < e.value; i++) '${e.key}-s$i',
+      };
+
   static Future<void> seedIfNeeded(AppDatabase db) async {
     if (db.allAccounts().isNotEmpty || db.categoriesByKind('expense').isNotEmpty) {
       return; // 冪等：已有任何帳戶/分類（部分建立情境由 F02 UI 接手）

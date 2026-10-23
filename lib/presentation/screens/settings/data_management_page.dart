@@ -29,7 +29,7 @@ class DataManagementPage extends ConsumerStatefulWidget {
   ConsumerState<DataManagementPage> createState() => _DataManagementPageState();
 }
 
-enum _WipeStep { idle, warning, pin, confirm, oauth, done }
+enum _WipeStep { idle, scope, warning, pin, confirm, oauth, done }
 
 class _DataManagementPageState extends ConsumerState<DataManagementPage> {
   _WipeStep _step = _WipeStep.idle;
@@ -43,6 +43,17 @@ class _DataManagementPageState extends ConsumerState<DataManagementPage> {
 
   final _pinController = TextEditingController();
   final _confirmController = TextEditingController();
+
+  /// 勾選之刪除範圍（PM 2026-10-24；預設全選）。
+  final Set<WipeScope> _scopes = {
+    WipeScope.transactions,
+    WipeScope.categories,
+    WipeScope.accounts,
+    WipeScope.budgets,
+  };
+
+  /// 「回到系統預設值」（與局部範圍互斥）：全清空＋重新播種內建集。
+  bool _factoryReset = false;
 
   bool get _linked =>
       (ref.read(dbProvider).getSetting('sync.account') ?? '').isNotEmpty;
@@ -66,10 +77,22 @@ class _DataManagementPageState extends ConsumerState<DataManagementPage> {
       } catch (_) {
         blobs = null; // 生產未接線（main() override 前）防護——測試必注入
       }
-      await WipeService(db,
-              cloud: linked ? ref.read(cloudAdapterProvider) : null,
-              blobsDir: blobs)
-          .wipe(includeCloud: linked);
+      final service = WipeService(db,
+          cloud: linked ? ref.read(cloudAdapterProvider) : null,
+          blobsDir: blobs);
+      if (_factoryReset) {
+        // 回到系統預設值：全清空（含雲端資料夾）＋下次啟動重新播種內建集。
+        await service.wipe(includeCloud: linked);
+      } else {
+        // 局部刪除（PM 2026-10-24）：刪除＋oplog 墓標（同步安全）。
+        String deviceId = 'device-local';
+        try {
+          deviceId = ref.read(syncCoordinatorProvider).deviceId;
+        } catch (_) {
+          // 未接線（測試未注入）→ 預設裝置 id。
+        }
+        service.wipeScoped(_scopes, deviceId: deviceId);
+      }
       if (mounted) {
         setState(() {
           _step = _WipeStep.done;
@@ -123,11 +146,14 @@ class _DataManagementPageState extends ConsumerState<DataManagementPage> {
 
   void _onConfirmSubmit() {
     final ok = _confirmController.text.trim() == _confirmPhrase;
+    // 局部刪除走 oplog 墓標（隨同步傳播）→ 不需「重新登入雲端帳號」加驗；
+    // 「回到系統預設值」（全清空＋雲端資料夾刪除）維持加驗身分（S9.2）。
+    final needOauth = _factoryReset && _linked;
     setState(() {
       _confirmError = !ok;
-      if (ok && _linked) _step = _WipeStep.oauth;
+      if (ok && needOauth) _step = _WipeStep.oauth;
     });
-    if (ok && !_linked) _executeWipe(); // 未連雲端：三重防護後直接執行
+    if (ok && !needOauth) _executeWipe(); // 三重防護後直接執行
   }
 
   @override
@@ -138,6 +164,7 @@ class _DataManagementPageState extends ConsumerState<DataManagementPage> {
           ? const Center(child: CircularProgressIndicator())
           : switch (_step) {
               _WipeStep.idle => _buildIdle(context),
+              _WipeStep.scope => _buildScope(context),
               _WipeStep.warning => _buildWarning(context),
               _WipeStep.pin => _buildPin(context),
               _WipeStep.confirm => _buildConfirm(context),
@@ -159,16 +186,96 @@ class _DataManagementPageState extends ConsumerState<DataManagementPage> {
               children: [
                 Text('清空資料', style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 8),
-                const Text('刪除本機所有交易、帳戶、分類與附件。此操作無法復原。'),
+                const Text('可勾選要刪除的範圍（明細／預設以外類別／帳戶／預算），'
+                    '或「回到系統預設值」。此操作無法復原。'),
                 const SizedBox(height: 12),
                 FilledButton.tonal(
                   key: const Key('wipe-start'),
-                  onPressed: () => setState(() => _step = _WipeStep.warning),
+                  onPressed: () => setState(() => _step = _WipeStep.scope),
                   child: const Text('清空資料'),
                 ),
               ],
             ),
           ),
+        ),
+      ],
+    );
+  }
+
+  /// 刪除範圍選擇（PM 2026-10-24）：勾選要清除的範圍；「回到系統預設值」互斥。
+  Widget _buildScope(BuildContext context) {
+    const all = WipeScope.values;
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Card(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: Text('選擇刪除範圍',
+                    style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+              CheckboxListTile(
+                key: const Key('wipe-scope-全部'),
+                value: !_factoryReset && _scopes.length == all.length,
+                title: const Text('全部（明細＋預設以外類別＋帳戶＋預算）'),
+                onChanged: (v) => setState(() {
+                  _factoryReset = false;
+                  if (v == true) {
+                    _scopes.addAll(all);
+                  } else {
+                    _scopes.clear();
+                  }
+                }),
+              ),
+              for (final sc in WipeScope.values)
+                CheckboxListTile(
+                  key: Key('wipe-scope-${sc.label}'),
+                  value: _scopes.contains(sc),
+                  title: Text(sc.label),
+                  onChanged: _factoryReset
+                      ? null
+                      : (v) => setState(() {
+                            if (v == true) {
+                              _scopes.add(sc);
+                            } else {
+                              _scopes.remove(sc);
+                            }
+                          }),
+                ),
+              const Divider(height: 1),
+              CheckboxListTile(
+                key: const Key('wipe-scope-factory'),
+                value: _factoryReset,
+                title: const Text('回到系統預設值（清空全部並還原內建分類／現金帳戶）'),
+                onChanged: (v) => setState(() {
+                  _factoryReset = v == true;
+                  _scopes
+                    ..clear()
+                    ..addAll(all);
+                }),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            TextButton(
+              onPressed: () => setState(() => _step = _WipeStep.idle),
+              child: const Text('取消'),
+            ),
+            const Spacer(),
+            FilledButton(
+              key: const Key('wipe-scope-next'),
+              onPressed: (!_factoryReset && _scopes.isEmpty)
+                  ? null
+                  : () => setState(() => _step = _WipeStep.warning),
+              child: const Text('下一步'),
+            ),
+          ],
         ),
       ],
     );
@@ -190,6 +297,14 @@ class _DataManagementPageState extends ConsumerState<DataManagementPage> {
                 .textTheme
                 .titleMedium
                 ?.copyWith(color: Theme.of(context).colorScheme.error),
+          ),
+          const SizedBox(height: 6),
+          // 勾選之範圍（PM 2026-10-24）。
+          Text(
+            _factoryReset
+                ? '• 回到系統預設值（全清空＋還原內建分類／現金帳戶）'
+                : '• ${_scopes.map((e) => e.label).join('、')}',
+            style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 8),
           TextButton(

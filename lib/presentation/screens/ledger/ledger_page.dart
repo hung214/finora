@@ -698,15 +698,16 @@ class TxTile extends StatelessWidget {
     }
   }
 
-  /// 標題（商家優先；無商家→分類名；轉帳＝轉帳／儲值）。
+  /// 標題＝**商家**欄位（PM 2026-10-24：不退回分類名——分類另於「分類」欄／副標）。
+  /// 轉帳／還款為型別語意（無商家）。
   String get _title {
     switch (tx.kind) {
       case 'transfer':
         return toAccount?.type == 'ewallet' ? '儲值' : '轉帳';
-      case 'income':
-        return tx.merchant ?? '收入';
+      case 'repayment':
+        return '還款';
       default:
-        return tx.merchant ?? (tx.categoryId != null ? categoryName : '支出');
+        return (tx.merchant ?? '').isEmpty ? '—' : tx.merchant!;
     }
   }
 
@@ -784,9 +785,10 @@ class TxTile extends StatelessWidget {
     final catText = _isTransferLike
         ? '—'
         : (categoryIcon != null ? '$categoryIcon $categoryName' : categoryName);
+    // 商家／對象（PM 2026-10-24）：＝**商家**欄位；轉帳＝帳戶→目標帳戶。
     final objText = _isTransferLike
         ? '$accountName → ${toAccount?.name ?? ''}'
-        : (tx.merchant ?? (tx.categoryId != null ? categoryName : '—'));
+        : ((tx.merchant ?? '').isEmpty ? '—' : tx.merchant!);
     return InkWell(
       key: Key('tx-row-${tx.id}'),
       onTap: onDelete,

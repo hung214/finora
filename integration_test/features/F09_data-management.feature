@@ -11,6 +11,7 @@ Feature: 資料清除 UI（前端自動化）
   Scenario: 三重防護對話順序（未連雲端）
     Given App 未連結雲端
     When 設定→資料管理→按下「清空資料」
+    And 選擇刪除範圍「全部」
     Then 顯示「將刪除所有資料且無雲端可還原」警告
     And 顯示「可先匯出備份檔」入口
     When 輸入 PIN 1234
@@ -31,6 +32,7 @@ Feature: 資料清除 UI（前端自動化）
     Given App 未連結雲端
     And App 未設定 PIN
     When 設定→資料管理→按下「清空資料」
+    And 選擇刪除範圍「全部」
     Then 顯示「將刪除所有資料且無雲端可還原」警告
     When 點「下一步」
     Then 顯示「確認文字輸入框」（不經 PIN 關卡）

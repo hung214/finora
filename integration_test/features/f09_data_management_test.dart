@@ -154,6 +154,13 @@ void _bind(GherkinRunner runner, _World w) {
   });
 
   // DBG-008：從未設定 PIN——覆寫 Background 的 PIN（_ensureApp 以無 pin 建構）。
+  runner.on(r'選擇刪除範圍「{label}」$', (p) async {
+    // PM 2026-10-24：勾選範圍 → 下一步（預設全選；label「全部」時不變更）。
+    await w.tester.pumpAndSettle();
+    await w.tester.tap(find.byKey(const Key('wipe-scope-next')));
+    await w.tester.pumpAndSettle();
+  });
+
   runner.on(r'App 未設定 PIN$', (p) {
     w.noPin = true;
     w.pin = '';
@@ -163,6 +170,9 @@ void _bind(GherkinRunner runner, _World w) {
   runner.on(r'設定→資料管理→按下「清空資料」並輸入 PIN 與確認文字$', (p) async {
     await _openDataManagement(w);
     await w.tester.tap(find.byKey(const Key('wipe-start')));
+    await w.tester.pumpAndSettle();
+    // 刪除範圍步驟（PM 2026-10-24）：預設全選 → 下一步 → 警告層。
+    await w.tester.tap(find.byKey(const Key('wipe-scope-next')));
     await w.tester.pumpAndSettle();
     await w.tester.tap(find.byKey(const Key('wipe-warning-continue')));
     await w.tester.pumpAndSettle();

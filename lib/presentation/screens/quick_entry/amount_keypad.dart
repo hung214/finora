@@ -1,21 +1,35 @@
 import 'package:flutter/material.dart';
 
-/// 金額計算機鍵盤（F02 S2.9：常駐四則運算；PM 2026-10-20 增補）。
+/// 金額計算機鍵盤（F02 S2.9：常駐四則運算）。
 ///
-/// - 鍵面：0-9／.／＋－×÷／＝／C／⌫（PM 2026-10-22 補小數點；結果仍四捨五入至整數元——
-///   多幣別隨 M2 S2.8 擴充）。
-/// - 常駐輸入（金額欄 `TextInputType.none` 不彈系統鍵盤）。
-/// - [onExprChanged]：運算式狀態變更（含 ＝ 求值結果）；呼叫端同步顯示與
-///   controller——儲存啟用由「純數字 > 0」決定，運算式未完成（含尾運算子）
-///   自然禁用。
-/// - 慣例：首鍵運算子忽略；連按運算子→**取代**前一運算子；＝ 對無效運算式
-///   （空/尾運算子/÷0/非法字元）為 no-op（保留原式，不可儲存）。
+/// **版面（PM 2026-10-24 定稿）**
+/// ```
+/// [C] [⌫] [OK]      ← 第一排＝C／刪除／OK（OK 取代原「＝」的位置與角色）
+/// [7] [8] [9] [÷]
+/// [4] [5] [6] [×]
+/// [1] [2] [3] [－]
+/// [   0   ] [.] [＋]  ← 0 跨兩格；＋ 移至原 ⌫ 位置
+/// ```
+/// - **無「＝」鍵**：運算式由呼叫端**即時求值**（未完成→儲存禁用）。
+/// - [onExprChanged]：運算式狀態變更；呼叫端同步顯示與 controller。
+/// - [onOk]／[okEnabled]：OK 儲存（鍵 `quick-entry-save`）。
+/// - 慣例：首鍵運算子忽略；連按運算子→**取代**前一運算子。
 class AmountKeypad extends StatelessWidget {
-  const AmountKeypad({super.key, required this.expr, required this.onExprChanged});
+  const AmountKeypad({
+    super.key,
+    required this.expr,
+    required this.onExprChanged,
+    this.onOk,
+    this.okEnabled = false,
+  });
 
   /// 當前運算式（如 "120＋45"；狀態由呼叫端持有——本元件受控）。
   final String expr;
   final ValueChanged<String> onExprChanged;
+
+  /// OK 儲存（PM 2026-10-24：鍵盤第一排）。
+  final VoidCallback? onOk;
+  final bool okEnabled;
 
   static const String _operators = '＋－×÷';
 
@@ -26,10 +40,6 @@ class AmountKeypad extends StatelessWidget {
         return;
       case '⌫':
         onExprChanged(expr.isEmpty ? '' : expr.substring(0, expr.length - 1));
-        return;
-      case '＝':
-        final result = AmountKeypadEvaluator.evaluate(expr);
-        if (result != null) onExprChanged('$result'); // 無效：保留原式
         return;
       case '.':
         // 小數點（PM 2026-10-22）：運算子後自動補 0.；同數字 token 內限一個。
@@ -55,54 +65,69 @@ class AmountKeypad extends StatelessWidget {
     }
   }
 
+  Widget _key(String label, {bool primary = false, VoidCallback? onTap, int flex = 1}) {
+    final child = Text(label, style: const TextStyle(fontSize: 20));
+    return Expanded(
+      flex: flex,
+      child: Padding(
+        padding: const EdgeInsets.all(4),
+        child: primary
+            ? FilledButton(
+                key: Key('keypad-$label'),
+                onPressed: onTap,
+                child: child,
+              )
+            : FilledButton.tonal(
+                key: Key('keypad-$label'),
+                onPressed: onTap ?? () => _tap(label),
+                child: child,
+              ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    const rows = [
-      ['7', '8', '9', '÷'],
-      ['4', '5', '6', '×'],
-      ['1', '2', '3', '－'],
-      ['C', '0', '.', '⌫'],
-    ];
-    const lastRow = ['＋', '＝'];
     return Container(
       key: const Key('amount-keypad'),
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          for (final row in rows)
-            Row(
-              children: [
-                for (final label in row)
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.all(4),
-                      child: FilledButton.tonal(
-                        key: Key('keypad-$label'),
-                        onPressed: () => _tap(label),
-                        child: Text(label,
-                            style: const TextStyle(fontSize: 20)),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+          // 第一排：C／⌫／OK（OK 取代「＝」；key 沿用 quick-entry-save）。
           Row(
             children: [
-              for (final label in lastRow)
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: FilledButton(
-                      key: Key('keypad-$label'),
-                      onPressed: () => _tap(label),
-                      child: Text(label,
-                          style: const TextStyle(fontSize: 20)),
-                    ),
+              _key('C'),
+              _key('⌫'),
+              Expanded(
+                flex: 1,
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: FilledButton(
+                    key: const Key('quick-entry-save'),
+                    onPressed: okEnabled ? onOk : null,
+                    style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(40)),
+                    child: const Text('OK',
+                        style: TextStyle(
+                            fontSize: 17, fontWeight: FontWeight.w800)),
                   ),
                 ),
+              ),
             ],
           ),
+          for (final row in const [
+            ['7', '8', '9', '÷'],
+            ['4', '5', '6', '×'],
+            ['1', '2', '3', '－'],
+          ])
+            Row(children: [for (final label in row) _key(label)]),
+          // 末排：0 跨兩格、小數點、＋（＋ 移至原 ⌫ 位置；＝ 已移除）。
+          Row(children: [
+            _key('0', flex: 2),
+            _key('.'),
+            _key('＋'),
+          ]),
         ],
       ),
     );
@@ -113,7 +138,8 @@ class AmountKeypad extends StatelessWidget {
 ///
 /// 左至右、**無運算子優先權**（計算機慣例，如 2×30＋10 = (2×30)＋10 = 70）；
 /// 結果四捨五入至整數（TWD 無小數位，S2.1 邊界）。無效運算式回 null：
-/// 空、尾運算子、÷0、非法字元——＝ 保持原式（儲存禁用）。
+/// 空、尾運算子、÷0、非法字元——**即時求值**（PM 2026-10-24 移除 ＝ 鍵：
+/// 未完成／無效 → 金額未定 → OK 禁用）。
 class AmountKeypadEvaluator {
   AmountKeypadEvaluator._();
 
