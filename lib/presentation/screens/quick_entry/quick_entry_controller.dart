@@ -304,6 +304,8 @@ class QuickEntryController extends AutoDisposeNotifier<QuickEntryState> {
     if (result == null) return; // 無可復原（如全部已撤）
     state = state.copyWith(sessionCount: state.sessionCount - 1);
     ref.invalidate(ledgerProvider);
+    // 復原＝軟刪除墓標 → 「最近刪除」須即時反映（PM 2026-10-25）。
+    ref.invalidate(recentDeletionsProvider);
   }
 }
 

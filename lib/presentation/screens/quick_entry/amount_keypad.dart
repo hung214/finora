@@ -109,8 +109,9 @@ class AmountKeypad extends StatelessWidget {
             children: [
               _key(context, 'C'),
               _key(context, '⌫'),
+              // OK **跨兩格**（10／03 雛型 grid-column:span 2）——第一排共 4 格對齊。
               Expanded(
-                flex: 1,
+                flex: 2,
                 child: Padding(
                   padding: const EdgeInsets.all(4),
                   child: Material(

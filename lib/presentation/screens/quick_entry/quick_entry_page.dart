@@ -8,7 +8,6 @@ import '../../../application/providers.dart';
 import '../../../data/sqlite/app_database.dart';
 import 'amount_keypad.dart';
 import 'category_picker_dialog.dart';
-import 'main_category_grid.dart';
 import 'quick_date_time_picker.dart';
 import '../settings/category_settings_page.dart';
 import 'quick_entry_controller.dart';
@@ -158,13 +157,13 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
                         controller.setMode(modes.first),
                   ),
                   const SizedBox(height: 12),
-                  // 金額大顯示（03 雛型）。
+                  // 金額大顯示（03／10 雛型：**右對齊**）。
                   TextField(
                     key: const Key('quick-entry-amount'),
                     controller: _amountCtrl,
                     autofocus: true, // S1.1-5
                     keyboardType: TextInputType.none, // 常駐鍵盤（F02 S2.9）
-                    textAlign: TextAlign.center,
+                    textAlign: TextAlign.end,
                     style: Theme.of(context)
                         .textTheme
                         .displaySmall
@@ -173,16 +172,16 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
                         hintText: '0', border: InputBorder.none),
                     onChanged: controller.setAmount,
                   ),
-                  // 三欄主類別快捷格（PM 2026-10-24：**手機與桌面同一版面**；轉帳不適用）。
-                  if (state.mode != QuickEntryMode.transfer) ...[
-                    MainCategoryGrid(
-                      categories: categories,
-                      selectedMainId:
-                          state.category?.parentId ?? state.category?.id,
-                      onSelect: (m) => controller.selectCategoryById(m.id),
-                    ),
-                    const SizedBox(height: 10),
-                  ],
+                  // 金額說明（原型 10）。
+                  Center(
+                    child: Text('金額（TWD・整數元）',
+                        style: TextStyle(
+                            fontSize: 13,
+                            color: Theme.of(context).colorScheme.outline)),
+                  ),
+                  const SizedBox(height: 4),
+                  // PM 2026-10-25：分類**不再平鋪**（03／10 雛型）——改由下方「分類」欄
+                  // 開彈窗；三欄快捷格僅保留於**桌面面板**（08 雛型）。
                   // 日期（PM 2026-10-23）：◀▶ 快調 ±1 天；點擊開日曆（不離開頁）。
                   // FittedBox：窄幅自動縮放（永不溢出；2026-10-24 修 55px 溢出）。
                   FittedBox(
@@ -238,62 +237,94 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
                       ],
                     ),
                   ),
-                  _pickerField(
-                    key: const Key('quick-entry-account'),
-                    label: state.mode == QuickEntryMode.transfer
-                        ? '來源帳戶'
-                        : '帳戶',
-                    text: state.account?.name ?? '選擇帳戶',
-                    entries:
-                        accounts.map((a) => (a.id, a.name, false)).toList(),
-                    recent: const [],
-                    onSelected: controller.selectAccountById,
+                  // 帳戶 ｜ 分類（原型 10：**同一列兩欄**）；轉帳＝來源｜目標帳戶。
+                  // IntrinsicHeight＋stretch＝兩欄方框**等高**（欄位天然高不同也不歪）。
+                  IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: _pickerField(
+                            key: const Key('quick-entry-account'),
+                            label: state.mode == QuickEntryMode.transfer
+                                ? '來源帳戶'
+                                : '帳戶',
+                            text: state.account?.name ?? '選擇帳戶',
+                            entries: accounts
+                                .map((a) => (a.id, a.name, false))
+                                .toList(),
+                            recent: const [],
+                            onSelected: controller.selectAccountById,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: state.mode == QuickEntryMode.transfer
+                              ? _pickerField(
+                                  key: const Key('quick-entry-target'),
+                                  label: '目標帳戶',
+                                  text: state.toAccount?.name ?? '選擇目標帳戶',
+                                  // 同帳戶轉帳 UI 阻擋（S2.3 邊界）：目標排除來源。
+                                  entries: accounts
+                                      .where((a) => a.id != state.account?.id)
+                                      .map((a) => (a.id, a.name, false))
+                                      .toList(),
+                                  recent: const [],
+                                  onSelected: controller.selectToAccountById,
+                                )
+                              // 分類欄（PM 2026-10-24）：點選 → 彈窗（上常用／左主／右子）；
+                              // 顯示「主類別 emoji ＋ 類別名」（子類別＝主類別 emoji＋子名）。
+                              : InkWell(
+                                  key: const Key('quick-entry-category'),
+                                  onTap: _openCategoryPicker,
+                                  child: InputDecorator(
+                                    decoration: const InputDecoration(
+                                        labelText: '分類',
+                                        border: OutlineInputBorder(),
+                                        isDense: true),
+                                    child: Text(
+                                        state.category == null
+                                            ? '選擇分類'
+                                            : _chipLabel(
+                                                iconOfCategory(state.category),
+                                                state.category!.name),
+                                        overflow: TextOverflow.ellipsis),
+                                  ),
+                                ),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 12),
-                  if (state.mode == QuickEntryMode.transfer) ...[
-                    _pickerField(
-                      key: const Key('quick-entry-target'),
-                      label: '目標帳戶',
-                      text: state.toAccount?.name ?? '選擇目標帳戶',
-                      // 同帳戶轉帳 UI 阻擋（S2.3 邊界）：目標排除來源帳戶。
-                      entries: accounts
-                          .where((a) => a.id != state.account?.id)
-                          .map((a) => (a.id, a.name, false))
-                          .toList(),
-                      recent: const [],
-                      onSelected: controller.selectToAccountById,
-                    ),
-                  ] else ...[
-                    // 分類欄（PM 2026-10-24）：點選 → 彈窗（上常用／左主／右子）；
-                    // 顯示「主類別 emoji ＋ 類別名」（子類別＝主類別 emoji＋子名）。
-                    InkWell(
-                      key: const Key('quick-entry-category'),
-                      onTap: _openCategoryPicker,
-                      child: InputDecorator(
-                        decoration: const InputDecoration(
-                            labelText: '分類',
-                            border: OutlineInputBorder(),
-                            isDense: true),
-                        child: Text(state.category == null
-                            ? '選擇分類'
-                            : _chipLabel(iconOfCategory(state.category),
-                                state.category!.name)),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
+                  if (state.mode == QuickEntryMode.transfer)
+                    // 轉帳：分類／商家不適用（原型 10 手機 B）。
+                    TextField(
+                      enabled: false,
+                      decoration: const InputDecoration(
+                          labelText: '分類／商家',
+                          hintText: '不適用（轉帳語意）',
+                          border: OutlineInputBorder(),
+                          isDense: true),
+                    )
+                  else
                     TextField(
                       key: const Key('quick-entry-merchant'),
                       controller: _merchantCtrl,
-                      decoration: const InputDecoration(labelText: '商家'),
+                      decoration: const InputDecoration(
+                          labelText: '商家',
+                          border: OutlineInputBorder(),
+                          isDense: true),
                       onChanged: controller.setMerchant,
                     ),
-                  ],
                   const SizedBox(height: 12),
                   // 備註（PM 2026-10-24；選填；轉帳亦適用）。
                   TextField(
                     key: const Key('quick-entry-note'),
                     controller: _noteCtrl,
-                    decoration: const InputDecoration(labelText: '備註（選填）'),
+                    decoration: const InputDecoration(
+                        labelText: '備註（選填）',
+                        border: OutlineInputBorder(),
+                        isDense: true),
                     onChanged: controller.setNote,
                   ),
                 ],
@@ -494,11 +525,14 @@ class _QuickEntryPageState extends ConsumerState<QuickEntryPage> {
           ),
       ],
       child: InputDecorator(
+        // 方框＋緊湊（PM 2026-10-25：與分類欄一致——原型 10 皆為方框）。
         decoration: InputDecoration(
           labelText: label,
+          border: const OutlineInputBorder(),
+          isDense: true,
           suffixIcon: const Icon(Icons.arrow_drop_down),
         ),
-        child: Text(text),
+        child: Text(text, overflow: TextOverflow.ellipsis),
       ),
     );
   }

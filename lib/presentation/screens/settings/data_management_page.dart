@@ -93,6 +93,13 @@ class _DataManagementPageState extends ConsumerState<DataManagementPage> {
         }
         service.wipeScoped(_scopes, deviceId: deviceId);
       }
+      // 範圍刪除可能軟刪交易/分類/帳戶/預算 → 衍生快取一律失效重算
+      // （PM 2026-10-25：明細範圍刪除後「最近刪除」須看得到）。
+      ref.invalidate(ledgerProvider);
+      ref.invalidate(recentDeletionsProvider);
+      ref.invalidate(expenseCategoriesProvider);
+      ref.invalidate(incomeCategoriesProvider);
+      ref.invalidate(activeAccountsProvider);
       if (mounted) {
         setState(() {
           _step = _WipeStep.done;

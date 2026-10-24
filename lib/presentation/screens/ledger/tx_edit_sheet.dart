@@ -114,6 +114,9 @@ class _TxEditSheetState extends ConsumerState<_TxEditSheet> {
     );
     if (ok != true) return;
     DeleteTransactionUseCase(ref.read(dbProvider)).execute(widget.tx.id);
+    // PM 2026-10-25：刪除後除明細外，**「最近刪除」亦須即時反映**（原僅刷新明細
+    // → 該筆不會出現在最近刪除，顯示舊快取）。
+    ref.invalidate(recentDeletionsProvider);
     widget.onChanged();
     if (mounted) Navigator.of(context).pop();
   }
@@ -134,6 +137,8 @@ class _TxEditSheetState extends ConsumerState<_TxEditSheet> {
           note: _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
         );
     DeleteTransactionUseCase(ref.read(dbProvider)).execute(widget.tx.id);
+    // 拆分同樣刪除原交易 → 一併刷新最近刪除（同上）。
+    ref.invalidate(recentDeletionsProvider);
     widget.onChanged();
     if (mounted) Navigator.of(context).pop();
   }
