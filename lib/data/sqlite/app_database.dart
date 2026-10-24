@@ -1165,6 +1165,22 @@ class AppDatabase {
     }
   }
 
+  /// **單筆**實體清除墓標（「最近刪除」→「永久刪除」；PM 2026-10-24）。
+  /// 語意**完全同** [purgeTransactionsDeletedBefore]：實體刪列、**oplog 墓標保留**
+  /// （軟刪除當下已寫入 payload=NULL 墓標——其他裝置的刪除結果不受影響，
+  /// 同步安全；與 30 天屆滿自動清除同一條路徑）。
+  /// - 未刪除之交易拋 StateError（防「永久刪除」誤傷未刪除資料）。
+  /// - 已清除/不存在回 0（冪等——連點兩次不報錯）。
+  int purgeTombstoneById(String id) {
+    final tx = transactionById(id);
+    if (tx == null) return 0;
+    if (tx.deletedAt == null) {
+      throw StateError('永久刪除失敗：交易未刪除 $id');
+    }
+    _db.execute('DELETE FROM transactions WHERE id = ?', [id]);
+    return 1;
+  }
+
   /// 還原墓標（FR-T3 30 天內，acceptance F02 S2.5 步驟 3）：deleted_at → NULL
   /// + oplog **整列快照**（非墓標——還原是 UPDATE，同步端以快照覆蓋）於
   /// **同一 transaction**（鏡像 [softDeleteTransactionWithOplog] 契約）。

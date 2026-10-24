@@ -208,6 +208,7 @@ M8（**新增：UI 對照雛型整合＋設定群**）：
 | Fix | **明細列顯示補齊＋PC 分類欄（PM 2026-10-24）**：`TxTile` 補分類圖示圓（子類別取主類別）＋標題退回分類名＋副標「時間 · 帳戶 · 分類 · 備註」；轉帳 🏦／儲值 📲／拆分 🔀；PC 快記面板分類欄與手機一致（`desktop-quick-category`）。同步 BDD F2／F02 acceptance S2.11／SDD §8.1／dsl v1.13／雛型 02/08 | ✅（隨快記 v3 一併發佈） |
 | Fix | **子類別無圖示（PM 2026-10-24）**：子類別不擁有 icon——顯示取主類別圖示；分類管理子列不顯 emoji／子類別表單無圖示選項（清空入庫）；快記分類欄「主 emoji＋子名」／彈窗右欄僅名稱／預算子格僅名稱；PC 面板高亮所屬主類別；UI_DEMO 展開態子列＋規則⑤；雛型 09 v4。同步 SPEC FR-B1／SDD §5.6／BDD F11／F11 acceptance S11.2-12／dsl v1.12 | ✅（隨快記 v3 一併發佈） |
 | Feature | **快記 v3（PM 2026-10-24 回饋）**：分類選擇**彈窗**（上常用／左主類別／右子類別；＋置欄頂即建即選）＋**備註**欄（手機／PC）＋**記住上次**（`QuickEntryMemory`：選子分類帶入上次金額/帳戶/商家，settings 本機記憶）；PC 面板補日期列/帳戶/商家/備註（保留三欄分類格）。同步 SPEC FR-Q4/Q5／SDD §5.1／BDD F1／F01 acceptance S1.12-13／dsl §4.6／雛型 03/10/08 | ✅（待 PM 預覽確認後發版） |
+| Feature | **「最近刪除」直接刪除（PM 2026-10-24 需求增補）**：①單筆 `recent-delete-purge-{id}`＋②清空全部 `recent-delete-purge-all`，皆**二次確認**（`recent-delete-purge-confirm`／`-cancel`）→ `PurgeTombstoneUseCase`（`AppDatabase.purgeTombstoneById`／`executeAll` 走同一 30 天清除路徑）＝**實體刪除、oplog 墓標保留**（同步安全）；未刪除者拋 StateError（防誤刪）、清除後回 0（冪等）③原型 `12-recent-deletions.html`＋DEMO「12 最近刪除」。TODOLIST：BE ✅／UC ✅／FE ✅／測試 ✅／雛型 ✅／DEMO ✅／文件 ✅／驗證 ✅ | ✅（fix 分支待 PM 驗收） |
 | Fix | **DBG-009 分類設定變更不連動＋子分類無法編輯**（PM 實機回報）：`_refresh` 失效衍生快取（expense/income/ledger）＋新增 `incomeCategoriesProvider`；子列 `cat-edit-{name}`（改名/emoji/顏色）；emoji 庫 33；同步 SPEC FR-B1／SDD §5.6/§7.2／BDD F11／acceptance F11 S11.2／ui 09／debug.md | ✅（待 v0.4.21 發佈） |
 
 - 狀態更新規則：🔴/🟢 由 CI 與 PR 自動可推導；🔵 與 ✅ 由開發者於 PR 描述更新；每 Sprint 結束回寫本表（對應 research §2.2 出口條件）。

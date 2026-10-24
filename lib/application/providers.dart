@@ -12,6 +12,7 @@ import 'quick_entry/undo_last_transaction_use_case.dart';
 import 'sync/auto_sync_service.dart';
 import 'sync/sync_coordinator.dart';
 import 'transactions/delete_transaction_use_case.dart';
+import 'transactions/purge_tombstone_use_case.dart';
 import 'transactions/restore_transaction_use_case.dart';
 
 /// App 資料庫（M1）。
@@ -85,6 +86,10 @@ final repayStatementProvider = Provider(
 /// 還原交易（FR-T3：「最近刪除」還原，F02-FE）。
 final restoreTransactionProvider =
     Provider((ref) => RestoreTransactionUseCase(ref.watch(dbProvider)));
+
+/// 永久刪除墓標（FR-T3：「最近刪除」→ 直接刪除／清空全部；PM 2026-10-24）。
+final purgeTombstoneProvider =
+    Provider((ref) => PurgeTombstoneUseCase(ref.watch(dbProvider)));
 
 /// 待確認定期交易數（明細頁 badge；F06-FE）——確認/跳過後 refresh。
 final recurringDueCountProvider =

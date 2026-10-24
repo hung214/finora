@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>12 最近刪除（還原／永久刪除） — LedgerSync UI 雛型</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI","Noto Sans TC",system-ui,sans-serif}
+body{background:#e8ecef;display:flex;gap:300px;padding:40px;align-items:flex-start;flex-wrap:wrap}
+.frame{position:relative;flex:none}
+.phone{width:390px;height:844px;background:#F5F7F8;border-radius:40px;border:10px solid #1c1f22;position:relative;overflow:hidden}
+.notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:120px;height:24px;background:#1c1f22;border-radius:0 0 16px 16px;z-index:9}
+.screen{position:absolute;inset:0;padding:48px 16px 24px;overflow-y:auto}
+.note{position:absolute;left:410px;width:250px;background:#FFF7C2;border-left:4px solid #E6B800;padding:10px 12px;font-size:12px;border-radius:6px;box-shadow:2px 2px 6px rgba(0,0,0,.15);line-height:1.5}
+.note b{display:block;margin-bottom:4px;color:#8a6d00}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.top h1{font-size:22px;color:#1c2b2a}
+.icon{width:38px;height:38px;border-radius:12px;background:#fff;color:#0B7A75;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.warn{background:#FFF1D6;color:#B45309;font-size:11px;border-radius:8px;padding:8px 10px;margin-bottom:10px;line-height:1.5}
+.card{background:#fff;border-radius:16px;padding:4px 12px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #F0F3F4}
+.item:last-child{border:none}
+.item .l{display:flex;align-items:center;gap:10px;min-width:0}
+.cicon{width:34px;height:34px;border-radius:50%;background:#EEF3F3;display:flex;align-items:center;justify-content:center;font-size:16px;flex:none}
+.t1{font-size:13.5px;color:#1c2b2a;font-weight:600}
+.t2{font-size:11px;color:#98a5a4;margin-top:2px}
+.amt{font-size:13px;color:#D64545;font-weight:700}
+.acts{display:flex;gap:2px;flex:none}
+.btn-s{font-size:12.5px;color:#0B7A75;font-weight:700;padding:6px 8px;border-radius:10px}
+.btn-d{font-size:12.5px;color:#D64545;font-weight:700;padding:6px 8px;border-radius:10px}
+.empty{text-align:center;color:#98a5a4;font-size:13px;padding:60px 0}
+/* 對話框 */
+.overlay{position:absolute;inset:0;background:rgba(18,26,25,.45);display:flex;align-items:center;justify-content:center;z-index:20}
+.dialog{width:300px;background:#fff;border-radius:20px;padding:20px 18px 12px;box-shadow:0 12px 32px rgba(0,0,0,.3)}
+.dialog h2{font-size:17px;color:#1c2b2a;margin-bottom:8px}
+.dialog p{font-size:13px;color:#5c6b6a;line-height:1.6;margin-bottom:16px}
+.dialog .row{display:flex;justify-content:flex-end;gap:8px}
+.d-ghost{font-size:14px;color:#7d8b8a;font-weight:700;padding:9px 14px;border-radius:12px}
+.d-danger{font-size:14px;color:#fff;background:#D64545;font-weight:800;padding:9px 16px;border-radius:12px}
+.d-teal{font-size:14px;color:#fff;background:#0B7A75;font-weight:800;padding:9px 16px;border-radius:12px}
+</style>
+</head>
+<body>
+
+<!-- ① 清單（含還原／永久刪除／清空全部） -->
+<div class="frame">
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="screen">
+      <div class="top">
+        <h1>最近刪除</h1>
+        <div class="icon">🗑️</div>
+      </div>
+      <div class="warn">🗓️ 交易刪除後可還原 <b>30 天</b>；逾期自動永久清除。「永久刪除」為<b>立即清除、無法還原</b>。</div>
+
+      <div class="card">
+        <div class="item">
+          <div class="l">
+            <div class="cicon">🍜</div>
+            <div>
+              <div class="t1">🍜 餐飲食品 · 支出 <span class="amt">120</span></div>
+              <div class="t2">10/18 09:12 · 剩餘 30 天</div>
+            </div>
+          </div>
+          <div class="acts"><span class="btn-s">還原</span><span class="btn-d">永久刪除</span></div>
+        </div>
+        <div class="item">
+          <div class="l">
+            <div class="cicon">🛒</div>
+            <div>
+              <div class="t1">🛒 購物 · 支出 <span class="amt">1,280</span></div>
+              <div class="t2">10/06 20:05 · 剩餘 12 天</div>
+            </div>
+          </div>
+          <div class="acts"><span class="btn-s">還原</span><span class="btn-d">永久刪除</span></div>
+        </div>
+        <div class="item">
+          <div class="l">
+            <div class="cicon">☕</div>
+            <div>
+              <div class="t1">☕ 咖啡 · 支出 <span class="amt">165</span></div>
+              <div class="t2">09/27 08:40 · 剩餘 3 天</div>
+            </div>
+          </div>
+          <div class="acts"><span class="btn-s">還原</span><span class="btn-d">永久刪除</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="note" style="top:60px"><b>S2.5 v2（PM 2026-10-24）</b>「最近刪除」新增<b>直接刪除</b>功能。<br>① 每列＝主類別圖示圓＋「分類 · 類型 金額」＋副標 <b>時間 · 剩餘 N 天</b>（省略「刪除於」以免窄幅折行）；動作 <b>還原</b>（teal）／<b>永久刪除</b>（紅）。<br>② AppBar 右上＝<b>清空全部</b>（僅有項目時顯示）。</div>
+  <div class="note" style="top:230px"><b>永久刪除語意</b>與「30 天屆滿自動清除」<b>同一條路徑</b>：<br>• 交易列<b>實體刪除</b>（無法還原）<br>• <b>oplog 墓標保留</b>——軟刪除當下已寫入，其他裝置的刪除結果不變（<b>同步安全</b>）</div>
+  <div class="note" style="top:400px"><b>邊界</b><br>• 未刪除之交易<b>不出現</b>於本頁（永久刪除僅作用於墓標）<br>• 已清除者重複點＝<b>無動作</b>（冪等，不報錯）<br>• 保留期＝<b>曆日</b>30 天（刪除日＋30）</div>
+</div>
+
+<!-- ② 二次確認（單筆） -->
+<div class="frame">
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="screen">
+      <div class="top">
+        <h1>最近刪除</h1>
+        <div class="icon">🗑️</div>
+      </div>
+      <div class="warn">🗓️ 交易刪除後可還原 <b>30 天</b>；逾期自動永久清除。「永久刪除」為<b>立即清除、無法還原</b>。</div>
+      <div class="card">
+        <div class="item">
+          <div class="l">
+            <div class="cicon">🍜</div>
+            <div>
+              <div class="t1">🍜 餐飲食品 · 支出 <span class="amt">120</span></div>
+              <div class="t2">10/18 09:12 · 剩餘 30 天</div>
+            </div>
+          </div>
+          <div class="acts"><span class="btn-s">還原</span><span class="btn-d">永久刪除</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="overlay">
+      <div class="dialog">
+        <h2>永久刪除？</h2>
+        <p>此操作無法還原，刪除後不會出現在「最近刪除」。</p>
+        <div class="row"><span class="d-ghost">取消</span><span class="d-danger">永久刪除</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="note" style="top:60px"><b>二次確認（必要）</b>永久刪除<b>不可逆</b> → 一律跳確認對話框。<br>確認鈕＝<b>紅</b>（danger）；取消＝ghost。<br>取消 → <b>不動任何資料</b>；確認 → 實體刪除＋清單即時移除＋SnackBar「已永久刪除 N 筆」。</div>
+  <div class="note" style="top:230px"><b>清空全部變體</b><br>標題「<b>清空全部？</b>」／內文「將永久刪除 <b>N</b> 筆，此操作無法還原。」（N＝目前清單筆數）<br>確認鈕同為紅。</div>
+  <div class="note" style="top:400px"><b>鍵（dsl §4.9）</b><br>單筆 <code>recent-delete-purge-{id}</code>／清空 <code>recent-delete-purge-all</code>／確認 <code>recent-delete-purge-confirm</code>／取消 <code>recent-delete-purge-cancel</code>／還原 <code>recent-delete-restore-{id}</code></div>
+</div>
+
+</body>
+</html>

@@ -583,6 +583,10 @@ abstract interface class CloudStorageAdapter {
   `FirstRunBootstrap.builtInCategoryIds`〕／accounts／budgets＝軟刪除）——多裝置合併一致；
   局部刪除**不需**雲端加驗（墓標隨同步傳播）。「回到系統預設值」＝全清空
   （`wipe`，含雲端資料夾）＋下次啟動重新播種內建集。
+- **永久刪除墓標（PM 2026-10-24）**：`PurgeTombstoneUseCase`（「最近刪除」頁）——
+  與 FR-T3 保留期屆滿之 `TombstonePurgeService` **同一條實體清除路徑**
+  （`transactions` 列實體刪除、**oplog 墓標保留**＝同步安全）；使用者**明示**刪除，
+  故**不受 30 天限制**（清空全部以「現在」為 cutoff）。
 
 ---
 
@@ -651,6 +655,13 @@ abstract interface class CloudStorageAdapter {
   `updateTransactionWithOplog` 整列快照，同一 DB transaction）；**拆分**（支出、
   無 split_group）＝2 子項（分類＋金額）→ `executeSplit` ＋原交易軟刪除。
   快記不再提供刪除/拆分入口。
+- **最近刪除（PM 2026-10-24 增補）**：明細 AppBar 入口 → `recent_deletions_page.dart`；
+  雛型 `specs/plan/ui/12-recent-deletions.html`。30 天內（**曆日**）可**還原**
+  （`RestoreTransactionUseCase`）；並可**永久刪除**——單筆 `recent-delete-purge-{id}`／
+  **清空全部** `recent-delete-purge-all`，兩者皆**二次確認**（`recent-delete-purge-confirm`／`-cancel`）
+  → `PurgeTombstoneUseCase`：`transactions` 列**實體刪除**、**oplog 墓標保留**
+  （與 `TombstonePurgeService` 30 天屆滿**同一條路徑**；未刪除者拋 StateError、
+  已清除者回 0 冪等；清空全部不受 30 天限制）。
 
 ---
 

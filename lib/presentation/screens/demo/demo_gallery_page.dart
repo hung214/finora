@@ -7,6 +7,7 @@ import 'demo_shared.dart';
 import 'ledger_demo_page.dart';
 import 'quick_entry_calc_demo_page.dart';
 import 'quick_entry_demo_page.dart';
+import 'recent_deletions_demo_page.dart';
 import 'settings_demo_page.dart';
 import 'stats_demo_page.dart';
 import 'budget_demo_page.dart';
@@ -35,6 +36,7 @@ class _DemoGalleryPageState extends State<DemoGalleryPage> {
       ('09 分類設定', 'specs/plan/ui/09-category-settings.html', const CategorySettingsDemoContent()),
       ('10 新增資料（金額輸入＋計算機）', 'specs/plan/ui/10-quick-entry-calc.html', const QuickEntryCalcDemoContent()),
       ('11 統計', 'specs/plan/ui/11-stats.html', const StatsDemoContent()),
+      ('12 最近刪除（還原／永久刪除）', 'specs/plan/ui/12-recent-deletions.html', const RecentDeletionsDemoContent()),
       ('09 設定與同步', 'specs/plan/ui/07-settings-sync.html', const SettingsDemoContent()),
     ];
     return DemoThemeScope(
